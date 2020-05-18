@@ -1,0 +1,1 @@
+Reworking integral closure in Macaulay2 and fixing bugs, improving performance.
