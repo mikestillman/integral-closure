@@ -19,8 +19,8 @@
 ---------------------------------------------------------------------------
 newPackage(
 	"ReesAlgebra",
-    	Version => "2.2", 
-    	Date => "November 2017",
+    	Version => "2.3", 
+    	Date => "November 2019",
     	Authors => {{
 		  Name => "David Eisenbud",
 		  Email => "de@msri.org"},
@@ -1138,15 +1138,15 @@ doc ///
   Headline
     Compute the defining ideal of the Rees Algebra
   Usage
-    reesAlgebra M
-    reesAlgebra(M,f)
+    A = reesAlgebra M
+    A = reesAlgebra(M,f)
   Inputs
     M:Module
       or @ofClass Ideal@ of a quotient polynomial ring $R$
     f:RingElement
       any non-zerodivisor in ideal or the first Fitting ideal of the module.  Optional
   Outputs
-    :Ring
+    A:Ring
       defining the Rees algebra of M
   Description
     Text

@@ -1,12 +1,9 @@
---Does the (integralClosure, Ring) code produce a set of module generators? I think it does.
---Note that the (integralClosure,Ring) code works in the inhomog case. At the moment
---the use of pushForward in this routine prevents us doing the inhomog case.
---I *think* the package PushForward fixes that, but the doc there doesn't say... .
 
-needsPackage "IntegralClosure"
-needsPackage "PushForward"
+loadPackage("IntegralClosure",Reload => true, FileName => "./IntegralClosure.m2")
 
-extendIdeal = method()
+needsPackage "ReesAlgebra"
+
+
 
 integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     S := ring I;
@@ -42,6 +39,7 @@ integralClosure(Ideal,RingElement) := Ideal => o -> (I,a) -> integralClosure(I, 
 integralClosure(Ideal) := Ideal => o -> I -> integralClosure(I, I_0, 1, o)
 
 
+extendIdeal = method()
 extendIdeal(Matrix) := Ideal => phi -> ( --This method is WRONG on integralClosure ideal"a2,b2".
     --input: f: (module I) --> M, an inclusion from an ideal 
     --to a module that is isomorphic to the inclusion of I into an ideal J containing I.
@@ -51,7 +49,7 @@ extendIdeal(Matrix) := Ideal => phi -> ( --This method is WRONG on integralClosu
     sz := syz transpose presentation target phi;    
     (q,r) = quotientRemainder(inc,phi0*sz);
     if r !=0 then error "phi is not isomorphic to an inclusion of ideals";
-    ideal (sz*q) -- is the "trim" doing anything?
+    trim ideal (sz*q)
     )
 
 basisOfDegreeD = method()
