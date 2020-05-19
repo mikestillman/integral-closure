@@ -3,8 +3,6 @@ loadPackage("IntegralClosure",Reload => true, FileName => "./IntegralClosure.m2"
 
 needsPackage "ReesAlgebra"
 
-
-
 integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     S := ring I;
     if a % I != 0 then error "The ring element should be an element of the ideal.";
@@ -209,4 +207,31 @@ Ig = content(g',S_1)
 Ifg = content(f'*g',S_1)
 assert((gens(If*Ig) % Ifg)!=0)
 assert(gens(If*Ig) % integralClosure Ifg == 0)
+
+-------------------------
+--Brian Harbourne's examples
+---------------------------
+restart
+needs "bug-integralClosure.m2"
+R=QQ[a,b,c,d,e,f]
+I=ideal(a*b*d,a*c*e,b*c*f,d*e*f);
+K1=integralClosure(I,1);
+K2=integralClosure(I,2);
+K3=integralClosure(I,3);
+K4=integralClosure(I,4);
+K5=integralClosure(I,5);
+---------------------------
+restart
+needs "bug-integralClosure.m2"
+R=ZZ/32003[a,b,c,d,e,f,g];
+I=ideal(a*b*d,b*c*e,c*d*f,a*e*f,a*c*g,d*e*g,b*f*g);
+time IC=integralClosure(I,2);
+----------------------
+restart
+needs "bug-integralClosure.m2"
+R=QQ[x,y,z];
+I=ideal(x*(y^3-z^3),y*(x^3-z^3),z*(x^3-y^3));
+IC2=integralClosure(I,2);
+IC3=integralClosure(I,3);
+
 
