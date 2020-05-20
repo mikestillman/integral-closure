@@ -15,7 +15,8 @@ newPackage(
 	AuxiliaryFiles => true
     	)
 
-debug PrimaryDecomposition
+generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
+rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
    
 export{
      "integralClosure", 
@@ -58,6 +59,8 @@ export{
      "S2Last", 
      "S2None", -- when to do S2-ification
      "RadicalBuiltin" -- true: use 'intersect decompose' to get radical, other wise use 'rad' in PrimaryDecomposition package
+
+
 
 verbosity = 0
 
@@ -562,8 +565,6 @@ vasconcelos(Ideal,RingElement) := (I,f) -> (
      (H,f)
      )
 
-debug Core -- for R.generatorSymbols
-
 ringFromFractions = method(Options=>{
 	  Variable => "w", 
 	  Index => 0,
@@ -589,7 +590,7 @@ ringFromFractions (Matrix, RingElement) := o -> (H, f) ->  (
      	  MO := prepend(GRevLex => n, (monoid R).Options.MonomialOrder);
           kk := coefficientRing R;
 	  var := makeVariable o;
-     	  A := kk(monoid [var_(o.Index,0)..var_(o.Index,n-1), R.generatorSymbols,
+     	  A := kk(monoid [var_(o.Index,0)..var_(o.Index,n-1), R#generatorSymbols,
 		    MonomialOrder=>MO, Degrees => degs]);
      	  I := ideal presentation R;
      	  IA := ideal ((map(A,ring I,(vars A)_{n..numgens R + n-1})) (generators I));
