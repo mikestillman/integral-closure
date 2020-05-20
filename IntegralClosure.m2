@@ -14,7 +14,6 @@ newPackage(
     	DebuggingMode => false,
 	AuxiliaryFiles => true
     	)
---
 
 debug PrimaryDecomposition
    
@@ -629,44 +628,48 @@ fInIdeal = (f,I) -> (
 
 
 ///
-restart
-load "IntegralClosure.m2"
-kk=ZZ/101
-S=kk[a,b,c,d]
-I=monomialCurveIdeal(S, {3,5,6})
-R=S/I
-K = ideal(b,c)
-f=b*d
-vasconcelos(K, f)
-endomorphisms(K, f)
-codim K
-R1=ringFromFractions vasconcelos(K,f)
-R2=ringFromFractions endomorphisms(K,f)
-betti res I -- NOT depth 2.
-time integralClosure(R, Strategy => {"vasconcelos"})
-time integralClosure(R, Strategy => {})
-makeS2 R
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  kk=ZZ/101
+  S=kk[a,b,c,d]
+  I=monomialCurveIdeal(S, {3,5,6})
+  R=S/I
+  K = ideal(b,c)
+  f=b*d
+  vasconcelos(K, f)
+  endomorphisms(K, f)
+  codim K
+  R1=ringFromFractions vasconcelos(K,f)
+  R2=ringFromFractions endomorphisms(K,f)
+  betti res I -- NOT depth 2.
+  time integralClosure(S/I, Strategy => {"vasconcelos"})
+  time integralClosure(S/I, Strategy => {})
+  makeS2 R
 ///
 
 ///
-
-restart
-load "integralClosure.m2"
-kk=ZZ/101
-S=kk[a,b,c,d]
-I=monomialCurveIdeal(S, {3,5,6})
-M=jacobian I
-D = randomMinors(2,2,M)
-R=S/I
-J = trim substitute(ideal D ,R)
-vasconcelos (J, J_0)
-codim((J*((ideal J_0):J)):ideal(J_0))
-endomorphisms (J,J_0)
-vasconcelos (radical J, J_0)
-endomorphisms (radical J,J_0)
-codim J
-syz gens J
-
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  kk=ZZ/101
+  S=kk[a,b,c,d]
+  I=monomialCurveIdeal(S, {3,5,6})
+  M=jacobian I
+  D = randomMinors(2,2,M)
+  R=S/I
+  J = trim substitute(ideal D ,R)
+  vasconcelos (J, J_0)
+  codim((J*((ideal J_0):J)):ideal(J_0))
+  endomorphisms (J,J_0)
+  vasconcelos (radical J, J_0)
+  endomorphisms (radical J,J_0)
+  codim J
+  syz gens J
 ///
 
 -- PURPOSE: check if an affine domain is normal.  
@@ -747,26 +750,31 @@ icMap(Ring) := RingMap => R -> (
      
 
 ///
-restart
-loadPackage"IntegralClosure"
-S = QQ [(symbol Y)_1, (symbol Y)_2, (symbol Y)_3, (symbol Y)_4, symbol x, symbol y, Degrees => {{7, 1}, {5, 1}, {6, 1}, {6, 1}, {1, 0}, {1, 0}}, MonomialOrder => ProductOrder {4, 2}]
-J =
-ideal(Y_3*y-Y_2*x^2,Y_3*x-Y_4*y,Y_1*x^3-Y_2*y^5,Y_3^2-Y_2*Y_4*x,Y_1*Y_4-Y_2^2*y^3)
-T = S/J       
-J = integralClosure T
-KF = frac(ring ideal J)
-M1 = first entries substitute(vars T, KF)
-M2 = apply(T.icFractions, i -> matrix{{i}})
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  -- TODO: fix this: J is first an ideal, then the integral closure.
+  --       last assert doesn't type match (List == Matrix).
+  S = QQ [(symbol Y)_1, (symbol Y)_2, (symbol Y)_3, (symbol Y)_4, symbol x, symbol y, Degrees => {{7, 1}, {5, 1}, {6, 1}, {6, 1}, {1, 0}, {1, 0}}, MonomialOrder => ProductOrder {4, 2}]
+  J =
+    ideal(Y_3*y-Y_2*x^2,Y_3*x-Y_4*y,Y_1*x^3-Y_2*y^5,Y_3^2-Y_2*Y_4*x,Y_1*Y_4-Y_2^2*y^3)
+  T = S/J       
+  J = integralClosure T
+  KF = frac(ring ideal J)
+  M1 = first entries substitute(vars T, KF)
+  M2 = apply(T.icFractions, i -> matrix{{i}})
 
-assert(icFractions T == substitute(matrix {{(Y_2*y^2)/x, (Y_1*x)/y,
-Y_1, Y_2, Y_3, Y_4, x, y}}, frac T))
+  assert(icFractions T == substitute(matrix {{(Y_2*y^2)/x, (Y_1*x)/y,
+                  Y_1, Y_2, Y_3, Y_4, x, y}}, frac T))
 ///
 
 --------------------------------------------------------------------
 icFractions = method()
 icFractions(Ring) := Matrix => (R) -> (
      if R.?icFractions then R.icFractions
-     else if isNormal R then vars R
+     else if isNormal R then vars R -- MES TODO: is this too expensive?
      else (
 	  integralClosure R;
      	  R.icFractions	  
@@ -866,6 +874,11 @@ extendIdeal = (I,f) -> (
 *-
 
 TEST ///
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
   assert isNormal (QQ[x]/(x^2+1))
   assert not isNormal (QQ[x,y,z]/( ideal(x*y, z) * ideal (z-1) ))
   assert not isNormal (QQ[x,y,z]/( ideal(x*y)    * ideal (x-1,y-1) ))
@@ -879,13 +892,18 @@ TEST ///
   -- assert isNormal (QQ[x,y,z,t]/( ideal (x^2+y^2+z^2,t) * ideal(t-1) ))
 
 TEST ///
-debug IntegralClosure
-kk=ZZ/101
-S=kk[a,b,c]
-I =ideal"a3,ac2"
-M = module ideal"a2,ac"
-f=inducedMap(M,module I)
-extendIdeal(f)     
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  -- MES TODO: what is the test here?
+  kk=ZZ/101
+  S=kk[a,b,c]
+  I =ideal"a3,ac2"
+  M = module ideal"a2,ac"
+  f=inducedMap(M,module I)
+  extendIdeal(f)     
 ///
 
 integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
@@ -900,11 +918,8 @@ integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     psi := map(Rbar,S,DegreeMap =>d->prepend(0,d));
     zIdeal := ideal(map(Rbar,Reesi))((vars Reesi)_{0..numgens I -1});
     zIdealD := module zIdeal^D;
---    ID := I^D;
     LD := prepend(D,toList(degreeLength S:null));
---    LDplus := prepend(D+1,toList(degreeLength S:null));    
     degD := image basisOfDegreeD(LD,Rbar); --all gens of first-degree D.
---    degDplus := image basisOfDegreeD(LDplus,Rbar); --all gens of first-degree D.
     degsM := apply(degrees cover degD,d->drop(d,1));
     M := coimage map(degD,S^(-degsM),psi,id_(cover degD));
     mapback := map(S,Rbar, matrix{{numgens Rbar-numgens S:0_S}}|(vars S), DegreeMap => d -> drop(d, 1));
@@ -1019,16 +1034,17 @@ parametersInIdeal Ideal := I -> (
 	  s = s+1);
       ideal G)
 ///
-restart
---uninstallPackage "IntegralClosure"
---loadPackage "IntegralClosure"
-kk=ZZ/2
-S=kk[a,b,c,d]
-PP = monomialCurveIdeal(S,{1,3,4})
-betti res PP
-for count from 1 to 10 list parametersInIdeal PP
-for count from 1 to 10 list canonicalIdeal (S/PP)
-betti res oo
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  kk=ZZ/2
+  S=kk[a,b,c,d]
+  PP = monomialCurveIdeal(S,{1,3,4})
+  betti res PP
+  for count from 1 to 10 list parametersInIdeal PP
+  for count from 1 to 10 list canonicalIdeal (S/PP)
 ///     
 
 canonicalIdeal1 = method()
@@ -1052,19 +1068,21 @@ canonicalIdeal1 Ring := R -> (
      trim ideal f^-1 (image toIdeal))
 
 ///
-restart
-loadPackage "IntegralClosure"
-debug IntegralClosure
-A = ZZ/101[a..e]
-I = ideal"ab,bc,cd,de,ea"
-R = reesAlgebra I
-describe I
-describe R
-canonicalIdeal1 R
-canonicalIdeal R
-R1 = first flattenRing R
-canonicalIdeal1 R1
-canonicalIdeal R1
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  A = ZZ/101[a..e]
+  I = ideal"ab,bc,cd,de,ea"
+  R = reesAlgebra I
+  describe I
+  describe R
+  canonicalIdeal1 R
+  canonicalIdeal R
+  R1 = first flattenRing R
+  canonicalIdeal1 R1
+  canonicalIdeal R1
 ///
 
 canonicalIdeal = method()
@@ -1080,20 +1098,26 @@ canonicalIdeal Ring := R -> (
      Jp := J:P;
      trim (f^-1) promote(Jp,S)
      )
+
 ///
-kk=ZZ/101
-S=kk[a,b,c,d]
-canonicalIdeal S
-PP = monomialCurveIdeal(S,{1,3,4})
-betti res PP
-R = S/PP
-w=canonicalIdeal R
-debug IntegralClosure
-w1 = canonicalIdeal1 R -- a different, somewhat less leasing answer...
-F = homomorphism (Hom(w,w1))_{0}
-ker F
-prune coker F
-isIsomorphism F
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  kk=ZZ/101
+  S=kk[a,b,c,d]
+  canonicalIdeal S
+  PP = monomialCurveIdeal(S,{1,3,4})
+  betti res PP
+  R = S/PP
+  w=canonicalIdeal R
+  debug IntegralClosure
+  w1 = canonicalIdeal1 R -- a different, somewhat less leasing answer...
+  F = homomorphism (Hom(w,w1))_{0}
+  ker F
+  prune coker F
+  isIsomorphism F
 ///     
 
 makeS2 = method(Options=>{
@@ -1127,15 +1151,25 @@ makeS2 Ring := o -> R -> (
      )
 
 ///
-kk=ZZ/101
-S=kk[a,b,c,d]
-PP = monomialCurveIdeal(S,{1,3,4})
-betti res PP
-integralClosure(S/PP)
-integralClosure(target (makeS2(S/PP))_0)
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
+  kk=ZZ/101
+  S=kk[a,b,c,d]
+  PP = monomialCurveIdeal(S,{1,3,4})
+  betti res PP
+  integralClosure(S/PP)
+  integralClosure(target (makeS2(S/PP))_0)
 ///     
 
 TEST ///
+-*
+  restart
+  loadPackage "IntegralClosure"
+  debug loadPackage("IntegralClosure", Reload => true)
+*-
    setRandomSeed 2342351
    S = QQ[a..d]
 
@@ -1146,17 +1180,42 @@ TEST ///
 ///
 
 TEST ///
-C = QQ[B1,B2,B3,B4,B5,B6];
-I =  ideal(B4*B5+B1*B6,B1*B4+B2*B4-B3*B6,B1^2+B1*B2+B3*B5,B2*B5^2-B6^2,B1*B2*
+-*
+  restart
+  loadPackage("IntegralClosure", Reload => true)
+*-
+  C = QQ[B1,B2,B3,B4,B5,B6];
+  I =  ideal(B4*B5+B1*B6,B1*B4+B2*B4-B3*B6,B1^2+B1*B2+B3*B5,B2*B5^2-B6^2,B1*B2*
        B5+B4*B6,B3*B4^2-B6^2,B3^2*B4-B1*B6-B2*B6,B2*B3*B4-B3^2*B6-B5*B6,B3^3-B1
        *B2-B2^2+B3*B5,B1*B3^2+B1*B5+B2*B5,B1*B2*B3+B3^2*B5+B5^2,B1*B2^2+B2*B3*
        B5+B4^2,B3^2*B5^2+B5^3-B3*B4*B6,B2^3*B4-B2^2*B3*B6-B3^2*B5*B6-B4^3-B5^2*
        B6);
-D = C/I;
-assert(numgens integralClosure(D, Strategy=>{RadicalCodim1})==numgens D+2)
+  D = C/I;
+  integralClosure(D, Strategy=>{RadicalCodim1})
+  assert(numgens integralClosure(D, Strategy=>{RadicalCodim1})==numgens D+2)
 ///
 --------------------------------------------------------------------
 
+--the next two routines are used for the Dedekind-Mertens example.
+unflatten = method()
+unflatten(RingElement) := (x) -> (
+    -- check that x is a variable
+    i := index x;
+    R := ring x;
+    A := (coefficientRing R)[drop(gens R, {i,i})];
+    A[x]
+    )        
+
+content(RingElement, RingElement) := Ideal => (f,x) ->(
+--second argument should be a variable.    
+    S := ring x;
+    R := unflatten x;
+    psi := map(R,S);
+    phi := map(S,R);
+    trim ideal phi ((coefficients psi f)_1)
+    )
+
+--------------------------------------------------------------------
 beginDocumentation()
 
 doc ///
@@ -1967,135 +2026,135 @@ doc ///
 ///
 
 TEST ///
-S = ZZ/32003[a,b,c,d,x,y,z,u]
-I = ideal(
-   a*x-b*y,
-   b*u^7+b*u^6-2*b*z*u^4+b*u^5-2*b*z*u^3-2*b*z*u^2+3*b*z^2+c*x,
-   a*u^7+a*u^6-2*a*z*u^4+a*u^5-2*a*z*u^3-2*a*z*u^2+3*a*z^2+c*y,
-   b*z*u^6+9142*b*z*u^5+13715*b*z^2*u^3-9143*b*z*u^4-9145*b*u^5-13716*b*z^2*u^2-13712*b*z^2*u-13713*b*z*u^2+4568*b*z^2+9145*c*x*u-9145*c*x+4572*d*x,
-   a*z*u^6+9142*a*z*u^5+13715*a*z^2*u^3-9143*a*z*u^4-9145*a*u^5-13716*a*z^2*u^2-13712*a*z^2*u-13713*a*z*u^2+4568*a*z^2+9145*c*y*u-9145*c*y+4572*d*y,
-   c*u^8+7111*c*z*u^6+3556*d*u^7+10667*c*z*u^5+3556*d*u^6+14224*c*z^2*u^3+14223*c*z*u^4-7112*d*z*u^4+3556*d*u^5+10668*c*z^2*u^2-7112*d*z*u^3+7112*c*z^2*u-7112*d*z*u^2+10668*d*z^2);
-R = S/I
-time R' = integralClosure(R, Strategy=>{RadicalCodim1})
-use R
---assert(conductor icMap R == ideal"x,y,z-u,u2-u") -- MES: get conductor working on these...
+  S = ZZ/32003[a,b,c,d,x,y,z,u]
+  I = ideal(
+     a*x-b*y,
+     b*u^7+b*u^6-2*b*z*u^4+b*u^5-2*b*z*u^3-2*b*z*u^2+3*b*z^2+c*x,
+     a*u^7+a*u^6-2*a*z*u^4+a*u^5-2*a*z*u^3-2*a*z*u^2+3*a*z^2+c*y,
+     b*z*u^6+9142*b*z*u^5+13715*b*z^2*u^3-9143*b*z*u^4-9145*b*u^5-13716*b*z^2*u^2-13712*b*z^2*u-13713*b*z*u^2+4568*b*z^2+9145*c*x*u-9145*c*x+4572*d*x,
+     a*z*u^6+9142*a*z*u^5+13715*a*z^2*u^3-9143*a*z*u^4-9145*a*u^5-13716*a*z^2*u^2-13712*a*z^2*u-13713*a*z*u^2+4568*a*z^2+9145*c*y*u-9145*c*y+4572*d*y,
+     c*u^8+7111*c*z*u^6+3556*d*u^7+10667*c*z*u^5+3556*d*u^6+14224*c*z^2*u^3+14223*c*z*u^4-7112*d*z*u^4+3556*d*u^5+10668*c*z^2*u^2-7112*d*z*u^3+7112*c*z^2*u-7112*d*z*u^2+10668*d*z^2);
+  R = S/I
+  time R' = integralClosure(R, Strategy=>{RadicalCodim1})
+  use R
+  --assert(conductor icMap R == ideal"x,y,z-u,u2-u") -- MES: get conductor working on these...
 ///
 
 -- integrally closed test
 TEST ///
-R = QQ[u,v]/ideal(u+2)
-time J = integralClosure (R,Variable => symbol a) 
-use ring ideal J
-assert(ideal J == ideal(u+2))
-icFractions R  -- NOT GOOD?
+  R = QQ[u,v]/ideal(u+2)
+  time J = integralClosure (R,Variable => symbol a) 
+  use ring ideal J
+  assert(ideal J == ideal(u+2))
+  icFractions R  -- NOT GOOD?
 ///
 
 -- degrees greater than 1 test
 TEST ///
-R = ZZ/101[symbol x..symbol z,Degrees=>{2,5,6}]/(z*y^2-x^5*z-x^8)
-time J = integralClosure (R,Variable => symbol b) 
-use ring ideal J
-answer = ideal(b_(1,0)*x^2-y*z, x^6-b_(1,0)*y+x^3*z, -b_(1,0)^2+x^4*z+x*z^2)
-assert(ideal J == answer)
-use R
-assert(conductor(R.icMap) == ideal(x^2,y))
-assert((icFractions R) == first entries substitute(matrix {{y*z/x^2, x, y, z}},frac R))
+  R = ZZ/101[symbol x..symbol z,Degrees=>{2,5,6}]/(z*y^2-x^5*z-x^8)
+  time J = integralClosure (R,Variable => symbol b) 
+  use ring ideal J
+  answer = ideal(b_(1,0)*x^2-y*z, x^6-b_(1,0)*y+x^3*z, -b_(1,0)^2+x^4*z+x*z^2)
+  assert(ideal J == answer)
+  use R
+  assert(conductor(R.icMap) == ideal(x^2,y))
+  assert((icFractions R) == first entries substitute(matrix {{y*z/x^2, x, y, z}},frac R))
 ///
 
 -- multigraded test
 TEST ///
-R = ZZ/101[symbol x..symbol z,Degrees=>{{1,2},{1,5},{1,6}}]/(z*y^2-x^5*z-x^8)
-time J = integralClosure (R,Variable=>symbol a) 
-use ring ideal J
-assert(ideal J == ideal(-x^6+a_(1,0)*y-x^3*z,-a_(1,0)*x^2+y*z,a_(1,0)^2-x^4*z-x*z^2))
-use R
-assert(0 == matrix{icFractions R} - matrix {{y*z/x^2, x, y, z}})
+  R = ZZ/101[symbol x..symbol z,Degrees=>{{1,2},{1,5},{1,6}}]/(z*y^2-x^5*z-x^8)
+  time J = integralClosure (R,Variable=>symbol a) 
+  use ring ideal J
+  assert(ideal J == ideal(-x^6+a_(1,0)*y-x^3*z,-a_(1,0)*x^2+y*z,a_(1,0)^2-x^4*z-x*z^2))
+  use R
+  assert(0 == matrix{icFractions R} - matrix {{y*z/x^2, x, y, z}})
 ///
 
 -- multigraded homogeneous test
 TEST ///
-R = ZZ/101[symbol x..symbol z,Degrees=>{{4,2},{10,5},{12,6}}]/(z*y^2-x^5*z-x^8)
-time J = integralClosure (R,Variable=>symbol a) 
-use ring ideal J
-assert(ideal J == ideal(a_(1,0)*x^2-y*z,a_(1,0)*y-x^6-x^3*z,a_(1,0)^2-x^4*z-x*z^2))
-use R
-assert(0 == matrix {icFractions R} - matrix {{y*z/x^2, x, y, z}})
-assert(conductor(R.icMap) == ideal(x^2,y))
+  R = ZZ/101[symbol x..symbol z,Degrees=>{{4,2},{10,5},{12,6}}]/(z*y^2-x^5*z-x^8)
+  time J = integralClosure (R,Variable=>symbol a) 
+  use ring ideal J
+  assert(ideal J == ideal(a_(1,0)*x^2-y*z,a_(1,0)*y-x^6-x^3*z,a_(1,0)^2-x^4*z-x*z^2))
+  use R
+  assert(0 == matrix {icFractions R} - matrix {{y*z/x^2, x, y, z}})
+  assert(conductor(R.icMap) == ideal(x^2,y))
 ///
 
 -- Reduced not a domain test
 TEST ///
-S=ZZ/101[symbol a,symbol b,symbol c, symbol d]
-I=ideal(a*(b-c),c*(b-d),b*(c-d))
-R=S/I                              
-compsR = apply(decompose ideal R, J -> S/J)
-ansR = compsR/integralClosure
-compsR/icFractions
-apply(decompose ideal R, J -> integralClosure(S/J))
-assert all(compsR/icMap, f -> f == 1)
+  S=ZZ/101[symbol a,symbol b,symbol c, symbol d]
+  I=ideal(a*(b-c),c*(b-d),b*(c-d))
+  R=S/I                              
+  compsR = apply(decompose ideal R, J -> S/J)
+  ansR = compsR/integralClosure
+  compsR/icFractions
+  apply(decompose ideal R, J -> integralClosure(S/J))
+  assert all(compsR/icMap, f -> f == 1)
 ///
 
 --Craig's example as a test
 TEST ///
-S=ZZ/101[symbol x,symbol y,symbol z,MonomialOrder => Lex]
-I=ideal(x^6-z^6-y^2*z^4)
-Q=S/I
-time J = integralClosure (Q, Variable => symbol a)
-use ring ideal J
-assert(ideal J == ideal (x^2-a_(3,0)*z, a_(3,0)*x-a_(4,0)*z, a_(3,0)^2-a_(4,0)*x, a_(4,0)^2-y^2-z^2))
-use Q
-assert(conductor(Q.icMap) == ideal(z^3,x*z^2,x^3*z,x^4))
-assert(matrix{icFractions Q} == substitute(matrix{{x^3/z^2,x^2/z,x,y,z}},frac Q))
+  S=ZZ/101[symbol x,symbol y,symbol z,MonomialOrder => Lex]
+  I=ideal(x^6-z^6-y^2*z^4)
+  Q=S/I
+  time J = integralClosure (Q, Variable => symbol a)
+  use ring ideal J
+  assert(ideal J == ideal (x^2-a_(3,0)*z, a_(3,0)*x-a_(4,0)*z, a_(3,0)^2-a_(4,0)*x, a_(4,0)^2-y^2-z^2))
+  use Q
+  assert(conductor(Q.icMap) == ideal(z^3,x*z^2,x^3*z,x^4))
+  assert(matrix{icFractions Q} == substitute(matrix{{x^3/z^2,x^2/z,x,y,z}},frac Q))
 ///
 
 --Mike's inhomogenous test
 TEST ///
-R = QQ[symbol a..symbol d]
-I = ideal(a^5*b*c-d^2)
-Q = R/I
-L = time integralClosure(Q,Variable => symbol x, Keep=>{})
-use ring ideal L
-assert(ideal L == ideal(x_(1,0)^2-a*b*c))
-use Q
-matrix{icFractions Q} == matrix{{d/a^2,a,b,c}}
+  R = QQ[symbol a..symbol d]
+  I = ideal(a^5*b*c-d^2)
+  Q = R/I
+  L = time integralClosure(Q,Variable => symbol x, Keep=>{})
+  use ring ideal L
+  assert(ideal L == ideal(x_(1,0)^2-a*b*c))
+  use Q
+  assert(matrix{icFractions Q} == matrix{{d/a^2,a,b,c}})
 ///
 
 TEST ///
--- rational quartic, to make sure S2 is not being forgotten!
-S = QQ[a..d]
-I = monomialCurveIdeal(S,{1,3,4})
-R = S/I
-R' = integralClosure R
-assert(numgens R' == 5)
+  -- rational quartic, to make sure S2 is not being forgotten!
+  S = QQ[a..d]
+  I = monomialCurveIdeal(S,{1,3,4})
+  R = S/I
+  R' = integralClosure R
+  assert(numgens R' == 5)
 ///
+
 --Ex from Wolmer's book - tests longer example and published result.
 TEST ///
-R = ZZ/101[symbol a..symbol e]
-I = ideal(a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,a*b^3*c+b*c^3*d+a^3*b*e+c*d^3*e+a*d*e^3,a^5+b^5+c^5+d^5-5*a*b*c*d*e+e^5,a^3*b^2*c*d-b*c^2*d^4+a*b^2*c^3*e-b^5*d*e-d^6*e+3*a*b*c*d^2*e^2-a^2*b*e^4-d*e^6,a*b*c^5-b^4*c^2*d-2*a^2*b^2*c*d*e+a*c^3*d^2*e-a^4*d*e^2+b*c*d^2*e^3+a*b*e^5,a*b^2*c^4-b^5*c*d-a^2*b^3*d*e+2*a*b*c^2*d^2*e+a*d^4*e^2-a^2*b*c*e^3-c*d*e^5,b^6*c+b*c^6+a^2*b^4*e-3*a*b^2*c^2*d*e+c^4*d^2*e-a^3*c*d*e^2-a*b*d^3*e^2+b*c*e^5,a^4*b^2*c-a*b*c^2*d^3-a*b^5*e-b^3*c^2*d*e-a*d^5*e+2*a^2*b*c*d*e^2+c*d^2*e^4)
-S = R/I
-icFractions S
-time Sbar = integralClosure S
-M:=pushForward (icMap S, Sbar^1);
-assert(degree (M/(M_0)) == 2)
-assert(# icFractions S == 7)
+  R = ZZ/101[symbol a..symbol e]
+  I = ideal(a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,a*b^3*c+b*c^3*d+a^3*b*e+c*d^3*e+a*d*e^3,a^5+b^5+c^5+d^5-5*a*b*c*d*e+e^5,a^3*b^2*c*d-b*c^2*d^4+a*b^2*c^3*e-b^5*d*e-d^6*e+3*a*b*c*d^2*e^2-a^2*b*e^4-d*e^6,a*b*c^5-b^4*c^2*d-2*a^2*b^2*c*d*e+a*c^3*d^2*e-a^4*d*e^2+b*c*d^2*e^3+a*b*e^5,a*b^2*c^4-b^5*c*d-a^2*b^3*d*e+2*a*b*c^2*d^2*e+a*d^4*e^2-a^2*b*c*e^3-c*d*e^5,b^6*c+b*c^6+a^2*b^4*e-3*a*b^2*c^2*d*e+c^4*d^2*e-a^3*c*d*e^2-a*b*d^3*e^2+b*c*e^5,a^4*b^2*c-a*b*c^2*d^3-a*b^5*e-b^3*c^2*d*e-a*d^5*e+2*a^2*b*c*d*e^2+c*d^2*e^4)
+  S = R/I
+  icFractions S
+  time Sbar = integralClosure S
+  M = pushForward (icMap S, Sbar^1);
+  assert(degree (M/(M_0)) == 2)
+  assert(# icFractions S == 7)
 ///
 
 ///  -- this is part of the above example.  But what to really place into the test?
-time integralClosure (target((makeS2(S))_0), Verbosity => 3)
-StoSbar = (makeS2(S))_0;
-M:=pushForward (StoSbar, (target StoSbar)^1);
-gens M
-N=prune(M/M_0)
-assert(degree N == 2)
+  time integralClosure (target((makeS2(S))_0), Verbosity => 3)
+  StoSbar = (makeS2(S))_0;
+  M:=pushForward (StoSbar, (target StoSbar)^1);
+  gens M
+  N=prune(M/M_0)
+  assert(degree N == 2)
 
+  integralClosure(S)
+  time V = integralClosure (S, Variable => X)
+  degree S
+  codim singularLocus S
+  use ring ideal V
 
-integralClosure(S)
-time V = integralClosure (S, Variable => X)
-degree S
-codim singularLocus S
-use ring ideal V
-
-oldanswer = ideal(a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,
+  oldanswer = ideal(a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,
 	   a*b^3*c+b*c^3*d+a^3*b*e+c*d^3*e+a*d*e^3,
 	   a^5+b^5+c^5+d^5-5*a*b*c*d*e+e^5,
 	   a*b*c^4-b^4*c*d-X_0*e-a^2*b^2*d*e+a*c^2*d^2*e+b^2*c^2*e^2-b*d^2*e^3,
@@ -2114,9 +2173,9 @@ oldanswer = ideal(a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,
 	     2*a^2*b^3*d^3*e^2-5*a*b*c^2*d^4*e^2+4*b^3*c^2*d^2*e^3-3*a*d^6*e^3+
 	     5*a^2*b*c*d^2*e^4-b^2*d^4*e^4-2*b*c^3*d*e^5-a^3*b*e^6+3*c*d^3*e^6-a*d*e^8)
 
--- We need to check the correctness of this example!
-newanswer = ideal(
-  a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,
+  -- We need to check the correctness of this example!
+  newanswer = ideal(
+    a^2*b*c^2+b^2*c*d^2+a^2*d^2*e+a*b^2*e^2+c^2*d*e^2,
     a*b^3*c+b*c^3*d+a^3*b*e+c*d^3*e+a*d*e^3,
     a^5+b^5+c^5+d^5-5*a*b*c*d*e+e^5,
     X_1*e-a^3*b^2*c+b*c^2*d^3,
@@ -2133,65 +2192,71 @@ newanswer = ideal(
     X_0*X_1-a^2*b^7*d+b^3*c^4*d^3+a^4*b*c*d^4-a^2*b^2*d^6+a*c^2*d^7+4*b^2*c^2*d^5*e+b^6*d^2*e^2+b*c^5*d^2*e^2+3*a^2*c*d^5*e^2+b*d^7*e^2+a^4*b^3*e^3+4*c^3*d^4*e^3-2*a^3*d^3*e^4+b*d^2*e^7,
     X_0^2-a^4*b^4*d^2-a^2*c^4*d^4+7*b*c^3*d^6-2*b^5*c*d^3*e-2*c^6*d^3*e+2*a^3*b*d^5*e+5*c*d^8*e+a^3*c^3*d^2*e^2-6*a^2*b^3*d^3*e^2-a*b*c^2*d^4*e^2-2*a*b^5*d*e^3-2*b^3*c^2*d^2*e^3+5*a*d^6*e^3-a^2*b*c*d^2*e^4+a^3*b*e^6+c*d^3*e^6+a*d*e^8)
 
-assert(ideal V == newanswer)   
-icFractions S
+  assert(ideal V == newanswer)   
+  icFractions S
 ///
 
 -- Test of icFractions
 --TEST 
---///
---S = QQ [(symbol Y)_1, (symbol Y)_2, (symbol Y)_3, (symbol Y)_4, symbol x, symbol y, Degrees => {{7, 1}, {5, 1}, {6, 1}, {6, 1}, {1, 0}, {1, 0}}, MonomialOrder => ProductOrder {4, 2}]
---J = ideal(Y_3*y-Y_2*x^2,Y_3*x-Y_4*y,Y_1*x^3-Y_2*y^5,Y_3^2-Y_2*Y_4*x,Y_1*Y_4-Y_2^2*y^3)
---T = S/J       
---assert(icFractions T == substitute(matrix {{(Y_2*y^2)/x, (Y_1*x)/y, Y_1, Y_2, Y_3, Y_4, x, y}}, frac T))
---///
+///
+-*
+  restart
+  loadPackage("IntegralClosure", Reload => true)
+*-
+  S = QQ [(symbol Y)_1, (symbol Y)_2, (symbol Y)_3, (symbol Y)_4, symbol x, symbol y, Degrees => {{7, 1}, {5, 1}, {6, 1}, {6, 1}, {1, 0}, {1, 0}}, MonomialOrder => ProductOrder {4, 2}]
+  J = ideal(Y_3*y-Y_2*x^2,Y_3*x-Y_4*y,Y_1*x^3-Y_2*y^5,Y_3^2-Y_2*Y_4*x,Y_1*Y_4-Y_2^2*y^3)
+  T = S/J       
+  assert(icFractions T == 
+      flatten entries substitute(
+          matrix {{(Y_2*y^2)/x, (Y_1*x)/y, Y_1, Y_2, Y_3, Y_4, x, y}}, frac T))
+///
 
 -- Test of isNormal
 TEST ///
-S = ZZ/101[x,y,z]/ideal(x^2-y, x*y-z^2)
-assert(isNormal(S) == false)
-assert(isNormal(integralClosure(S)) == true)
+  S = ZZ/101[x,y,z]/ideal(x^2-y, x*y-z^2)
+  assert(isNormal(S) == false)
+  assert(isNormal(integralClosure(S)) == true)
 ///
 
 -- Test of icMap and conductor
 TEST ///
-R = QQ[x,y,z]/ideal(x^6-z^6-y^2*z^4)
-J = integralClosure(R);
-F = R.icMap
-assert(conductor F == ideal((R_2)^3, (R_0)*(R_2)^2, (R_0)^3*(R_2), (R_0)^4))
-icFractions R
+  R = QQ[x,y,z]/ideal(x^6-z^6-y^2*z^4)
+  J = integralClosure(R);
+  F = R.icMap
+  assert(conductor F == ideal((R_2)^3, (R_0)*(R_2)^2, (R_0)^3*(R_2), (R_0)^4))
+  icFractions R
 ///
 
 TEST ///
-R = QQ[x,y]/(y^2-x^3)
-R' = integralClosure(R, Keep=>{})
-assert(numgens R' == 1)
-assert(numgens ideal R' == 0)
-assert(icFractions R == {y/x})
-F = icMap R
-assert(target F === R')
-assert(source F === R)
+  R = QQ[x,y]/(y^2-x^3)
+  R' = integralClosure(R, Keep=>{})
+  assert(numgens R' == 1)
+  assert(numgens ideal R' == 0)
+  assert(icFractions R == {y/x})
+  F = icMap R
+  assert(target F === R')
+  assert(source F === R)
 ///
 
 TEST ///
---huneke2
-kk = ZZ/32003
-S = kk[a,b,c]
-F = a^2*b^2*c+a^4+b^4+c^4
-J = ideal jacobian ideal F
-substitute(J:F, kk) -- check local quasi-homogeneity!
-I=ideal first (flattenRing reesAlgebra J)
-betti I
-R = (ring I)/I
---time R'=integralClosure(R, Strategy => {StartWithOneMinor}, Verbosity =>3 ) -- this is bad in the first step!
-time R'=integralClosure(R, Verbosity =>3) -- this one takes perhaps too long for a test
-assert(numgens R' == 13)
-assert(numgens ideal gens gb ideal R' == 54) -- this is not an invariant...!
-R = (ring I)/I
-time R'=integralClosure(R, Verbosity =>3, Strategy=>{RadicalCodim1})
-assert(numgens R' == 13)
-assert(numgens ideal gens gb ideal R' == 54) -- this is not an invariant!
-icFractions R
+  --huneke2
+  kk = ZZ/32003
+  S = kk[a,b,c]
+  F = a^2*b^2*c+a^4+b^4+c^4
+  J = ideal jacobian ideal F
+  substitute(J:F, kk) -- check local quasi-homogeneity!
+  I=ideal first (flattenRing reesAlgebra J)
+  betti I
+  R = (ring I)/I
+  --time R'=integralClosure(R, Strategy => {StartWithOneMinor}, Verbosity =>3 ) -- this is bad in the first step!
+  time R'=integralClosure(R, Verbosity =>3) -- this one takes perhaps too long for a test
+  assert(numgens R' == 13)
+  assert(numgens ideal gens gb ideal R' == 54) -- this is not an invariant...!
+  R = (ring I)/I
+  time R'=integralClosure(R, Verbosity =>3, Strategy=>{RadicalCodim1})
+  assert(numgens R' == 13)
+  assert(numgens ideal gens gb ideal R' == 54) -- this is not an invariant!
+  icFractions R
 ///
 
 TEST ///
@@ -2201,34 +2266,19 @@ TEST ///
     assert (integralClosure I == integralClosure trim I)
 ///
 
---the next two routines are used for the Dedekind-Mertens example.
-unflatten = method()
-unflatten(RingElement) := (x) -> (
-    -- check that x is a variable
-    i := index x;
-    R := ring x;
-    A := (coefficientRing R)[drop(gens R, {i,i})];
-    A[x]
-    )        
-
-content(RingElement, RingElement) := Ideal => (f,x) ->(
---second argument should be a variable.    
-    S := ring x;
-    R := unflatten x;
-    psi := map(R,S);
-    phi := map(S,R);
-    trim ideal phi ((coefficients psi f)_1)
-    )
 
 
 end--
+
 restart
 uninstallPackage "IntegralClosure"
 restart
 installPackage "IntegralClosure"
 viewHelp IntegralClosure
+check IntegralClosure
 
 TEST ///
+  -- MES TODO: put assertions in here
   S = QQ[y,x,MonomialOrder=>Lex]
   F = poly"y5-y2+x3+x4"
   factor discriminant(F,y)
@@ -2240,40 +2290,23 @@ TEST ///
 
 TEST ///
   -- of idealizer
+  -- MES TODO: add assertions
   S = QQ[y,x,MonomialOrder=>Lex]
   F = poly"y4-y2+x3+x4"
   factor discriminant(F,y)
   R=S/F
   L = trim radical ideal(x_R)
-  (f1,g1,fra) = idealizer(L,L_0)
+  (f1,g1) = idealizer(L,L_0)
   U = target f1
   K = frac R
   f1
   g1
-  fra
-
   L = trim ideal jacobian R
 
   R' = integralClosure R
   icFractions R
   icMap R
 ///
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ---- Homogeneous Ex
 loadPackage"IntegralClosure"
@@ -2342,6 +2375,7 @@ phi
 #fracs
 
 ----------------------
+-- MES TODO: put these 2 functions into the Core
 random(ZZ,Ideal) := opts -> (d,J) -> random({d},J,opts)
 random(List,Ideal) := opts -> (d,J) -> (
      R := ring J;
@@ -2364,10 +2398,10 @@ JF = trim(ideal F + ideal jacobian matrix{{F}})
 codim JF
 radJF = radical(JF, Strategy=>Unmixed)
 decompose radJF
-integralClosure A
+elapsedTime integralClosure A -- MES TODO: 19 May 2020: 4.94 seconds on my MBP
 
 ---------------------- Birational Work
-
+-- MES TODO: what is this block of code testing?
 R = ZZ/101[b_1, x,y,z, MonomialOrder => {GRevLex => {7}, GRevLex=>{2,5,6}}]
 R = ZZ/101[x,y,z]
 S = R[b_1, b_0]
@@ -2393,20 +2427,22 @@ leadTerm gens gb Inew
 radical ideal oo
 
 
---- Recent tests and experiments for integral closure.
 ///
-restart
-loadPackage"IntegralClosure"
-R=ZZ/2[x,y,Weights=>{{8,9},{0,1}}]
-I=ideal(y^8+y^2*x^3+x^9) -- eliminates x and y at some point. 
-R=ZZ/2[x,y,Weights=>{{31,12},{0,1}}]
-I=ideal"y12+y11+y10x2+y8x9+x31" -- really long, should it really be this bad?
-A = R/I
-time A' = integralClosure(A, Verbosity => 1)
-transpose gens ideal S
+-*
+  restart
+  loadPackage"IntegralClosure"
+*-
+  R=ZZ/2[x,y,Weights=>{{8,9},{0,1}}]
+  I=ideal(y^8+y^2*x^3+x^9) -- eliminates x and y at some point. 
+  A = R/I
+  elapsedTime A' = integralClosure(A, Verbosity => 1) -- MES TODO: the ideal is messy, also: is the answer correct, given ZZ/2??
+
+  R=ZZ/2[x,y,Weights=>{{31,12},{0,1}}]
+  I=ideal"y12+y11+y10x2+y8x9+x31" -- really long, should it really be this bad?
+  A = R/I
+  elapsedTime A' = integralClosure(A, Verbosity => 1) -- MES TODO: pretty bad timing
+  transpose gens ideal A'
 ///
-
-
 
 --------------
 -- Examples --
@@ -2424,7 +2460,7 @@ icFractions R
 icMap R
 
 R = QQ[x,y]/(y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-time R' = integralClosure R
+time R' = integralClosure R 
 icFractions R
 icMap R
 
@@ -2438,7 +2474,6 @@ kk = ZZ/32003
 S = kk[v,u]
 I=ideal(5*v^6+7*v^2*u^4+6*u^6+21*v^2*u^3+12*u^5+21*v^2*u^2+6*u^4+7*v^2*u)
 R = S/I
-L = frac R
 time R' = integralClosure R
 ideal R'
 icFractions R
@@ -2458,30 +2493,27 @@ I = ideal(
 isHomogeneous I
 R = S/I;
 
-time icFractions R
+time icFractions R -- MES TODO: correct? better basis choice?
 errorDepth=0
-time A = icFracP R
+time A = icFracP R -- MES TODO: pretty long
 time A = integralClosure R;
 ----------------------------------------------
 -- Another example from Doug Leonard
 S = ZZ/2[z19,y15,y12,x9,u9,MonomialOrder=>{Weights=>{19,15,12,9,9},Weights=>{12,9,9,9,0},1,2,2}]
 I = ideal(y15^3+x9*u9*y15+x9^3*u9^2+x9^2*u9^3,y15^2+y12*x9*u9,z19^3+(y12+y15)*(x9+1)*u9*z19+(y12*(x9*u9+1)+y15*(x9+u9))*x9^2*u9)
 R = S/I
-
 time A = integralClosure R;
 
-
 S = ZZ/2[z19,y15,y12,x9,u9,MonomialOrder=>{Weights=>{19,15,12,9,9},Weights=>{12,9,9,9,0},1,2,2}]
-
 I = ideal(
      y15^2+y12*x9*u9,
      y15*y12+x9^2*u9+x9*u9^2+y15,
      y12^2+y15*x9+y15*u9+y12,
      z19^3+y12*x9^3*u9^2+z19*y15*x9*u9+y15*x9^3*u9+y15*x9^2*u9^2
        +z19*y12*x9*u9+z19*y15*u9+z19*y12*u9+y12*x9^2*u9)
-
 isHomogeneous I
 R = S/I;
+time A = integralClosure R;
 
 errorDepth=0
 time A = icFracP R
@@ -2494,6 +2526,7 @@ S = ZZ/32003[x,y];
 F = (y^2-3/4*y-15/17)^3-9*y*(y^2-3/4*y-15/17*x)-27*x^11
 R = S/F
 time R' = integralClosure R
+assert(R === R')
 use ring F
 factor discriminant(F,y)
 factor discriminant(F,x)
@@ -2523,9 +2556,10 @@ transpose gens ideal S
 icFracP R -- very much faster!
 ----------------------------------------------
 
+-- MES TODO: this doesn't run.
 restart
 -- in IntegralClosure dir:
-load "runexamples.m2"
+load "IntegralClosure/runexamples.m2"
 runExamples(H,10,Verbosity=>3)
 
 
@@ -2543,6 +2577,7 @@ R=S/I;
 time P=presentation(integralClosure(R));    -- used 4.73 seconds
 toString(gens gb P)
 
+-- MES TODO: FractionalIdeals is not here!
 loadPackage "FractionalIdeals"
 S=ZZ/2[z,y,x,MonomialOrder=>{2,1}];
 I=ideal(z^7+x^5*(x+1)^5*(x^2+x+1)^3,y^2+y*x+x*(x^2+x+1));
@@ -2630,7 +2665,6 @@ TEST ///
   restart
   load "IntegralClosure.m2"
 *-
-    S=ZZ/32003[a,b,c,d,e,f]
     S=QQ[a,b,c,d,e,f]
     I=ideal(a*b*d,a*c*e,b*c*f,d*e*f);
     trim(J=I^2)
