@@ -10,18 +10,33 @@ newPackage(
 	     {Name => "Mike Stillman", Email => "mike@math.cornell.edu", HomePage => "http://www.math.cornell.edu/~mike"}
 	     },
     	Headline => "integral closure",
-     	PackageImports => { "PrimaryDecomposition", "ReesAlgebra" },
+     	PackageImports => { 
+            "PrimaryDecomposition", 
+            "ReesAlgebra",
+            "FastLinAlg",
+            "Normaliz"
+             },
+         PackageExports => {
+            "MinimalPrimes"
+             },
     	DebuggingMode => false,
 	AuxiliaryFiles => true
     	)
 
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
+
+-- MES TODO: put these 2 functions into the Core
+random(ZZ,Ideal) := opts -> (d,J) -> random({d},J,opts)
+random(List,Ideal) := opts -> (d,J) -> (
+     R := ring J;
+     B := basis(6,J);
+     (super(B * random(source B, R^(-d), opts)))_(0,0)
+     )
    
 export{
      "integralClosure", 
      "integralClosures", 
-     "Verbosity",
      "Keep",
      "conductor", 
      "icFractions", 
@@ -1943,21 +1958,6 @@ document {
 --     Caveat => "NOTE: How do I make M2 put icFracP on the list of all functions that use Limit?"
 }
 
-doc ///
-  Key
-    Verbosity
-  Headline
-    optional argument describing how verbose the output should be
-  Description
-   Text
-     Specifying the optional argument {\tt Verbosity => n}, where $n$ is an integer
-     tells the routine how much output should be given.  A value of 0 means be silent.
-     The larger the value $n$, the more output one might see.
-  SeeAlso
-    integralClosure
-    icFracP
-///
-
 document {
      Key => [icFracP,Verbosity],
      Headline => "Prints out the conductor element and
@@ -2272,8 +2272,10 @@ TEST ///
 end--
 
 restart
+uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
+installPackage "MinimalPrimes"
 installPackage "IntegralClosure"
 viewHelp IntegralClosure
 check IntegralClosure
@@ -2376,13 +2378,6 @@ phi
 #fracs
 
 ----------------------
--- MES TODO: put these 2 functions into the Core
-random(ZZ,Ideal) := opts -> (d,J) -> random({d},J,opts)
-random(List,Ideal) := opts -> (d,J) -> (
-     R := ring J;
-     B := basis(6,J);
-     (super(B * random(source B, R^(-d), opts)))_(0,0)
-     )
 
 kk = ZZ/101
 R = kk[x,y,z]
