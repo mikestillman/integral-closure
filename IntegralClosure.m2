@@ -26,6 +26,8 @@ newPackage(
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
 
+installMinprimes()
+
 -- MES TODO: put these 2 functions into the Core
 random(ZZ,Ideal) := opts -> (d,J) -> random({d},J,opts)
 random(List,Ideal) := opts -> (d,J) -> (
@@ -77,7 +79,7 @@ export{
 
 
 
-verbosity = 0
+verbosity = 0 
 
 --- Should Singh/Swanson be an option to integralClosure or its own
 --- program.  Right now it is well documented on its own.  I'm not
@@ -121,7 +123,7 @@ idealInSingLocus = (S, opts) -> (
      else
           t1 = timing (J = minors(codim ideal S, jacobian S));
 
-     if verbosity >= 1 then (
+     if opts.Verbosity >= 1 then (
         << t1#0 << " sec #minors " << numgens J << "]" << endl;
 	);
      J
@@ -877,6 +879,7 @@ icPIdeal (RingElement, RingElement, ZZ) := Ideal => (a, D, N) -> (
 ----------------------------------------
 -- Integral closure of ideal -----------
 ----------------------------------------
+-- MES TODO: remove this commented out code that doesn't really work anyway, and has been supplanted.
 -*
 extendIdeal = (I,f) -> (
      --input: f: (module I) --> M, a map from an ideal to a module that is isomorphic
@@ -910,8 +913,7 @@ TEST ///
 TEST ///
 -*
   restart
-  loadPackage "IntegralClosure"
-  debug loadPackage("IntegralClosure", Reload => true)
+  loadPackage("IntegralClosure", Reload => true)
 *-
   -- MES TODO: what is the test here?
   kk=ZZ/101
@@ -1501,7 +1503,7 @@ doc ///
      algorithm for computing the radical of ideals.  This will often produce a different
      presentation for the integral closure.
      
-     {\tt AllCodimensions} tels the algorithm to bypass the computation of the
+     {\tt AllCodimensions} tells the algorithm to bypass the computation of the
      S2-ification, but in each iteration of the algorithm, use the radical of
      the extended Jacobian ideal from the previous step, instead of using only the
      codimension 1 components of that.  This is useful when for some reason the
@@ -1570,7 +1572,7 @@ doc ///
     I:Ideal
       in a domain $R$
     f:RingElement
-      an element of the ideal $I$
+      a non-zero element of the ideal $I$
     Variable:Symbol
     Index:ZZ
   Outputs
@@ -1634,12 +1636,12 @@ doc ///
   Headline
     natural map from an affine domain into its integral closure
   Usage
-    icMap R
+    f = icMap R
   Inputs
     R:Ring
       an affine domain
   Outputs
-    :RingMap
+    f:RingMap
       from {\tt R} to its integral closure
   Description
    Text
@@ -1649,7 +1651,10 @@ doc ///
      map is returned.
    Example
      R = QQ[x,y]/(y^2-x^3)
-     icMap R
+     f = icMap R
+     isWellDefined f
+     source f === R
+     describe target f
    Text     
    
      This finite ring map can be used to compute the conductor,
@@ -2267,6 +2272,112 @@ TEST ///
     assert (integralClosure I == integralClosure trim I)
 ///
 
+-- added from bug-integralClosure.m2 May 2020
+TEST///
+-*
+    restart
+    loadPackage ("IntegralClosure", Reload=>true)
+*-
+    S = ZZ/101[a,b,c,d]
+    K =ideal(a,b)
+    I = c*d*K
+    M = module (c*K)
+    M' = module(d*K)
+    phi = map(M,module I,d*id_M)
+    phi' = map(M',module I,c*id_M')
+    assert(isWellDefined phi)
+    assert(extendIdeal phi == c*K)
+    assert(extendIdeal phi'== d*K)    
+    assert(integralClosure I == I)
+    assert(integralClosure ideal"a2,b2" == ideal"a2,ab,b2")
+///
+
+TEST///
+-*
+    restart
+    loadPackage ("IntegralClosure", Reload=>true)
+*-
+    S = ZZ/101[a,b,c]/ideal(a^3-b*(b-c)*(b+c))
+    K =ideal(a,b)
+    I = c*(b+c)*K
+    M = module (c*K)
+    M' = module((b+c)*K)
+    phi = map(M,module I,(b+c)*id_M)
+    phi' = map(M',module I,c*id_M')
+    assert(isWellDefined phi)
+    assert(isWellDefined phi')    
+    assert(extendIdeal phi == c*K)
+    assert(extendIdeal phi'== (b+c)*K)    
+    assert(integralClosure I == I) 
+///
+
+TEST///
+-*
+    restart
+    loadPackage ("IntegralClosure", Reload=>true)
+*-
+    S = ZZ/101[a,b,c]/ideal(a^3-b^2*c)
+    K =ideal(a,b)
+    I = c*(b+c)*K
+    M = module (c*K)
+    M' = module((b+c)*K)
+    phi = map(M,module I,(b+c)*id_M)
+    phi' = map(M',module I,c*id_M')
+    assert(isWellDefined phi)
+    assert(isWellDefined phi')    
+    assert(extendIdeal(phi)== c*K)
+    assert(extendIdeal(phi')== (b+c)*K)    
+    assert(integralClosure(ideal(a^2,b^2))==ideal"a2,ab,b2")
+    assert(integralClosure I == I)
+///
+
+
+
+TEST ///
+-*
+  restart
+  load "IntegralClosure.m2"
+*-
+    S=QQ[a,b,c,d,e,f]
+    I=ideal(a*b*d,a*c*e,b*c*f,d*e*f);
+    trim(J=I^2)
+    K=integralClosure(I,I_0,2) -- integral closure of J = I^2
+    assert(K == J+ideal"abcdef") 
+    
+    load "./IntegralClosure/brian-example1-answers.m2"
+    assert(ideal1 == elapsedTime integralClosure(I, I_0, 1))
+    assert(ideal2 == elapsedTime integralClosure(I, I_0, 2))
+    assert(ideal3 == elapsedTime integralClosure(I, I_0, 3))
+    assert(ideal4 == elapsedTime integralClosure(I, I_0, 4))
+    assert(ideal5 == elapsedTime integralClosure(I, I_0, 5))
+///
+
+TEST ///
+-- An example construction communicated to us by Craig Huneke
+-- Start with a polynomial f (but generally not quasi-homog), 
+-- consider the Jacobian ideal J, then f is in the integral closure of J.
+-- Actually, is this true?
+-*
+  restart
+  --load "IntegralClosure.m2"
+*-
+  kk = ZZ/32003
+  S = kk[x,y,z,t]
+  F = poly"xy-(z-t2)(z-t3)(z-t4)"
+  J = ideal jacobian ideal F
+  F % J
+  RJ = reesAlgebra J
+  RJ = first flattenRing RJ
+  see ideal RJ
+  elapsedTime RJ' = integralClosure(RJ, Verbosity => 2)
+  elapsedTime J' = integralClosure J
+  assert(J != J')
+  -- assert(F % J' == 0) -- false, is that correct!?  Ask David?
+  assert(isSubset(J, J'))
+  icFractions RJ -- note! MES TODO: RJ' doesn't store that it is an integral closure...?  icFractions RJ' takes awhile...
+  assert(10 == # icFractions RJ)
+///
+
 
 
 end--
@@ -2276,7 +2387,7 @@ uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"
-installPackage "IntegralClosure"
+elapsedTime installPackage "IntegralClosure"
 viewHelp IntegralClosure
 check IntegralClosure
 
@@ -2595,85 +2706,8 @@ basisOfDegreeD({2,null}, S)
 
 
 --start of file "bug-integralClosure.m2"
-TEST///
--*
-    restart
-    loadPackage ("IntegralClosure", Reload=>true)
-*-
-    S = ZZ/101[a,b,c,d]
-    K =ideal(a,b)
-    I = c*d*K
-    M = module (c*K)
-    M' = module(d*K)
-    phi = map(M,module I,d*id_M)
-    phi' = map(M',module I,c*id_M')
-    assert(isWellDefined phi)
-    assert(extendIdeal phi == c*K)
-    assert(extendIdeal phi'== d*K)    
-    assert(integralClosure I == I)
-    assert(integralClosure ideal"a2,b2" == ideal"a2,ab,b2")
-///
 
 
-TEST///
--*
-    restart
-    loadPackage ("IntegralClosure", Reload=>true)
-*-
-    S = ZZ/101[a,b,c]/ideal(a^3-b*(b-c)*(b+c))
-    K =ideal(a,b)
-    I = c*(b+c)*K
-    M = module (c*K)
-    M' = module((b+c)*K)
-    phi = map(M,module I,(b+c)*id_M)
-    phi' = map(M',module I,c*id_M')
-    assert(isWellDefined phi)
-    assert(isWellDefined phi')    
-    assert(extendIdeal phi == c*K)
-    assert(extendIdeal phi'== (b+c)*K)    
-    assert(integralClosure I == I) 
-///
-
-TEST///
--*
-    restart
-    loadPackage ("IntegralClosure", Reload=>true)
-*-
-    S = ZZ/101[a,b,c]/ideal(a^3-b^2*c)
-    K =ideal(a,b)
-    I = c*(b+c)*K
-    M = module (c*K)
-    M' = module((b+c)*K)
-    phi = map(M,module I,(b+c)*id_M)
-    phi' = map(M',module I,c*id_M')
-    assert(isWellDefined phi)
-    assert(isWellDefined phi')    
-    assert(extendIdeal(phi)== c*K)
-    assert(extendIdeal(phi')== (b+c)*K)    
-    assert(integralClosure(ideal(a^2,b^2))==ideal"a2,ab,b2")
-    assert(integralClosure I == I)
-///
-
-
-
-TEST ///
--*
-  restart
-  load "IntegralClosure.m2"
-*-
-    S=QQ[a,b,c,d,e,f]
-    I=ideal(a*b*d,a*c*e,b*c*f,d*e*f);
-    trim(J=I^2)
-    K=integralClosure(I,I_0,2) -- integral closure of J = I^2
-    assert(K == J+ideal"abcdef") 
-    
-    load "./IntegralClosure/brian-example1-answers.m2"
-    assert(ideal1 == elapsedTime integralClosure(I, I_0, 1))
-    assert(ideal2 == elapsedTime integralClosure(I, I_0, 2))
-    assert(ideal3 == elapsedTime integralClosure(I, I_0, 3))
-    assert(ideal4 == elapsedTime integralClosure(I, I_0, 4))
-    assert(ideal5 == elapsedTime integralClosure(I, I_0, 5))
-///
 
 --family of inhomogeneous examples suggested by craig:
 --integral dependence of a power series on its derivatives.
