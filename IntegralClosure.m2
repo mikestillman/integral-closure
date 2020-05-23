@@ -246,17 +246,45 @@ doingMinimalization = true;
 protect Radical
 protect AddMinors
 commonDenom = X -> findSmallGen intersect(apply (X, x->ideal x));
+
+-- Compute the list of  minimal primes of J
+-- Inputs:
+--   J:Ideal (in a ring R0.  R0 is an affine ring, which should be a domain).
+--   codim1only: Boolean
+--   nsteps: ZZ (currently unused.  If > 0, this was an indication to add in some minors of the 
+--       Jacobian ideal of J).
+--   strategies: List, containing a subset of: 
+--     RadicalCodim1, Radical, AddMinor
+--     These mean:
+--       Radical: compute radical using command 'radical'
+--       RadicalCodim1: compute radical using command 'rad' in PrimaryDecomposition package
+--       neither present: compute radical using 'decompose'.
+--       AddMinor: unused.  Used to be an indication of whether to add in some Jacobian determinants.
+-- Output: List, the list of minimal primes of J
+--     of codim <= 1 in R0/J (if codim1only is true, or RadicalCodimi1 is set, or
+--     of all codimensions, (otherwise)
+--     If codim J > 1 and we are only collecting components of codim 1, then {} is returned.
+-- Rational: 
+--   why does this function exist, rather than just calling minimalPrimes?
+-- What this does differently than minimalPrimes:
+--   replaces each generator of (trim J) (flattened ring too), with its squarefree part.
+--   in one case, it does call 'rad' in PrimaryDecompositions package.
+-- TODO for this function:
+--   remove nsteps.
+--   radical and decompose in M2 call the same function these days.
+--   remove dead code?
 radicalJ = (J,codim1only,nsteps,strategies) -> (
-     -- J is an ideal in R0.
-     -- compute the radical of J, or perhaps a list of 
-     -- components of J.  Possibly:
-     --  remove components of codim > 1 in R0.
-     --  add in new elements of the singular locus of J first, or after
-     --  computing the radical.
-     -- Choices for the radical:
-     --  (a) intersection of decompose
-     --  (b) use rad, limiting to codim 1
-     --  (c) what else?
+    -- Old comments, to remove;
+    -- J is an ideal in R0.
+    -- compute the radical of J, or perhaps a list of 
+    -- components of J.  Possibly:
+    --  remove components of codim > 1 in R0.
+    --  add in new elements of the singular locus of J first, or after
+    --  computing the radical.
+    -- Choices for the radical:
+    --  (a) intersection of decompose
+    --  (b) use rad, limiting to codim 1
+    --  (c) what else?
      useRadical := false;
      useRadicalCodim1 := false;
      useDecompose := true;
@@ -316,20 +344,30 @@ radicalJ = (J,codim1only,nsteps,strategies) -> (
 
 protect SimplifyFractions				    -- unexported ??
 
+-- integralClosure1: the iterative step in the integral closure algorithm.
+-- Some rings appearing here:
+--     R is an affine  domain, the original ring for which we are computing the integral closure
+--     R0 is a partial normalization.
+-- Inputs:
+--     F:RingMap, F : R -> R0, R0 is assumed to be a domain
+--     G:RingMap  G : frac R0 --> frac R (really, the list of fractions).
+--     J:Ideal, an ideal in the non-normal ideal of R0
+--     nsteps:ZZ
+--     varname:Symbol
+--     keepvars:List of variables to keep (where are these variables?) if/when we prune the ring.
+--     strategies:List of elements from:
+--       AllCodimensions
+--       SimplifyFractions
+--       doingMinimalization (always true, can't give this: it is currently a local variable set to true).
+-- Outputs:
+--     F1:RingMap, F1 : R --> R1, R1 is a (potentially) larger partial normalization.
+--     G1:RingMap, G1: frac R1 --> frac R (list of fractions, one for each variable in the new R1)
+--     J1:Ideal, J1 = radJ R1, the extension of the radical of J to R1.
+-- Features of the output:
+--     The ring R0 is integrally closed (normal) iff target F === target F1.
+--     New variables in the ring R1 will be named varname_(nsteps, 0), varnames_(nsteps, 1), ...
+
 integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
-     -- R is a domain, the original ring for which we are computing the integral closure
-     -- R0 is a partial normalization.
-     -- F : R -> R0, R0 is assumed to be a domain
-     -- G : frac R0 --> frac R (really, the list of fractions).
-     -- J : ideal in the non-normal ideal of R0
-     -- new variables will be named varname_(nsteps,0), varname_(nsteps,1), ...
-     -- Return value:
-     --  (F1,G1,J1)
-     --    where
-     --      F1 : R --> R1
-     --      G1 : frac R1 --> frac R
-     --      J1 : is the extension of J to an ideal of R1.
-     -- R1 is integrally closed iff target F === target F1
      codim1only := not member(AllCodimensions, strategies);
 
      R0 := target F;
@@ -365,7 +403,8 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
      
      --Here is where the fractions are moved back to the orig ring and reduced there;
      --need to put in a strategy option to decide whether to do this.
-     
+
+-- MES TODO: remoove these coomments     
 -*     
      G1 := map(target G, R0, matrix G);
      feR := G1 fe;
@@ -411,16 +450,11 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
 		 };
 	    (He1,fe1));
 	     
---<<endl;
---<<"He= " << flatten entries He  << endl;
---<<"He1= " << flatten entries He1  << endl;
-
      if verbosity >= 6 then (
 	  << "        reduced fractions: " << endl;
           << "        " << apply(flatten entries He, g -> G(g/fe)) << endl;
 	  );
 
---error();     
      t1 = timing((F0,G0) := ringFromFractions(He,fe,Variable=>varname,Index=>nsteps));
      
      if verbosity >= 2 then << t1#0 << " seconds" << endl;
@@ -447,7 +481,7 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
        iinvfrac := map(frac R1temp , frac R1, substitute(iinv,frac R1temp));
      
        -- We also want to trim the ring     
---error();     
+
        F0 = i*F0; -- R0 --> R1
        (F0*F,G*G0*iinvfrac,F0 radJ)
        )
@@ -516,6 +550,7 @@ findSmallGen = (J) -> (
      a := toList((numgens ring J):1);
      L := sort apply(J_*, f -> ((weightRange(a,f))_1, size f, f));
      --<< "first choices are " << netList take(L,3) << endl;
+     << "ideal: " << toString J << endl;
      L#0#2
      )
 
@@ -637,7 +672,7 @@ ringFromFractions (Matrix, RingElement) := o -> (H, f) ->  (
      	  -- Now construct the trivial maps
      	  F := map(R1, R, (vars R1)_{n..numgens R + n - 1});
 	  G := map(frac R, frac R1, matrix{fractions} | vars frac R);
---error();
+
 	  (F, G)
      )
 
@@ -1214,7 +1249,7 @@ TEST ///
        B5+B4^2,B3^2*B5^2+B5^3-B3*B4*B6,B2^3*B4-B2^2*B3*B6-B3^2*B5*B6-B4^3-B5^2*
        B6);
   D = C/I;
-  integralClosure(D, Strategy=>{RadicalCodim1})
+  integralClosure(D, Strategy=>{RadicalCodim1}, Verbosity=>6)
   assert(numgens integralClosure(D, Strategy=>{RadicalCodim1})==numgens D+2)
 ///
 --------------------------------------------------------------------
@@ -2047,6 +2082,7 @@ TEST ///
      c*u^8+7111*c*z*u^6+3556*d*u^7+10667*c*z*u^5+3556*d*u^6+14224*c*z^2*u^3+14223*c*z*u^4-7112*d*z*u^4+3556*d*u^5+10668*c*z^2*u^2-7112*d*z*u^3+7112*c*z^2*u-7112*d*z*u^2+10668*d*z^2);
   R = S/I
   time R' = integralClosure(R, Strategy=>{RadicalCodim1})
+    time R' = integralClosure(R)
   use R
   netList icFractions R
   assert isWellDefined icMap R
@@ -2414,7 +2450,7 @@ TEST ///
 
   I = intersect(I1^3, I2^3, I3^3, I4^3)
   F = I_0 + I_1 + I_2 + I_3
-  assert isHomogeneous f
+  assert isHomogeneous F
   S = R/F
   V = integralClosure S
   ring presentation V
@@ -2435,9 +2471,9 @@ uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"
-elapsedTime installPackage "IntegralClosure"
+elapsedTime installPackage "IntegralClosure" -- 13 seconds, MES MBP 2018, 23 May 2020.
 viewHelp IntegralClosure
-check IntegralClosure
+elapsedTime check IntegralClosure -- 28 seconds on MES MBP 2018, one error (can't find brian example answers file).
 
 TEST ///
   -- MES TODO: put assertions in here
