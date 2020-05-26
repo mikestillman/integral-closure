@@ -60,15 +60,18 @@ export{
      "idealizer", 
      "ringFromFractions", 
      "Index",
+     "SimplifyFractions", -- simplify fractions
 
      "RadicalCodim1",
      "AllCodimensions",
-     "extendIdeal"
+     
+     "extendIdeal",
+     "simplifyFractions"
      } 
 
      "endomorphisms",
      "vasconcelos",
-     "SimplifyFractions", -- simplify fractions
+
      "Endomorphisms", -- compute end(I)
      "Vasconcelos", -- compute end(I^-1).  If both this and Endomorphisms are set:
                  -- compare them.
@@ -377,6 +380,10 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
      radJ = trim intersect radJ;
 
      f := findSmallGen radJ; -- we assume that f is a non-zero divisor!!
+     
+     --TODO: put in a test for f a nzd, and an option isDomain => true
+     --syz matrix{{f}} ==0
+
      -- Compute Hom_S(radJ,radJ), using f as the common denominator.
 
      if verbosity >= 3 then <<"      small gen of radJ: " << f << endl << endl;
@@ -387,6 +394,8 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
 
      if verbosity >= 2 then << t1#0 << " seconds" << endl;
      if verbosity >= 6 then << "endomorphisms returns: " << netList flatten entries He << endl;
+
+     --TODO: make verbosity into Verbosity, a passed option
      
      -- here is where we improve or change our fractions
      if He == 0 then (
@@ -1208,34 +1217,30 @@ makeS2 Ring := o -> R -> (
 	  )
      )
 
-///
--*
-  restart
-  loadPackage "IntegralClosure"
-  debug loadPackage("IntegralClosure", Reload => true)
-*-
-  kk=ZZ/101
-  S=kk[a,b,c,d]
-  PP = monomialCurveIdeal(S,{1,3,4})
-  betti res PP
-  integralClosure(S/PP)
-  integralClosure(target (makeS2(S/PP))_0)
-///     
-
 TEST ///
 -*
   restart
   loadPackage "IntegralClosure"
   debug loadPackage("IntegralClosure", Reload => true)
 *-
-   setRandomSeed 2342351
-   S = QQ[a..d]
-
-   I = monomialCurveIdeal(S,{1,3,4})
-   R = S/I
-   R' = integralClosure R
-
-///
+  kk=ZZ/101
+  S = kk[a,b,d,e]
+  S' = kk[a,b,c,d,e]
+  I = monomialCurveIdeal(S,{1,3,4})
+  R = S/I
+  J = ideal integralClosure R
+  J' = ideal integralClosure(target (makeS2 R)_0)
+  assert(J' == substitute(J, ring J'))
+  J'' = monomialCurveIdeal(S', {1,2,3,4})
+  use S'
+  phi = map(S',ring J,{c,a,b,d,e})
+  assert(J'' == phi J)
+  use R
+  assert(first icFractions R == (d^2/e))
+  (f,g) = makeS2 R
+  assert(isWellDefined f)
+  assert(source f === R)
+///     
 
 TEST ///
 -*
@@ -1358,6 +1363,11 @@ doc ///
 doc ///
   Key
     (integralClosure, Ring)
+    [integralClosure, Keep]
+    [integralClosure, Limit]
+    [integralClosure, Variable]
+    [integralClosure, Verbosity]            
+    [integralClosure, Strategy]                
   Headline
     compute the integral closure (normalization) of an affine domain
   Usage
@@ -1365,6 +1375,13 @@ doc ///
   Inputs
     R:Ring
       a quotient of a polynomial ring over a field
+    Keep => List
+      of variables of R
+    Limit => ZZ
+    Variable => Symbol
+    Verbosity => ZZ
+    Strategy => List
+      of some of the symbols: AllCodimensions, SimplifyFractions, 
   Outputs
     R':Ring
       the integral closure of {\tt R}
