@@ -1,27 +1,25 @@
 newPackage( 
-	"IntegralClosure",
-    	Version => "1.0", 
-    	Date => "October 21, 2009",
-    	Authors => {
-	     {Name => "Amelia Taylor",
-   	     Email => "originalbrickhouse@gmail.com"
-	     },
-	     {Name => "David Eisenbud", Email => "de@msri.org", HomePage => "http://www.msri.org/~de/"},
-	     {Name => "Mike Stillman", Email => "mike@math.cornell.edu", HomePage => "http://www.math.cornell.edu/~mike"}
-	     },
-    	Headline => "integral closure",
-     	PackageImports => { 
-            "PrimaryDecomposition", 
-            "ReesAlgebra",
-            "FastLinAlg",
-            "Normaliz"
-             },
-         PackageExports => {
-            "MinimalPrimes"
-             },
-    	DebuggingMode => true,
-	AuxiliaryFiles => true
-    	)
+    "IntegralClosure",
+    Version => "1.09", 
+    Date => "29 May 2020",
+    Authors => {
+        {Name => "David Eisenbud", Email => "de@msri.org", HomePage => "http://www.msri.org/~de/"},
+        {Name => "Mike Stillman", Email => "mike@math.cornell.edu", HomePage => "http://www.math.cornell.edu/~mike"},
+        {Name => "Amelia Taylor", Email => "originalbrickhouse@gmail.com"}
+        },
+    Headline => "integral closure",
+    PackageImports => { 
+        "PrimaryDecomposition", 
+        "ReesAlgebra",
+        "FastLinAlg",
+        "Normaliz"
+        },
+    PackageExports => {
+        "MinimalPrimes"
+        },
+    DebuggingMode => true,
+    AuxiliaryFiles => true
+    )
 
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
@@ -40,52 +38,47 @@ random(List,Ideal) := RingElement => opts -> (d,J) -> ( -- MES TODO: fix this fu
 *-
    
 export{
+    -- methods
      "integralClosure", 
      "integralClosures", 
-     "Keep",
-     "conductor", 
      "icFractions", 
      "icMap", 
      "isNormal", 
-
+     "conductor", 
      "icFracP", 
-     "ConductorElement",
      "icPIdeal",
+     "makeS2",
+     "idealizer", 
+     "ringFromFractions", 
+     "extendIdeal",
+     "simplifyFractions",
+    -- optional argument nnames
+     "AddMinors",
+     "Keep",
+     "ConductorElement",
+     "Index",
+     "StartWithOneMinor",
+     "SimplifyFractions", -- simplify fractions
+     "Radical",
+     "RadicalCodim1",
+     "AllCodimensions"
+     } 
 
+-- MES TODO. The following are either to be removed or placed above.
 --     "canonicalIdeal", 
 --     "parametersInIdeal",
 --     "randomMinors",
-     "makeS2",
-
-     "idealizer", 
-     "ringFromFractions", 
-     "Index",
-     "SimplifyFractions", -- simplify fractions
-
-     "RadicalCodim1",
-     "AllCodimensions",
-     
-     "extendIdeal",
-     "simplifyFractions"
-     } 
-
      "endomorphisms",
      "vasconcelos",
-
      "Endomorphisms", -- compute end(I)
      "Vasconcelos", -- compute end(I^-1).  If both this and Endomorphisms are set:
                  -- compare them.
      "StartWithS2", -- compute S2-ification first
      "RecomputeJacobian",
-     "StartWithOneMinor",
      "S2First", 
      "S2Last", 
      "S2None", -- when to do S2-ification
      "RadicalBuiltin" -- true: use 'intersect decompose' to get radical, other wise use 'rad' in PrimaryDecomposition package
-
-
-
-verbosity = 0 
 
 --- Should Singh/Swanson be an option to integralClosure or its own
 --- program.  Right now it is well documented on its own.  I'm not
@@ -99,15 +92,13 @@ makeVariable = opts -> (
      )
 
 integralClosure = method(Options=>{
-	  Variable => "w",
-	  Limit => infinity,
-	  Strategy => {}, -- a mix of certain symbols
-     	  Verbosity => 0,
-	  Keep => null -- list of variables to not simplify away.  Default is all original vars
-	  }
-	)
-
-protect StartWithOneMinor
+        Variable => "w",
+        Limit => infinity,
+        Strategy => {}, -- a mix of certain symbols
+        Verbosity => 0,
+        Keep => null -- list of variables to not simplify away.  Default is all original vars
+        }
+    )
 
 idealInSingLocus = (S, opts) -> (
      -- Input: flattened poly ring S = S'/I, where S' is a poly ring.
@@ -136,10 +127,10 @@ idealInSingLocus = (S, opts) -> (
      )
 
 integralClosure Ring := Ring => o -> (R) -> (
-     -- 1 argument: affine ring R.  We might be able to handle rings over ZZ
-     --   if we choose J in the non-normal ideal some other way.
+     -- R: Ring, a reduced affine ring. TODO: can we handle integral closures over ZZ as well?
+     --   answer: if we choose J in the non-normal ideal some other way?
      if R.?icMap then return target R.icMap;
-     verbosity = o.Verbosity;
+     verbosity := o.Verbosity;
      strategies := set o.Strategy;
      (S,F) := flattenRing R;
 
@@ -191,25 +182,26 @@ integralClosure Ring := Ring => o -> (R) -> (
      --  unless we are using an option that
      --  doesn't require it.
      if not isS2 and codim1only then (
-	  if verbosity >= 1 then 
-	  << "   S2-ification " << flush;
-	   t1 = (timing F'G' := makeS2(target F,Variable=>makeVariable o,Verbosity=>verbosity));
-	   nsteps = nsteps + 1;
-	   if verbosity >= 1 then
-		<< t1#0 << " seconds" << endl;
-	   if F'G' === null then (
-		<< "warning: probabilistic computation of S2-ification failed " << endl;
-		<< "         reverting to standard algorithm" << endl;
-		strategies = strategies + set {AllCodimensions};
-		codim1only = false
-	   ) else (
-	   (F', G') := F'G';
-           F = F'*F;
-	   G = G*G';
-	   -- also extend J to be in this ring
-	   J = trim(F' J);
-	   isS2 = true;
-	   ));
+         if verbosity >= 1 then 
+         << "   S2-ification " << flush;
+         t1 = (timing F'G' := makeS2(target F,Variable=>makeVariable o,Verbosity=>verbosity));
+         nsteps = nsteps + 1;
+         if verbosity >= 1 then
+             << t1#0 << " seconds" << endl;
+	 if F'G' === null then (
+             << "warning: probabilistic computation of S2-ification failed " << endl;
+             << "         reverting to standard algorithm" << endl;
+             strategies = strategies + set {AllCodimensions};
+             codim1only = false
+	 ) else (
+             (F', G') := F'G';
+             F = F'*F;
+	     G = G*G';
+	     -- also extend J to be in this ring
+	     J = trim(F' J);
+	     isS2 = true;
+	     )
+         );
 
      -------------------------------------------
      -- Step 3: incrementally add to the ring --
@@ -221,7 +213,7 @@ integralClosure Ring := Ring => o -> (R) -> (
 
 	  if verbosity >= 1 then << " [step " << nsteps << ": " << flush;
 
-	  t1 = timing((F,G,J) = integralClosure1(F1,G,J,nsteps,makeVariable o,keepvars,strategies));
+	  t1 = timing((F,G,J) = integralClosure1(F1,G,J,nsteps,makeVariable o,keepvars,strategies, verbosity));
 
           if verbosity >= 1 then (
 		 if verbosity >= 5 then (
@@ -246,8 +238,6 @@ doingMinimalization = true;
 
 --the following finds an element in the intersection of the
 --principal ideals generated by the ring elements in a list.
-protect Radical
-protect AddMinors
 commonDenom = X -> findSmallGen intersect(apply (X, x->ideal x));
 
 -- Compute the list of  minimal primes of J
@@ -276,7 +266,7 @@ commonDenom = X -> findSmallGen intersect(apply (X, x->ideal x));
 --   remove nsteps.
 --   radical and decompose in M2 call the same function these days.
 --   remove dead code?
-radicalJ = (J,codim1only,nsteps,strategies) -> (
+radicalJ = (J,codim1only,nsteps,strategies,verbosity) -> (
     -- Old comments, to remove;
     -- J is an ideal in R0.
     -- compute the radical of J, or perhaps a list of 
@@ -345,8 +335,6 @@ radicalJ = (J,codim1only,nsteps,strategies) -> (
      radJ
      )
 
-protect SimplifyFractions				    -- unexported ??
-
 -- integralClosure1: the iterative step in the integral closure algorithm.
 -- Some rings appearing here:
 --     R is an affine  domain, the original ring for which we are computing the integral closure
@@ -370,12 +358,12 @@ protect SimplifyFractions				    -- unexported ??
 --     The ring R0 is integrally closed (normal) iff target F === target F1.
 --     New variables in the ring R1 will be named varname_(nsteps, 0), varnames_(nsteps, 1), ...
 
-integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
+integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies,verbosity) -> (
      codim1only := not member(AllCodimensions, strategies);
 
      R0 := target F;
      J = trim J;
-     radJ := radicalJ(J, codim1only, nsteps, strategies);
+     radJ := radicalJ(J, codim1only, nsteps, strategies,verbosity);
      if #radJ == 0 then return (F,G,ideal(1_R0));
      radJ = trim intersect radJ;
 
@@ -413,7 +401,7 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies) -> (
      --Here is where the fractions are moved back to the orig ring and reduced there;
      --need to put in a strategy option to decide whether to do this.
 
--- MES TODO: remoove these coomments     
+-- MES TODO: remove these comments     
 -*     
      G1 := map(target G, R0, matrix G);
      feR := G1 fe;
@@ -563,8 +551,13 @@ findSmallGen = (J) -> (
      L#0#2
      )
 
-idealizer = method(Options=>{Variable => "w", 
-	                Index => 0, Strategy => {}})
+idealizer = method(Options=>{
+        Variable => "w", 
+        Index => 0, 
+        Strategy => {},
+        Verbosity => 0
+        }
+    )
 
 idealizer (Ideal, RingElement) := o -> (J, g) ->  (
      -- J is an ideal in a ring R
@@ -580,7 +573,7 @@ idealizer (Ideal, RingElement) := o -> (J, g) ->  (
      --(Hv,fv) := vasconcelos(J,g);
      (He,fe) := endomorphisms(J,g);
      --<< "vasconcelos  fractions:" << netList prepend(fv,flatten entries Hv) << endl;
-     if verbosity >= 5 then << "endomorphism fractions:" << netList prepend(fe,flatten entries He) << endl;
+     if o.Verbosity >= 5 then << "endomorphism fractions:" << netList prepend(fe,flatten entries He) << endl;
 -*
      if member("vasconcelos", set o.Strategy) then (
 	  print "Using vasconcelos";
@@ -592,8 +585,7 @@ idealizer (Ideal, RingElement) := o -> (J, g) ->  (
      if H == 0 then 
 	  (id_R, map(frac R, frac R, vars frac R)) -- in this case R is isomorphic to Hom(J,J)
      else ringFromFractions(H,f,Variable=>makeVariable o,Index=>o.Index)
-	  )
-
+     )
 
 endomorphisms = method()
 endomorphisms(Ideal,RingElement) := (I,f) -> (
@@ -1191,7 +1183,6 @@ makeS2 = method(Options=>{
 	  Variable => "w",
 	  Verbosity => 0})
 makeS2 Ring := o -> R -> (
-    verbosity = o.Verbosity;
      --try to find the S2-ification of a domain (or more generally an
      --unmixed, generically Gorenstein ring) R.
      --    Input: R, an affine ring
@@ -1363,11 +1354,6 @@ doc ///
 doc ///
   Key
     (integralClosure, Ring)
-    [integralClosure, Keep]
-    [integralClosure, Limit]
-    [integralClosure, Variable]
-    [integralClosure, Verbosity]            
-    [integralClosure, Strategy]                
   Headline
     compute the integral closure (normalization) of an affine domain
   Usage
