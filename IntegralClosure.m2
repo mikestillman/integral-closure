@@ -997,10 +997,6 @@ integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     --the following line is ***slow***
     psi' := map(degD,S^(-degsM),psi,id_(cover degD));
     
---alpha := map(S,Rbar, toList ((numgens Rbar - numgens S):0_S)|gens S)
---M := coker compress alpha presentation degD;
-
-    
 -*    
     if opts.Verbosity >= 2 then(
       <<"doing coimage "<<flush;
@@ -1010,7 +1006,11 @@ integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
       M = coimage psi';
 *-      
     mapback := map(S,Rbar, matrix{{numgens Rbar-numgens S:0_S}}|(vars S), DegreeMap => d -> drop(d, 1));
-    M := coker compress mapback presentation degD;
+    pdegD := gens gb presentation degD;
+    origVarsInRbar := support sub(vars S, Rbar);
+    ind := select(toList(0..numcols pdegD-1), i -> isSubset(support pdegD_{i}, origVarsInRbar));
+
+    M := coker mapback pdegD_ind;
 
     phi := map(M,module(I^D), mapback matrix inducedMap(degD,zIdealD));
     if isHomogeneous I and isHomogeneous a then assert(isHomogeneous phi);
@@ -1021,6 +1021,14 @@ integralClosure(Ideal,ZZ) := Ideal => o -> (I,D) -> integralClosure(I, I_0, D, o
 integralClosure(Ideal,RingElement) := Ideal => o -> (I,a) -> integralClosure(I, a, 1, o)
 integralClosure(Ideal) := Ideal => o -> I -> integralClosure(I, I_0, 1, o)
 
+-*
+blocksOfVariables = method()
+blocksOfVariables Ring := List => R -> (
+    S := ambient R;
+    MO := S.monoid.Options.MonomialOrder;
+    select(MO, A-> first A =!=
+    for A in MO list (
+*-    
 
 --remove this
 -*integralClosure(Ideal, ZZ) := opts -> (I,D) ->(
@@ -2503,7 +2511,7 @@ TEST ///
 end--
 
 restart
-uninstallAllPackages()
+--uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"
@@ -2886,6 +2894,7 @@ Ifg = content(f'^2*g'^2,S_0)
 assert((gens(If*Ig) % Ifg)!=0)
 assert(gens(If*Ig) % integralClosure Ifg == 0)
 
+
 setRandomSeed 0
 kk = ZZ/32003
 S = kk[a,b,c,d]
@@ -2900,7 +2909,7 @@ Ig = content(g',S_0)
 
 Ifg = content(f'*g',S_0)
 assert((gens(If*Ig) % Ifg)!=0)
-elapsedTime assert(gens(If*Ig) % IfintegralClosure(Ifg, Verbosity => 4) == 0)
---bug!
+elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
+
 
 
