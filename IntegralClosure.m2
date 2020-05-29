@@ -24,7 +24,7 @@ newPackage(
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
 
-installMinprimes()
+--installMinprimes()
 
 -- MES TODO: put these 2 functions into the Core
 -- MES TODO: list of lists of degrees: output an ideal.
@@ -52,7 +52,7 @@ export{
      "ringFromFractions", 
      "extendIdeal",
      "simplifyFractions",
-    -- optional argument nnames
+    -- optional argument names
      "AddMinors",
      "Keep",
      "ConductorElement",
@@ -99,18 +99,17 @@ integralClosure = method(Options=>{
         Keep => null -- list of variables to not simplify away.  Default is all original vars
         }
     )
-
-idealInSingLocus = (S, opts) -> (
-     -- Input: flattened poly ring S = S'/I, where S' is a poly ring.
-     --        OptionTable from integralClosure
+idealInSingLocus = method(Options => {
+	Verbosity => 0,
+	Strategy => {}
+	})
+idealInSingLocus Ring := Ideal => opts -> S -> (
+     -- Input: ring S = S'/I, where S' is a flattened poly ring.
+     --  Verbosity: if >0 display timing
+     --  Strategy: List. If isMember(StartWithOneMinor, opts.Strategy) then 
      -- Output:
-     --        ideal in singular locus
-     --          could be entire sing locus, or could be
-     --          discriminant, etc.
+     --        ideal in non-normal locus
      -- private subroutine of integralClosure
-
-     -- Step1: choose an ideal J contained in the radical of the ideal of the singular locus.
-     -- Choose an ideal J here.  Allow option to start with a J?
 
      if opts.Verbosity >= 1 then (
 	  << " [jacobian time " << flush;
@@ -125,6 +124,20 @@ idealInSingLocus = (S, opts) -> (
 	);
      J
      )
+-*
+restart
+loadPackage("IntegralClosure",Reload =>true)
+*-
+TEST///
+  debug IntegralClosure
+  setRandomSeed 0
+  S' = ZZ/101[x,y]
+  S = S'/ideal(x^3 -y^2)  
+  J = idealInSingLocus S
+  J = idealInSingLocus S  
+  J' = idealInSingLocus (S,Strategy => {StartWithOneMinor})
+  assert(J == ideal"x2,y")
+///
 
 integralClosure Ring := Ring => o -> (R) -> (
      -- R: Ring, a reduced affine ring. TODO: can we handle integral closures over ZZ as well?
@@ -162,7 +175,8 @@ integralClosure Ring := Ring => o -> (R) -> (
      -- other possible things here: make a list of ideals, and we 
      --   will compute End of each in turn.
      --   (b) use discriminant
-     J := idealInSingLocus(S, o); -- returns ideal in S
+     J := idealInSingLocus(S, Verbosity => verbosity, Strategy => o.Strategy); 
+        -- returns ideal in non-normal locus S
      codimJ := codim J;
      isR1 := (codimJ > 1);
 
@@ -547,7 +561,7 @@ findSmallGen = (J) -> (
      a := toList((numgens ring J):1);
      L := sort apply(J_*, f -> ((weightRange(a,f))_1, size f, f));
      --<< "first choices are " << netList take(L,3) << endl;
-     << "ideal: " << toString J << endl;
+--     << "ideal: " << toString J << endl;
      L#0#2
      )
 
@@ -980,8 +994,24 @@ integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     LD := prepend(D,toList(degreeLength S:null));
     degD := image basisOfDegreeD(LD,Rbar); --all gens of first-degree D.
     degsM := apply(degrees cover degD,d->drop(d,1));
-    M := coimage map(degD,S^(-degsM),psi,id_(cover degD));
+    --the following line is ***slow***
+    psi' := map(degD,S^(-degsM),psi,id_(cover degD));
+    
+--alpha := map(S,Rbar, toList ((numgens Rbar - numgens S):0_S)|gens S)
+--M := coker compress alpha presentation degD;
+
+    
+-*    
+    if opts.Verbosity >= 2 then(
+      <<"doing coimage "<<flush;
+      elapsedTime M := coimage psi'
+      <<endl) 
+    else
+      M = coimage psi';
+*-      
     mapback := map(S,Rbar, matrix{{numgens Rbar-numgens S:0_S}}|(vars S), DegreeMap => d -> drop(d, 1));
+    M := coker compress mapback presentation degD;
+
     phi := map(M,module(I^D), mapback matrix inducedMap(degD,zIdealD));
     if isHomogeneous I and isHomogeneous a then assert(isHomogeneous phi);
     assert(isWellDefined phi);
@@ -1249,7 +1279,7 @@ TEST ///
   assert(numgens integralClosure(D, Strategy=>{RadicalCodim1})==numgens D+2)
 ///
 --------------------------------------------------------------------
-
+-*
 --the next two routines are used for the Dedekind-Mertens example.
 unflatten = method()
 unflatten(RingElement) := (x) -> (
@@ -1268,7 +1298,8 @@ content(RingElement, RingElement) := Ideal => (f,x) ->(
     phi := map(S,R);
     trim ideal phi ((coefficients psi f)_1)
     )
-
+*-
+content(RingElement, RingElement) := Ideal => (f,x) -> ideal last coefficients(f, Variables => {x})
 --------------------------------------------------------------------
 beginDocumentation()
 
@@ -2399,7 +2430,9 @@ TEST///
 TEST ///
 -*
     restart
+    loadPackage("IntegralClosure", Reload =>true)
 *-
+
     S = QQ[a,b,c,d,e,f]
     I = ideal(a*b*d,a*c*e,b*c*f,d*e*f);
     trim(J = I^2)
@@ -2475,6 +2508,7 @@ uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"
 elapsedTime installPackage "IntegralClosure" -- 13 seconds, MES MBP 2018, 23 May 2020.
+
 viewHelp IntegralClosure
 elapsedTime check IntegralClosure -- 28 seconds on MES MBP 2018, one error (can't find brian example answers file).
 
@@ -2805,7 +2839,7 @@ assert(f % (J+f*mm) == 0) --f IS locally in the integral closure of I
 --Let c(f,x) be the content of f with respect to the variable x. 
 --Theorem: c(f,x)*c(g,x) is integral over c(f*g, x).
 restart
-needs "bug-integralClosure.m2"
+loadPackage ("IntegralClosure", Reload=>true)
 setRandomSeed 0
 kk = QQ
 S = kk[a,b,c]
@@ -2818,3 +2852,55 @@ Ig = content(g',S_1)
 Ifg = content(f'*g',S_1)
 assert((gens(If*Ig) % Ifg)!=0)
 assert(gens(If*Ig) % integralClosure Ifg == 0)
+
+
+setRandomSeed 0
+kk = ZZ/32003
+S = kk[a,b,c,d]
+phi = map(S,S,{S_0}|toList((numgens S -1):0))
+f = random(4,S)
+g = random(4,S)
+f' = f- phi f
+g' = g- phi g
+If = content(f',S_0)
+Ig = content(g',S_0)
+--Ig = content(g'^2,S_0)
+
+Ifg = content(f'*g',S_0)
+assert((gens(If*Ig) % Ifg)!=0)
+elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
+--slow in extendIdeal!
+--bug when minPrimes is used.
+
+setRandomSeed 0
+kk = ZZ/32003
+S = kk[a,b,c]
+phi = map(S,S,{S_0}|toList((numgens S -1):0))
+f = random(4,S)
+g = random(4,S)
+f' = f- phi f
+g' = g- phi g
+If = content(f'^2,S_0)
+Ig = content(g'^2,S_0)
+Ifg = content(f'^2*g'^2,S_0)
+assert((gens(If*Ig) % Ifg)!=0)
+assert(gens(If*Ig) % integralClosure Ifg == 0)
+
+setRandomSeed 0
+kk = ZZ/32003
+S = kk[a,b,c,d]
+phi = map(S,S,{S_0}|toList((numgens S -1):0))
+f = random(3,S)
+g = random(4,S)
+f' = f- phi f
+g' = g- phi g
+If = content(f',S_0)
+Ig = content(g',S_0)
+--Ig = content(g'^2,S_0)
+
+Ifg = content(f'*g',S_0)
+assert((gens(If*Ig) % Ifg)!=0)
+elapsedTime assert(gens(If*Ig) % IfintegralClosure(Ifg, Verbosity => 4) == 0)
+--bug!
+
+
