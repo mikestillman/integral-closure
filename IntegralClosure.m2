@@ -52,6 +52,7 @@ export{
      "ringFromFractions", 
      "extendIdeal",
      "simplifyFractions",
+     "testLT",
     -- optional argument names
      "AddMinors",
      "Keep",
@@ -1022,6 +1023,31 @@ integralClosure(Ideal,RingElement) := Ideal => o -> (I,a) -> integralClosure(I, 
 integralClosure(Ideal) := Ideal => o -> I -> integralClosure(I, I_0, 1, o)
 
 -*
+Theorem (Saito): If R is a formal power series ring over a field of char 0, 
+then f\in R is contained in j(f), the Jacobian ideal iff f is
+quasi-homogeneous after a change of variables.
+
+Theorem (Lejeune-Teisser?; see Swanson-Huneke Thm 7.1.5) 
+f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
+
+Conjecture (Huneke: f is never a minimal generator of the integral closure of
+ideal apply(numgens R,i-> df/dx_i).
+*-
+testLT = method()
+testLT := String -> (R,f) -> (
+    mm := ideal vars R;
+    J := diff(vars R, f);
+    j := ideal J;
+    if f % (j+mm*f) == 0 then return "power series is quasi-homogeneous" else
+    <<"power series is not quasi-homogeneous"<<flush<<endl;
+    j' := ideal apply(numgens R, i-> (vars R)_{i}*J_{i});
+    assert(f % (f*mm+integralClosure j') == 0);
+    <<"checked Lejeune-Teissier Theorem"<<flush<<endl;
+    assert(f % mm*integralClosure j == 0);
+    <<"checked Huneke's conjecture"<<endl;
+    )
+
+-*
 blocksOfVariables = method()
 blocksOfVariables Ring := List => R -> (
     S := ambient R;
@@ -1605,8 +1631,8 @@ doc ///
 
 doc ///
   Key
-    (integralClosure,Ideal,ZZ)  
-    (integralClosure,Ideal)
+    (integralClosure, Ideal, ZZ)  
+    (integralClosure, Ideal)
   Headline
     integral closure of an ideal in an affine domain
   Usage
@@ -1634,6 +1660,31 @@ doc ///
      time integralClosure J
      time integralClosure(J, Strategy=>{RadicalCodim1})
      integralClosure(J,2)
+   Text
+    Theorem (Saito): If R is a formal power series ring over a field of char 0, 
+    then f\in R is contained in j(f), the Jacobian ideal iff f is
+    quasi-homogeneous after a change of variables.
+
+    Theorem (Lejeune-Teisser?; see Swanson-Huneke Thm 7.1.5) 
+    f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
+
+    Conjecture (Huneke: f is never a minimal generator of the integral closure of
+    ideal apply(numgens R,i-> df/dx_i).
+    
+    The method (testLT, Ring, RingElement) verifies these assertions.
+    
+    It's surprisingly hard to write down non-quasihomogeneous polynomials
+   Example
+    R = QQ[x,y,z]
+    f = random(3,R)+random(4,R)+random(5,R)
+    testLT(R,f)
+   Text
+    The function y^4-2*x^3*y^2-4*x^5*y+x^6-x^7 is defines the simplest plane curve
+    singularity with 2 characteristic pairs -- and is thus NOT quasi-homogeneous.
+   Example
+    R = QQ[x,y]
+    f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+    testLT(R,f)
   Caveat
     It is usally much faster to use {\tt integralClosure(J,d)}
     rather than {\tt integralClosure(J^d)}
@@ -2518,6 +2569,7 @@ installPackage "MinimalPrimes"
 elapsedTime installPackage "IntegralClosure" -- 13 seconds, MES MBP 2018, 23 May 2020.
 
 viewHelp IntegralClosure
+viewHelp integralClosure
 elapsedTime check IntegralClosure -- 28 seconds on MES MBP 2018, one error (can't find brian example answers file).
 
 TEST ///
@@ -2669,15 +2721,39 @@ radical ideal oo
 --------------
 -- Examples --
 --------------
+-*
+Theorem (Saito): If R is a formal power series ring over a field of char 0, 
+then f\in R is contained in j(f), the Jacobian ideal iff f is
+quasi-homogeneous after a change of variables.
 
-R = QQ[y,x]/(y^2-x^4-x^7)
-integralClosure R
+Theorem (Lejeune-Teisser?; see Swanson-Huneke Thm 7.1.5) 
+f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
+
+Conjecture (Huneke: f is never a minimal generator of the integral closure of
+ideal apply(numgens R,i-> df/dx_i).
+
+--the method (testLT, Ring, RingElement) checks this
+viewHelp testLT
+*-
+
+n = 3
+R = QQ[x_0..x_(n-1)]
+mm = ideal vars R
+f = random({3},R)+random({4},R)+random(5,R)
+testLT(R,f)
+
+
+--from Eisenbud-Neumann p.11: simplest poly with 2 characteristic pairs. 
+R = QQ[y,x]
+f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+testLT(R,f)
+R = R/f
+time R' = integralClosure R
 icFractions R
 icMap R
 
---from Eisenbud-Neumann p.11: simplest poly with 2 characteristic pairs. 
-R = QQ[y,x]/(y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-time R' = integralClosure R
+R = QQ[y,x]/(y^2-x^4-x^7)
+integralClosure R
 icFractions R
 icMap R
 
