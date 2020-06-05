@@ -1034,7 +1034,7 @@ Conjecture (Huneke: f is never a minimal generator of the integral closure of
 ideal apply(numgens R,i-> df/dx_i).
 *-
 testLT = method()
-testLT := String -> (R,f) -> (
+testLT(Ring, RingElement) := String => (R,f) -> (
     mm := ideal vars R;
     J := diff(vars R, f);
     j := ideal J;
@@ -2562,7 +2562,7 @@ TEST ///
 end--
 
 restart
---uninstallAllPackages()
+uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"
