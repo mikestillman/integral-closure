@@ -2562,7 +2562,7 @@ TEST ///
 end--
 
 restart
-uninstallAllPackages()
+--uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"

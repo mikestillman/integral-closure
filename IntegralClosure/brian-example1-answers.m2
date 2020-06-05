@@ -1,3 +1,11 @@
+
+TEST ///
+-*
+    restart
+    loadPackage("IntegralClosure", Reload =>true)
+*-
+S = QQ[a,b,c,d,e,f]
+
 ideal1 = ideal(
    a*b*d,
    a*c*e,
@@ -557,3 +565,18 @@ ideal5 = ideal(
    a^4*b^4*c*d^4*e^4*f,
    a^5*b^5*d^5*e^5
    )
+
+    I = ideal(a*b*d,a*c*e,b*c*f,d*e*f);
+    trim(J = I^2)
+    K = integralClosure(I,I_0,2) -- integral closure of J = I^2
+    assert(K == J + ideal"abcdef") 
+    
+--    load (currentDirectory() | "./IntegralClosure/brian-example1-answers.m2")
+    assert(ideal1 == elapsedTime integralClosure(I, I_0, 1))
+    assert(ideal2 == elapsedTime integralClosure(I, I_0, 2))
+    assert(ideal3 == elapsedTime integralClosure(I, I_0, 3))
+    assert(ideal4 == elapsedTime integralClosure(I, I_0, 4))
+    assert(ideal5 == elapsedTime integralClosure(I, I_0, 5))
+///
+
+
