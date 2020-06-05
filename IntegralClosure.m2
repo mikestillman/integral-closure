@@ -2484,10 +2484,11 @@ TEST///
     assert(integralClosure I == I)
 ///
 
-
+input "./IntegralClosure/HarbourneExamples.m2"
 -- an example of Brian Harbourne
-TEST ///
+///
 -*
+--this has been replace by the input above.
     restart
     loadPackage("IntegralClosure", Reload =>true)
 *-
