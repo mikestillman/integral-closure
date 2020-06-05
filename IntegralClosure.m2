@@ -681,6 +681,7 @@ ringFromFractions (Matrix, RingElement) := o -> (H, f) ->  (
      	  tails = RtoB tails;
      	  quads := matrix(B, entries (symmetricPower(2,varsB) - XX * tails));
 	  both := ideal lins + ideal quads;
+	  
 	  gb both; -- sometimes slow
 	  Bflat := flattenRing (B/both); --sometimes very slow
 	  R1 := trim Bflat_0; -- sometimes slow
@@ -1033,18 +1034,22 @@ f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
 Conjecture (Huneke: f is never a minimal generator of the integral closure of
 ideal apply(numgens R,i-> df/dx_i).
 *-
+jacobian RingElement := Matrix => f -> jacobian ideal f
+
 testLT = method()
 testLT(Ring, RingElement) := String => (R,f) -> (
     mm := ideal vars R;
-    J := diff(vars R, f);
-    j := ideal J;
+    j := ideal jacobian f;
     if f % (j+mm*f) == 0 then return "power series is quasi-homogeneous" else
     <<"power series is not quasi-homogeneous"<<flush<<endl;
-    j' := ideal apply(numgens R, i-> (vars R)_{i}*J_{i});
-    assert(f % (f*mm+integralClosure j') == 0);
+    j' := ideal apply(numgens R, i -> R_i*j_i);
+    J' := integralClosure (j',Verbosity => 3);
+--    j' := ideal apply(numgens R, i-> (vars R)_{i}*J_{i});
+    assert(f % (f*mm+J')) == 0);
     <<"checked Lejeune-Teissier Theorem"<<flush<<endl;
-    assert(f % mm*integralClosure j == 0);
+    assert(f % (mm*f+ mm*integralClosure j) == 0);
     <<"checked Huneke's conjecture"<<endl;
+    J'
     )
 
 -*
@@ -1685,6 +1690,10 @@ doc ///
     R = QQ[x,y]
     f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
     testLT(R,f)
+
+    R = ZZ/32003[x,y,z]
+    f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7+z^4)
+    --    testLT(R,f) -- currently too slow	   
   Caveat
     It is usally much faster to use {\tt integralClosure(J,d)}
     rather than {\tt integralClosure(J^d)}
@@ -2484,8 +2493,9 @@ TEST///
     assert(integralClosure I == I)
 ///
 
-input "./IntegralClosure/HarbourneExamples.m2"
+load "./IntegralClosure/HarbourneExamples.m2"
 -- an example of Brian Harbourne
+
 ///
 -*
 --this has been replace by the input above.
