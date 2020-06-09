@@ -24,7 +24,7 @@ newPackage(
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
 
---installMinprimes()
+installMinprimes()
 
 -- MES TODO: put these 2 functions into the Core
 -- MES TODO: list of lists of degrees: output an ideal.
@@ -470,6 +470,7 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies,verbosity) -> (
      t1 = timing((F0,G0) := ringFromFractions(He,fe,Variable=>varname,Index=>nsteps));
      
      if verbosity >= 2 then << t1#0 << " seconds" << endl;
+     
 -*
      time (F0,G0) = 
          idealizer(radJ, f, 
@@ -1045,7 +1046,7 @@ testLT(Ring, RingElement) := String => (R,f) -> (
     j' := ideal apply(numgens R, i -> R_i*j_i);
     J' := integralClosure (j',Verbosity => 3);
 --    j' := ideal apply(numgens R, i-> (vars R)_{i}*J_{i});
-    assert(f % (f*mm+J')) == 0);
+    assert((f % (f*mm+J')) == 0);
     <<"checked Lejeune-Teissier Theorem"<<flush<<endl;
     assert(f % (mm*f+ mm*integralClosure j) == 0);
     <<"checked Huneke's conjecture"<<endl;
@@ -2582,6 +2583,37 @@ elapsedTime installPackage "IntegralClosure" -- 13 seconds, MES MBP 2018, 23 May
 viewHelp IntegralClosure
 viewHelp integralClosure
 elapsedTime check IntegralClosure -- 28 seconds on MES MBP 2018, one error (can't find brian example answers file).
+
+loadPackage("IntegralClosure", Reload=>true)
+/// MIKETEST
+  -- XXX
+    R = ZZ/32003[x,y,z]
+    f = y^4-2*x^3*y^2-4*x^5*y+x^6-x^7+z^4
+
+    eulerIdeal = method()
+    eulerIdeal RingElement := Ideal => (f) -> (
+        R := ring f;
+        I := ideal jacobian ideal f;
+        ideal apply(numgens R, i -> R_i * I_i)
+        )
+
+    localIsQuasiHomogeneous = method()
+    localIsQuasiHomogeneous RingElement := Boolean => f -> (
+        mm := ideal vars ring f;
+        f % (f * mm + (ideal jacobian ideal f)) == 0
+        )
+
+    assert not localIsQuasiHomogeneous f    
+
+    -- now get the rees ideal of the euler ideal
+    I = eulerIdeal f
+    J = reesIdeal(I, I_0, Variable => w)
+    J = first flattenRing J
+    A = (ring J)/J
+    integralClosure(A, Strategy => {SimplifyFractions}, Verbosity => 4);
+    
+///
+
 
 TEST ///
   -- MES TODO: put assertions in here
