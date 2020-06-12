@@ -138,8 +138,30 @@ TEST///
   J = idealInSingLocus S  
   J' = idealInSingLocus (S,Strategy => {StartWithOneMinor})
   assert(J == ideal"x2,y")
-///
+  
+  restart
+installPackage "FastLinAlg"
+check FastLinAlg
+  degs = {1,3,4,7}
+  S = ZZ/101[vars(0..length degs)]
+  I = monomialCurveIdeal(S,degs)
+  J = reesIdeal I
 
+  R = ring J/J
+  R = first flattenRing reesAlgebra I
+time  R' = integralClosure R
+ideal R'
+  codim R'
+  dim R'
+  jacobian R'
+time  codim minors(codim R,jacobian R)
+debug IntegralClosure
+nonzeroMinor (5,jacobian R')
+
+chooseGoodMinors(1,5,jacobian R')
+chooseGoodMinors(1,5,jacobian R', Strategy =>StrategyDefaultNonRandom)
+
+///
 integralClosure Ring := Ring => o -> (R) -> (
      -- R: Ring, a reduced affine ring. TODO: can we handle integral closures over ZZ as well?
      --   answer: if we choose J in the non-normal ideal some other way?
@@ -2574,15 +2596,15 @@ TEST ///
 end--
 
 restart
---uninstallAllPackages()
 uninstallPackage "IntegralClosure"
 restart
 installPackage "MinimalPrimes"
 elapsedTime installPackage "IntegralClosure" -- 13 seconds, MES MBP 2018, 23 May 2020.
+check IntegralClosure
 
 viewHelp IntegralClosure
 viewHelp integralClosure
-elapsedTime check IntegralClosure -- 28 seconds on MES MBP 2018, one error (can't find brian example answers file).
+
 
 loadPackage("IntegralClosure", Reload=>true)
 /// MIKETEST
