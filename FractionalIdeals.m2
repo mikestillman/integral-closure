@@ -34,7 +34,8 @@ export {
     "integralClosureHypersurface",
     "integralClosureDenominator",
     "ringFromFractionalIdeal",
-    "fractionalRingPresentation"
+    "fractionalRingPresentation",
+    "Denominator"
     }
 
 -- FractionalIdeals:
@@ -76,8 +77,6 @@ FractionalRing = new Type of FractionalIdeal
   -- numerator: an ideal in a ring R
   -- denominator: an element of either R, or the coefficient ring of R (Noether normal case)
   -- 
-
-inNoetherPosition = (R) -> R#?"NoetherField"
 
 ring FractionalIdeal := (F) -> ring F.numerator
 denominator FractionalIdeal := (F) -> F.denominator
@@ -281,6 +280,29 @@ Hom(FractionalIdeal, FractionalIdeal) := (F,G) -> (
        then ends F
        else error "not implemented yet"
      )
+
+-- MES: this use of denominator is incorrect: need something different.
+Ends = method(Options => {Denominator => null})
+Ends FractionalIdeal := opts -> (J) -> (
+    I := numerator J;
+    f := if opts.Denominator === null then (
+          chooseNZD J
+        ) else (
+          g := opts.Denominator;
+          -- some power of g must be in the ideal `numerator J`
+          -- return that power.
+          i := 1;
+          h := g;
+          while h % I != 0 do (  -- BUG: this loop can be infinite: if g^N is not in I for any N.
+              h = h*g;
+              i = i+1;
+              );
+          h
+          );
+    timing(H1 := (f*I):I);
+    H := compress ((gens H1) % f);
+    fractionalRing(f,ideal(matrix{{f}} | H))
+    )
 
 endomorphisms = method()
 endomorphisms(FractionalIdeal, RingElement) := (F,Q) -> (
@@ -675,7 +697,7 @@ integralClosureNonNoether(FractionalRing,RingElement) := (R,Q) -> (
 	  time (k,j) = radical(j,e1,null);
           << "fractions of j" << fractions j << endl;
      	  if traceLevel > 1 then << "end:" << endl;
-	  time e = ends(j);
+	  time e = Ends(j, Denominator => null);
           << "end(j)" << fractions e << endl;
 	  e1 != e) do (
 	  );
@@ -960,8 +982,9 @@ TEST ///  -- test of getIntegralEquation
   elapsedTime integralClosure A
 
   use A
-  elapsedTime integralClosureDenominator(A, y)
+  elapsedTime integralClosureDenominator(A, y) -- currently: really bad.
   elapsedTime integralClosureDenominator(A, z*t)
+  elapsedTime integralClosureDenominator(A, {t,z}) -- FAILS right now.
     
   R = noetherPosition{w,t}
   kx = coefficientRing R
@@ -1042,7 +1065,7 @@ TEST ///
   R = S/I
   elapsedTime integralClosure R -- 1.96 sec
   B = noetherPosition {y}
-  J = fractionalIdeal
+
 ///
 
 ///
@@ -1104,9 +1127,14 @@ I = ideal((y^2-y-x/3)^3-y*x^4*(y^2-y-x/3)-x^11)
 R = S/I
 --time R' = integralClosureHypersurface R
 
+S = QQ[y,x,MonomialOrder=>{1,1}]
+I = sub(I, S)
+R = S/I
 integralClosureDenominator(R, x)
 
 S = QQ[x,y,MonomialOrder=>{1,1}]
+I = sub(I, S)
+R = S/I
 integralClosureDenominator(R, y)
 integralClosureDenominator(R, y-1)
 integralClosureDenominator(R, y*(y-1))
