@@ -576,8 +576,8 @@ restart
 loadPackage "TraceForm"
 uninstallPackage "TraceForm"
 installPackage "TraceForm"
-check TraceForm -- one error currently.
-
+check TraceForm --
+viewHelp TraceForm
 --------------------------------
 -- Testing the creation of border basis
 restart

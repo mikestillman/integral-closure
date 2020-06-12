@@ -1070,6 +1070,7 @@ viewHelp
 restart
 check "FractionalIdeals" -- one test (at least) takes too long, also fails...
                           -- tests don't have assertions!
+viewHelp FractionalIdeals
 ///
 -*
   restart
