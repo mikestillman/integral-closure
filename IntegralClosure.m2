@@ -140,8 +140,8 @@ TEST///
   assert(J == ideal"x2,y")
   
   restart
-installPackage "FastLinAlg"
-check FastLinAlg
+--installPackage "FastLinAlg"
+--check FastLinAlg
   degs = {1,3,4,7}
   S = ZZ/101[vars(0..length degs)]
   I = monomialCurveIdeal(S,degs)
@@ -157,9 +157,9 @@ ideal R'
 time  codim minors(codim R,jacobian R)
 debug IntegralClosure
 nonzeroMinor (5,jacobian R')
-
+needsPackage "FastLinAlg"
 chooseGoodMinors(1,5,jacobian R')
-chooseGoodMinors(1,5,jacobian R', Strategy =>StrategyDefaultNonRandom)
+chooseGoodMinors(5,5,jacobian R', Strategy =>StrategyDefaultNonRandom)
 
 ///
 integralClosure Ring := Ring => o -> (R) -> (
