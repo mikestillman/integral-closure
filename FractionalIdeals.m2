@@ -38,6 +38,9 @@ export {
     "Denominator"
     }
 
+-- The following is currently needed in fractionalRingPresentation
+generatorSymbols = value Core#"private dictionary"#"generatorSymbols"
+
 -- FractionalIdeals:
 --   given a ring R, satisfying:
 --     R = S/L, S is a polynomial ring, L is an ideal, R is reduced, perhaps a domain?
@@ -57,7 +60,7 @@ export {
 -- 
 -- Open problem: find the radical of a fractional ideal in a fractional ring,
 --   without working in a presentation of the fractional ring.
---   This is actually solved in the Noether Position case (the "Q-trace radical").
+--   This is solved in the Noether Position case (the "Q-trace radical").
 -- Another question: What is the best way to extend one fractional ideal in a fractional 
 --   ring to a larger fractional ring?  We can certainly just multiply the two ideals, 
 --   and clean up, but perhaps this is not optimal?
@@ -111,8 +114,10 @@ fractionalIdeal Ideal := (I) -> (
 fractionalIdeal List := (L) -> (
      -- L is a list of elements, either 'Divide's or RingElement's in a fraction field.
      if #L == 0 then error "expected non-empty list";
-     R := ring numerator L#0;
+     R := if instance(L#0, RingElement) then ring L#0 else ring value L#0;
+     if instance(R, FractionField) then R = ring numerator 1_R;
      if inNoetherPosition R then (
+         << "warning: `fractionalIdeal` not written yet for rings in Noether position" << endl;
          -- TODO
          )
      else (
@@ -314,8 +319,6 @@ endomorphisms(FractionalIdeal, RingElement) := (F,Q) -> (
      fractionalRing(f,ideal(matrix{{f}} | H))
      )
 
-debug Core
-
 ----------------------------------------------------------
 -- TO BE REMOVED -----------------------------------------
 -- below this line to next note: -------------------------
@@ -343,7 +346,7 @@ ringFromFractionalIdeal (Matrix, RingElement) := o -> (H, f) ->  (
      	  MO := prepend(GRevLex => n, (monoid R).Options.MonomialOrder);
           kk := coefficientRing R;
 	  var := makeVariable o;
-     	  A := kk(monoid [var_(o.Index,0)..var_(o.Index,n-1), R.generatorSymbols,
+     	  A := kk(monoid [var_(o.Index,0)..var_(o.Index,n-1), R#generatorSymbols,
 		    MonomialOrder=>MO, Degrees => degs]);
      	  I := ideal presentation R;
      	  IA := ideal ((map(A,ring I,(vars A)_{n..numgens R + n-1})) (generators I));
@@ -402,7 +405,7 @@ fractionalRingPresentation FractionalIdeal := o ->  (F) -> (
      MO := prepend(GRevLex => n, (monoid R).Options.MonomialOrder);
      kk := coefficientRing R;
      var := makeVariable o;
-     A := kk(monoid [var_(o.Index)..var_(o.Index+n-1), R.generatorSymbols,
+     A := kk(monoid [var_(o.Index)..var_(o.Index+n-1), R#generatorSymbols,
 	       MonomialOrder=>MO, Degrees => degs]);
      I := ideal presentation R;
      IA := ideal ((map(A,ring I,(vars A)_{n..numgens R + n-1})) (generators I));
@@ -469,7 +472,7 @@ traceRadical(RingElement, FractionalIdeal) := (Q, J) -> (
      if traceLevel > 1 then print "--------------------";
      if traceLevel > 1 then print "--  computing M   --";
      time M := last coefficients(G, Monomials => B);
-     if traceLevel > 1 then << "fast version has size M = " << numColumns M << endl;     
+     if traceLevel > 1 then << "-- fast version has size M = " << numColumns M << endl;     
      M = gens trim image lift(M,K);
      if traceLevel > 1 then print "--  matrix mult   --";
      time newTrace := transpose(M) * traceR * M;
@@ -483,7 +486,6 @@ traceRadical(RingElement, FractionalIdeal) := (Q, J) -> (
      rad
      )
 
-debug PrimaryDecomposition
 
 radical(FractionalIdeal, FractionalIdeal) := opts -> (F,R1) -> (
      -- Assumption: R1 is a ring
@@ -694,11 +696,11 @@ integralClosureNonNoether(FractionalRing,RingElement) := (R,Q) -> (
      while (
 	  e1 := e;
      	  if traceLevel > 1 then << "radical:" << endl;
-	  time (k,j) = radical(j,e1,null);
-          << "fractions of j" << fractions j << endl;
-     	  if traceLevel > 1 then << "end:" << endl;
-	  time e = Ends(j, Denominator => null);
-          << "end(j)" << fractions e << endl;
+	  elapsedTime (k,j) = radical(j,e1,null);
+          if traceLevel >= 3 then << "fractions of j" << fractions j << endl;
+     	  if traceLevel >= 2 then << "end:" << endl;
+	  elapsedTime e = Ends(j, Denominator => Q);
+          if traceLevel >= 3 then << "end(j)" << fractions e << endl;
 	  e1 != e) do (
 	  );
      simplify e)
@@ -942,7 +944,7 @@ TEST ///
   -- oo/value -- TODO: gives error while doing display
   
   integralClosureDenominator(R, a) -- not valid
-  fractions oo
+  fractions oo -- hmmm, d is a denominator, not a...
 ///
 
 TEST ///
@@ -982,9 +984,9 @@ TEST ///  -- test of getIntegralEquation
   elapsedTime integralClosure A
 
   use A
-  elapsedTime integralClosureDenominator(A, y) -- currently: really bad.
-  elapsedTime integralClosureDenominator(A, z*t)
-  elapsedTime integralClosureDenominator(A, {t,z}) -- FAILS right now.
+--  elapsedTime integralClosureDenominator(A, y) -- currently: really bad.
+--  elapsedTime integralClosureDenominator(A, z*t)
+--  elapsedTime integralClosureDenominator(A, {t,z}) -- FAILS right now.
     
   R = noetherPosition{w,t}
   kx = coefficientRing R
@@ -1000,9 +1002,10 @@ TEST ///  -- test of getIntegralEquation
   use R; use coefficientRing R
   time integralClosureDenominator(R, w*t)
   FR = fractions oo
+  factor det traceForm frac R
 
-  time for f in FR list getIntegralEquation(f, R[T])
-  time for f in FR list getIntegralEquation(f, (coefficientRing R)[T])
+  time for f in FR list getIntegralEquation(f, R[T]) -- fast
+  --time for f in FR list getIntegralEquation(f, (coefficientRing R)[T]) -- slow...
 
   use A
   getIntegralEquation(y*z, w, A[T])
@@ -1018,14 +1021,15 @@ TEST ///  -- test of getIntegralEquation
   possibleDenominators FR
   F = fractionalIdeal FR
   newDenominator(F, y*w^2)
-  FR1 = fractions oo
-  fractionalIdeal FR1
+  -- BUG: fractions calls possibleDenominators, which fails as the first fraction is noot in a fraction field (it is 1...)
+  --FR1 = fractions oo
+  --fractionalIdeal FR1
 
   use R; use coefficientRing R
   time integralClosureDenominator(R, t)
 
-  FR = fractions oo
-  getIntegralEquation(FR#1, R[T])
+  -- FR = fractions oo -- BUG: fractions are expressions!
+  -- getIntegralEquation(value(FR#1), R[T]) -- BUG?  what is this line trying to do?
 ///
 
 TEST ///
@@ -1046,7 +1050,9 @@ TEST ///
   singF = decompose(ideal F + ideal jacobian ideal F)
   singF = sub(intersect singF, R)
   Q = (ideal selectInSubring(1,gens gb singF))_0
+  use coefficientRing R
   IR = time integralClosureDenominator(R,lift(Q,coefficientRing R))
+  IR = time integralClosureDenominator(R,(v-1)*(v+1)*(v+3))
   FR = fractions oo  -- very complicatd.  Is this the way they should be?
   FR = FR/value
   time U = fractionalRingPresentation IR
