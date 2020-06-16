@@ -21,6 +21,13 @@ newPackage(
     AuxiliaryFiles => true
     )
 
+-*TODO next: 
+documentation (strategies); 
+correctness; makeS2; 
+use Normaliz where possible?; 
+FastLinAlg?
+*-
+
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
 
@@ -1209,7 +1216,7 @@ canonicalIdeal1 Ring := R -> (
      (S,f) := flattenRing R;
      P := ideal S;
      SS := ring P;
-     n :=numgens SS;
+     n := numgens SS;
      c := codim P;
      WSS := prune Ext^c(SS^1/P, SS);
      WS := prune coker (map(S,SS)) (presentation WSS);
@@ -1299,6 +1306,30 @@ makeS2 Ring := o -> R -> (
 	  error"first generator of the canonical ideal was a zerodivisor"
 	  )
      )
+-*
+S2 = method() -- from Eisenbud's CompleteIntersectionResolutions.m2
+S2(ZZ,Module) := Matrix => (b,M)-> (
+     --returns a map M --> M', where M' = \oplus_{d>=b} H^0(\tilde M).
+     --the map is equal to the S2-ification AT LEAST in degrees >=b.
+     S := ring M;
+     r:= regularity M;
+     if b>r+1 then return id_(truncate(b,M));
+     tbasis := basis(r+1-b,S^1); --(vars S)^[r-b];
+     t := map(S^1, module ideal tbasis, tbasis);
+     s:=Hom(t,M)
+     --could truncate source and target; but if we do it with
+     --the following line then we get subquotients AND AN ERROR!
+--     inducedMap(truncate(b,target s),truncate(b,source s),s)
+     )
+ TEST ///--of S2
+S = ZZ/101[a,b,c];
+M = S^1/intersect(ideal"a,b", ideal"b,c",ideal"c,a");
+assert( (hf(-7..1,coker S2(-5,M))) === (0, 3, 3, 3, 3, 3, 3, 2, 0))
+makeS2 (S/intersect(ideal"a,b", ideal"b,c",ideal"c,a"))
+-- 'betti' no longer accepts non-free modules
+--assert( (betti prune S2(-5,M)) === new BettiTally from {(0,{-6},-6) => 3, (1,{0},0) => 1} )
+
+*-
 
 TEST ///
 -*
@@ -1364,7 +1395,8 @@ content(RingElement, RingElement) := Ideal => (f,x) ->(
 content(RingElement, RingElement) := Ideal => (f,x) -> ideal last coefficients(f, Variables => {x})
 --------------------------------------------------------------------
 beginDocumentation()
-
+--StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
+--radical(J, Unmixed)
 doc ///
   Key
     IntegralClosure
@@ -1518,7 +1550,7 @@ doc ///
     conductor
     icFracP
 ///
-
+--StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
 doc ///
   Key
     [integralClosure, Keep]
@@ -1633,6 +1665,8 @@ doc ///
   Inputs
     L:List
       of a subset of the following: {\tt RadicalCodim1, AllCodimensions}
+      
+      --StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
   Description
    Text
      {\tt RadicalCodim1} chooses an alternate, often much faster, sometimes much slower,
@@ -2633,7 +2667,6 @@ loadPackage("IntegralClosure", Reload=>true)
     J = first flattenRing J
     A = (ring J)/J
     integralClosure(A, Strategy => {SimplifyFractions}, Verbosity => 4);
-    
 ///
 
 
