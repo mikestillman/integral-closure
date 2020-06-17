@@ -62,6 +62,10 @@ koszulMap(ZZ,ChainComplex,ChainComplex) := Matrix => (i,K,F) -> (
     )
 
 free = (n, maxelem) -> (
+    --lists all the terms of homological degree n that can occur.
+    --each term is represented as a list of ZZ, representing a tensor product; 
+    --the first element i represents a factor K_i; subsequent elements
+    --represent factors F_j. K_0 = S is suppressed (represented by the empty list).
     if n == 0 then {{}} else
     flatten for i from 1 to min(maxelem, n) list (
         x := free(n-i-1,maxelem);
@@ -118,8 +122,6 @@ dim(L,D)
 
 shamashMap = method()
 shamashMap(List, ShamashData) := (src, D) -> (
-    --note that "targets" is not used anywhere in the function, or indeed
-    --anywhere in the package!
     K := D#"KoszulR";
     F := D#"ResolutionR";
     alpha := prepend("NOT USED", D#"Alpha");
@@ -152,31 +154,9 @@ shamashMap(List, ShamashData) := (src, D) -> (
         j = src#1;
         k := src#2;
         -- first part: maps to K_i ** K_j ** F_k
-        -*
-        f1 := if i > 0 then 
-            (wedgeProduct(i,j,K_1) * (id_(K_i) ** alpha#j)) ** id_(F_k)
-           else (
-             alpha#j ** id_(F_k)
-             );
-         *-
-        f1 := (-1)^(j+1) * (alpha#j ** id_(F_k));
--- now {i,j,k) -> {i+j+k+1} and {i,j+k}
-        (f2,f3) := FKmap(j,k,D);
--*        
-        phi := (-1)^(j+1) * wedgeProduct(j,k,K_1) * (alpha#j ** alpha#k);
-        if j+k < #alpha then (
-            phiLifted := phi // (alpha#(j+k) | K.dd_(j+k+1));
-            n1 := numgens source alpha#(j+k);
-            )
-        else (
-            phiLifted = phi // K.dd_(j+k+1);
-            n1 = 0;
-            );
-        n2 := numgens source K.dd_(j+k+1);
-        f2 := submatrix(phiLifted, 0..n1-1,0..numgens source phiLifted-1);
-        f3 := submatrix(phiLifted, n1..n1+n2-1,0..numgens source phiLifted-1);
-*-        
 -- f1,f2,f3: {0,j,k} --> {j,k} ++ {0,j+k} ++ {j+k+1}
+        f1 := (-1)^(j+1) * (alpha#j ** id_(F_k));
+        (f2,f3) := FKmap(j,k,D);
 -- g1: {i,j,k} --> {i+j,k}
 -- g2: {i,j,k} --> {i,j+k}
 -- g3: {i,j,k} --> {i+j+k+1}
@@ -409,6 +389,7 @@ alpha = D -> (d) -> (
         )
     else error "not yet defined"
     )
+
 dkoz = D -> (i) -> D#"KoszulR".dd_i
 mult = D -> (i,j) -> wedgeProduct(i,j,D#"KoszulR"_1)
 
@@ -432,6 +413,7 @@ liftit = (f, i, D) -> (
     (g1,g2)
     --(g1,g2,m1,m2)
     )
+
 FKmap = (i,j,D) -> (
     m := mult D;
     a := alpha D;
@@ -456,10 +438,65 @@ Description
   Text
    Produces the components that make up a not-necessarily minimal resolution of
    the residue field of a ring R = S/I where S is a polynomial ring and I is an ideal.
-   The resolution constructed is minimal if and only if R is Golod.
+   The resolution constructed is minimal if and only if R is Golod. The resolution
+   constructed is called the Shamash resolution, and the description given here
+   is the one from Shamash *****. 
+   
+   The resolution could, perhaps more properly, be called the Golod-Eagon-Shamash
+   resolution. It was described, in the special case where it is minimal, by
+   Golod ****. A general construction was discovered independently by Jack Eagon,
+   perhaps around the same time as the paper of Shamash was written (1967),
+   but not published by him. Eagon's construction, superficially different than
+   the one given here, ,is described in Ch. 4 of the notes
+   by Gulliksen and Levin ****.    
+   
+   To get a glimpse of the construction, consider the first steps. Let 
+   K be the Koszul complex of S, which is the minimal S-free resolution
+   of the residue field k. If numgens S = n, this begins 
+   
+   K_1 = S^n -> K_0 = S -> k.
+   
+   Let F be the mimimal S-free resolution of R.
+   by the right-exactness of the tensor product, the complex
+   
+   R**K_1 -> R**K_0 -> k 
+   
+   is a presentation of k, and of course R**K_2 maps to the kernel of
+   R**K_1 -> R**K_0. But there are new elements of the kernel, obtained by
+   writing the generators of I, which correspond to the generators of F_1,
+   in terms of the generators of the maximal ideal. Thus we must add a map
+   R**F_1 -> R**K_1, and it is easy to show that the resulting complex
+   
+   R**F_1 ++ R**K_2 -> R**K_1 -> R**K_0 -> k
+   
+   is exact. There are three important points to note:
+   
+   1) F_0 does not occur
+   
+   2) F_1 occurs in homological degree 2
+
+   3) There is a map F_1 -> K_1 that must be introduced and that does not
+      come from either the complex F nor the complex K.
+      
+   Shamash showed that this complex can be continued to a resolution, the
+   Shamash resolution. 
+   The underlying graded
+   module of the complex is K ** T(F'), where F' is the complex F, shifted by
+   1 in homological degree so that F_i is in homological degree i+1, and truncated
+   by dropping F_0; and T(F') denotes the tensor algebra on the graded module F'.
+
+   The maps in the complex come from multiplication in the Koszul
+   complex, the operation of writing a product of cycles Z_i(K)**Z_j(K) -> Z_{i+j}(K)
+   as a boundary and lifting this to K_{i+j+1} (these are also the ingredients of
+   the "Massey products" from topology, used by Golod to construct the complex
+   in a special case,
+   and the "zigzag maps" F_i -> K_i constructed from the double complex
+   F**K as in the usual proof that F**k and R**K have the same homology Tor^S(R,k).
 SeeAlso
  shamashData
  koszulMap
+ shamashMatrix
+ shamashFrees
 ///
 
 doc ///
