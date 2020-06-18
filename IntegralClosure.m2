@@ -23,6 +23,22 @@ newPackage(
 
 -*TODO next: 
 documentation (strategies); 
+
+StartWithOneMinor
+*AllCodimensions
+*RadicalCodimOne
+Radical
+SimplifyFractions
+
+StartWithS2
+
+AddMinors ??
+Vasconcelos??
+
+
+
+ConductorElement??
+
 correctness; makeS2; 
 use Normaliz where possible?; 
 FastLinAlg?
@@ -174,7 +190,7 @@ integralClosure Ring := Ring => o -> (R) -> (
      --   answer: if we choose J in the non-normal ideal some other way?
      if R.?icMap then return target R.icMap;
      verbosity := o.Verbosity;
-     strategies := set o.Strategy;
+     strategies := if instance(o.Strategy, Symbol) then {o.Strategy} else o.Strategy;
      (S,F) := flattenRing R;
 
      -- right here, we will grab the variables to be excluded
@@ -205,7 +221,7 @@ integralClosure Ring := Ring => o -> (R) -> (
      -- other possible things here: make a list of ideals, and we 
      --   will compute End of each in turn.
      --   (b) use discriminant
-     J := idealInSingLocus(S, Verbosity => verbosity, Strategy => o.Strategy); 
+     J := idealInSingLocus(S, Verbosity => verbosity, Strategy => strategies); 
         -- returns ideal in non-normal locus S
      codimJ := codim J;
      isR1 := (codimJ > 1);
@@ -235,7 +251,7 @@ integralClosure Ring := Ring => o -> (R) -> (
 	 if F'G' === null then (
              << "warning: probabilistic computation of S2-ification failed " << endl;
              << "         reverting to standard algorithm" << endl;
-             strategies = strategies + set {AllCodimensions};
+             strategies =  append(strategies, AllCodimensions);
              codim1only = false
 	 ) else (
              (F', G') := F'G';
@@ -1669,6 +1685,7 @@ doc ///
       --StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
   Description
    Text
+     
      {\tt RadicalCodim1} chooses an alternate, often much faster, sometimes much slower,
      algorithm for computing the radical of ideals.  This will often produce a different
      presentation for the integral closure.
@@ -1681,14 +1698,144 @@ doc ///
      computing it fails.  In general though, this option slows down the computation
      for many examples.
    Example
-     R = QQ[x,y,z]/ideal(x^8-z^6-y^2*z^4-z^3);
-     time R' = integralClosure(R, Strategy=>{RadicalCodim1})
-     R = QQ[x,y,z]/ideal(x^8-z^6-y^2*z^4-z^3);
-     time R' = integralClosure(R)
-     R = QQ[x,y,z]/ideal(x^8-z^6-y^2*z^4-z^3);
-     time R' = integralClosure(R, Strategy=>{AllCodimensions})
-     R = QQ[x,y,z]/ideal(x^8-z^6-y^2*z^4-z^3);
-     time R' = integralClosure(R, Strategy=>{RadicalCodim1, AllCodimensions})
+     S = QQ[x,y]
+     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     R = S/f
+     time R' = integralClosure R
+     icFractions R
+
+   Example
+     S = QQ[x,y]
+     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     R = S/f
+     time R' = integralClosure(R, Strategy => Radical)
+     icFractions R
+
+   Example
+     S = QQ[x,y]
+     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     R = S/f
+     --time R' = integralClosure (R, Strategy => StartWithOneMinor)
+     icFractions R
+
+   Example
+     S = QQ[x,y]
+     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     R = S/f
+     time R' = integralClosure(R, Strategy => AllCodimensions)
+     icFractions R
+
+   Example
+     S = QQ[x,y]
+     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     R = S/f
+     time R' = integralClosure(R, Strategy => SimplifyFractions)
+     icFractions R
+
+   Example
+     S = QQ[x,y]
+     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     R = S/f
+     time R' = integralClosure (R, Strategy => RadicalCodim1)
+     icFractions R
+
+   Example
+     S = QQ[a,b,c,d]
+     f = monomialCurveIdeal(S,{1,3,4})
+     R = S/f
+     time R' = integralClosure R
+     icFractions R
+   Text
+    Rational Quartic
+   Example
+     S = QQ[a,b,c,d]
+     I = monomialCurveIdeal(S,{1,3,4})
+     R = S/I
+     time R' = integralClosure(R, Strategy => Radical)
+     icFractions R
+
+   Example
+     S = QQ[a,b,c,d]
+     I = monomialCurveIdeal(S,{1,3,4})
+     R = S/I
+     time R' = integralClosure (R, Strategy => StartWithOneMinor)
+     icFractions R
+
+   Example
+     S = QQ[a,b,c,d]
+     I = monomialCurveIdeal(S,{1,3,4})
+     R = S/I
+     time R' = integralClosure(R, Strategy => AllCodimensions)
+     icFractions R
+
+   Example
+     S = QQ[a,b,c,d]
+     I = monomialCurveIdeal(S,{1,3,4})
+     R = S/I
+     time R' = integralClosure(R, Strategy => SimplifyFractions)
+     icFractions R
+
+   Example
+     S = QQ[a,b,c,d]
+     I = monomialCurveIdeal(S,{1,3,4})
+     R = S/I
+     time R' = integralClosure (R, Strategy => RadicalCodim1)
+     icFractions R
+
+   Text
+    Projected Veronese
+   Example
+     S' = QQ[a..f]
+     M' = genericSymmetricMatrix(S',a,3)
+     I' = minors(2,M')
+     center = ideal(b,c,e,a-d,d-f)
+     S = QQ[a,b,c,d,e]
+     p = map(S'/I',S,gens center)
+     I = kernel p
+     betti res I
+     R = S/I
+     time R' = integralClosure(R, Strategy => Radical)
+     icFractions R
+
+   Example
+     S' = QQ[a..f]
+     M' = genericSymmetricMatrix(S',a,3)
+     I' = minors(2,M')
+     center = ideal(b,e,a-d,d-f)
+     S = QQ[a,b,d,e]
+     p = map(S'/I',S,gens center)
+     I = kernel p
+     betti res I
+     R = S/I
+     time R' = integralClosure(R, Strategy => Radical)
+     icFractions R
+
+   Example
+     S = QQ[a,b,d,e]
+     R = S/sub(I,S)
+     time R' = integralClosure (R, Strategy => StartWithOneMinor)
+     icFractions R
+
+   Example
+     S = QQ[a,b,d,e]
+     R = S/sub(I,S)
+     time R' = integralClosure(R, Strategy => AllCodimensions)
+     icFractions R
+
+   Example
+     S = QQ[a,b,d,e]
+     R = S/sub(I,S)
+     time R' = integralClosure(R, Strategy => SimplifyFractions)
+     icFractions R
+
+   Example
+     S = QQ[a,b,d,e]
+     R = S/sub(I,S)
+     time R' = integralClosure (R, Strategy => RadicalCodim1)
+     icFractions R
+
+  Caveat
+   The list of strategies may change in the future! 
 ///
 
 doc ///
