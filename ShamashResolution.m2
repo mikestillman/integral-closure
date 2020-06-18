@@ -19,6 +19,7 @@ export {
     "shamashFrees", 
     "dim",
     "shamashMatrix",
+    "matrixFromShamashMatrix",
     "picture"
     }
 
@@ -267,7 +268,7 @@ net ShamashMatrix := (M) -> (
         )
     )
 
-matrix ShamashMatrix := opts -> (M) -> (
+matrixFromShamashMatrix ShamashMatrix := opts -> (M) -> (
     src := M.source;
     tar := M.target;
     mats := for t in tar list for s in src list getEntry(M,t,s,0);
@@ -620,12 +621,16 @@ doc ///
      Ls = for i from 0 to 8 list shamashFrees(D,i,2)
      Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
      netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
+     picture Fs#2
+     matrixFromShamashMatrix Fs#2
     Text
      The dots indicate that the compositions of the components are all 0, as they 
      should be in a complex.
    SeeAlso
     shamashFrees
     shamashData
+    picture
+    matrixFromShamashMatrix
       ///
 doc ///
    Key
@@ -672,6 +677,103 @@ doc ///
     dim
 ///
 
+doc ///
+   Key
+    dim
+    (dim, List, ShamashData)
+   Headline
+    computes the dimensions of the components of a free module
+   Usage
+    d = dim(L,D)
+   Inputs
+    L:List
+     list of lists specifying summands of a free module
+    D:ShamashData
+     contains the Koszul complex and free resolution, from which the dimensions can be determined
+   Outputs
+    d:List
+     of ZZ, the dimensions of the components
+   Description
+    Text
+     L is a list of list; the element {p,q1,q2...} representing K_p**F_q1**F_q2**...
+     The output is a list of the dimensions of these tensor products
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal(a,b,c)
+     D = shamashData I
+     L = shamashFrees(D,3)
+     dim(L,D)
+   SeeAlso
+    ShamashData
+    shamashData
+    shamashFrees
+///
+
+doc ///
+   Key
+    picture
+    (picture, ShamashMatrix)
+   Headline
+    exhibits the nonzero parts of the Shamash matrix
+   Usage
+    N = picture M
+   Inputs
+    M:ShamashMatrix
+   Outputs
+    N:Net
+     prints a "picture" -- a net -- showing the where the nonzero blocks are
+   Description
+    Text
+     A ShamashMatrix M is a HashTable with keys {source, map, ring, target}. Source and target are
+     lists of lists representing free summands. picture M prints a net showing which source summands 
+     have nonzero maps to which target summands.
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal(a,b,c)
+     D = shamashData I
+     L1 = shamashFrees(D,3)
+     L0 = shamashFrees(D,2)
+     M = shamashMatrix(L0, L1, D)
+     picture M
+     matrixFromShamashMatrix M
+   SeeAlso
+    shamashMatrix
+    shamashFrees
+    shamashData
+    matrixFromShamashMatrix
+///
+
+doc ///
+   Key
+    matrixFromShamashMatrix
+    (matrixFromShamashMatrix, ShamashMatrix)
+   Headline
+    turns the HashTable respresentation into an ordinary matrix
+   Usage
+    M1 = matrixFromShamashMatrix M
+   Inputs
+    M:ShamashMatrix
+   Outputs
+    M':Matrix
+   Description
+    Text
+     A ShamashMatrix M is a HashTable with keys {source, map, ring, target}. Source and target are
+     lists of lists representing free summands. matrixFromShamashMatrix M assembles the blocks into an ordinary matrix.
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal(a,b,c)
+     D = shamashData I
+     L1 = shamashFrees(D,3)
+     L0 = shamashFrees(D,2)
+     M = shamashMatrix(L0, L1, D)
+     picture M
+     matrix M
+   SeeAlso
+    shamashMatrix
+    shamashFrees
+    shamashData
+    matrixFromShamashMatrix
+///
 
 
 TEST ///
