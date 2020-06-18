@@ -1,6 +1,6 @@
 newPackage(
         "ShamashResolution",
-        Version => "0.1", 
+        Version => "0.9", 
         Date => "rev June 2020",
         Authors => {{Name => "Mike Stillman", 
                   Email => "mike@math.cornell.edu", 
@@ -12,6 +12,8 @@ newPackage(
         DebuggingMode => true
         )
 
+TODO: shamashData stuff is really internal (first 4 exports). Add tests.
+
 export {
     "ShamashData",
     "shamashData",
@@ -20,7 +22,9 @@ export {
     "dim",
     "shamashMatrix",
     "matrixFromShamashMatrix",
-    "picture"
+    "picture",
+    "shamashResolution",
+    "isGolodByShamash"
     }
 
 ShamashData = new Type of MutableHashTable
@@ -268,7 +272,8 @@ net ShamashMatrix := (M) -> (
         )
     )
 
-matrixFromShamashMatrix ShamashMatrix := opts -> (M) -> (
+matrixFromShamashMatrix = method()
+matrixFromShamashMatrix ShamashMatrix := M -> (
     src := M.source;
     tar := M.target;
     mats := for t in tar list for s in src list getEntry(M,t,s,0);
@@ -422,8 +427,47 @@ FKmap = (i,j,D) -> (
     liftit(f, i+j, D)
     )
 
-beginDocumentation()
+shamashResolution = method()
+shamashResolution (ZZ, Ring) := (n,R) ->(
+    --compute first n steps of the Shamash resolution of ring I/I.
+    I := ideal presentation R;
+    D := shamashData I;
+    frees := apply(n+1, i-> shamashFrees(D,i));
+    smats := apply(n, i-> shamashMatrix(frees_i,frees_(i+1),D));
+    mats := apply(n,i->matrixFromShamashMatrix smats_i);
+    phi := map(R,ring mats_0 , vars R);
+    chainComplex apply(n, i-> phi mats_i)
+    )
+///	
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal(a,b,c)
+     R = S/I
 
+     D = shamashData I
+     L1 = shamashFrees(D,3)
+     L0 = shamashFrees(D,2)
+     M = shamashMatrix(L0, L1, D)
+     picture M
+     matrixFromShamashMatrix M
+     M.source
+///
+
+isGolodByShamash = method()
+isGolodByShamash Ring := R -> (
+    I := ideal presentation R;
+    D := shamashData I;
+    n := numgens R;
+    frees := apply(n+2, i-> shamashFrees(D,i));
+    smats := apply(n+1, i-> shamashMatrix(frees_i,frees_(i+1),D));
+    componentMats := apply(smats, M -> (
+	    s := M.source;
+	    flatten apply(s, ss->apply(keys M.map#ss, tt -> M.map#ss#tt))
+	    ));
+    p := map(R, ring((componentMats_0)_0), toList(numgens R:0_R));
+    all((flatten componentMats)/(M->p M), m -> m==0)
+    )
+
+beginDocumentation()
 
 -*
 restart
@@ -493,11 +537,43 @@ Description
    in a special case,
    and the "zigzag maps" F_i -> K_i constructed from the double complex
    F**K as in the usual proof that F**k and R**K have the same homology Tor^S(R,k).
+  Example
+   S = ZZ/101[a,b,c]
+   I = ideal(a,b,c)*ideal(b,c)
+   R = S/I
+   shamashResolution(5,R)
 SeeAlso
- shamashData
  koszulMap
  shamashMatrix
  shamashFrees
+///
+
+doc ///
+   Key
+    shamashResolution
+    (shamashResolution, ZZ, Ring)
+   Headline
+    computes a resolution of the residue field
+   Usage
+    F = shamashResolution(n,R)
+   Inputs
+    R:Ring
+     factor ring of a polynomial ring
+    n:ZZ
+     number of maps to compute
+   Outputs
+    F:ChainComplex
+     possibly non-minimal resolution of R/(ideal vars R)    
+   Description
+    Text
+     computes the Shamash resolution
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b,c)*ideal(b,c)
+     R = S/I
+     shamashResolution(5,R)
+   SeeAlso
+     ShamashResolution
 ///
 
 doc ///
@@ -530,65 +606,9 @@ Description
   Example
    S = ZZ/101[a,b,c]
    I = ideal(a,b,c)*ideal(b,c)
-   D = shamashData I
-   F = D.resolution
-   K = D.koszul
-   D#"Alpha"
-   koszulMap(0,K,F)
-   netList (f = apply(4, i->koszulMap(i,K,F)))
-   F_2
-   prune HH_2((S^1/I) **K)
-SeeAlso
- shamashData
-///
-doc ///
-   Key
-    shamashData
-    (shamashData, Ideal)
-   Headline
-    items in the construction of the Shamash resolution
-   Usage
-    D = shamashData I
-   Inputs
-    I : Ideal
-     of a polynomial ring S
-   Outputs
-    D : ShamashData
-     hashTable
-   Description
-    Text
-     The i-th term in the Shamash resolution of the residue field over R = S/I
-     is R ** a direct sum of components K_p**F_(q_1)**..**F_(q_k)
-     where i = p+k = sum q_r . The maps are made from the differentials of
-     K and F together with the zigzag maps f_i: F_i -> K_i constructed by 
-     f_i =  koszulMap(i,K,F).
-     
-     The function D = shamashData I collects, in the HashTable D:
-     
-     I = D.Ideal
-     
-     R = D.ring = S/I
-     
-     F = D.resolution, the minimal free resolution of R
-     
-     F**R = D.ResolutionR
-     
-     K = D.koszul, the koszul complex of S
-     
-     K**R = D.KoszulR
-     
-     f_1...f_{(numgens S)} = D#"Alpha", the functions constructed by koszulMap(i,K,F).
-
-    Example
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b,c)*ideal(b,c)
-     D = shamashData I
-     keys D
-     F = D.resolution
-     K = D.koszul
-     D#"Alpha"
-   SeeAlso
-    koszulMap
+   F = res I
+   K = koszul vars S
+   koszulMap(2,K,F)
 ///
 
 
@@ -767,7 +787,7 @@ doc ///
      L0 = shamashFrees(D,2)
      M = shamashMatrix(L0, L1, D)
      picture M
-     matrix M
+     matrixFromShamashMatrix M
    SeeAlso
     shamashMatrix
     shamashFrees
@@ -775,9 +795,109 @@ doc ///
     matrixFromShamashMatrix
 ///
 
+doc ///
+   Key
+    isGolodByShamash
+    (isGolodByShamash,Ring)
+   Headline
+    determines whether a ring is Golod
+   Usage
+    b = isGolodByShamash R
+   Inputs
+    R: Ring
+     graded ring
+   Outputs
+    b:Boolean
+     true if ring is Golod
+   Description
+    Text
+     Tests whether shamashResolution(1+numgens R,R)
+     is minimal or not. It is a result of Avramov that it
+     is enough to test this much of the resolution (Reason: all the Massey operations
+     are already used in the first 1+numgens R maps.)
+ 
+     It is known (Huneke- ***) that powers of ideals are Golod
+    Example
+     S = ZZ/101[a,b,c]
+     R = S/(ideal vars S)^2
+     res(coker vars R)
+     shamashResolution(4,R)
+     assert(isGolodByShamash R == true)
+    Text
+     On the other hand, complete intersections are never Golod
+    Example
+     use S
+     R = S/ideal"a3,b3,c3"
+     res coker vars R
+     F = shamashResolution(4,R)
+     F.dd_4
+     assert(isGolodByShamash R == false)
+   SeeAlso
+    shamashResolution
+    ShamashResolution
+///
+
+doc ///
+   Key
+    shamashData
+    (shamashData, Ideal)
+   Headline
+    items in the construction of the Shamash resolution
+   Usage
+    D = shamashData I
+   Inputs
+    I : Ideal
+     of a polynomial ring S
+   Outputs
+    D : ShamashData
+     hashTable
+   Description
+    Text
+     The i-th term in the Shamash resolution of the residue field over R = S/I
+     is R ** a direct sum of components K_p**F_(q_1)**..**F_(q_k)
+     where i = p+k = sum q_r . The maps are made from the differentials of
+     K and F together with the zigzag maps f_i: F_i -> K_i constructed by 
+     f_i =  koszulMap(i,K,F).
+     
+     The function D = shamashData I collects, in the HashTable D:
+     
+     I = D.Ideal
+     
+     R = D.ring = S/I
+     
+     F = D.resolution, the minimal free resolution of R
+     
+     F**R = D.ResolutionR
+     
+     K = D.koszul, the koszul complex of S
+     
+     K**R = D.KoszulR
+     
+     f_1...f_{(numgens S)} = D#"Alpha", the functions constructed by koszulMap(i,K,F).
+
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b,c)*ideal(b,c)
+     D = shamashData I
+     keys D
+     F = D.resolution
+     K = D.koszul
+     D#"Alpha"
+   SeeAlso
+    koszulMap
+///
+
+doc ///
+   Key
+    ShamashData
+   Headline
+    holds intermediate computations for shamashResolution
+///
 
 TEST ///
+--test exactness, composition 0, compare with DGAlgebras code.
 -- test code and assertions here
+--
 -- may have as many TEST sections as needed
 ///
 
@@ -789,7 +909,7 @@ restart
 installPackage "ShamashResolution"
 viewHelp ShamashResolution
 debug ShamashResolution
-
+viewHelp matrixFromShamashMatrix
 S = ZZ/101[a..e]
 I = ideal"ab-bc,b2-cd,ac-be"
 I = ideal"ab,bc,cd,de,ea"
