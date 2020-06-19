@@ -77,10 +77,11 @@ export{
      "simplifyFractions",
      "testLT",
     -- optional argument names
-     "AddMinors",
      "Keep",
      "ConductorElement",
      "Index",
+     -- strategy options
+     "AddMinors",
      "StartWithOneMinor",
      "SimplifyFractions", -- simplify fractions
      "Radical",
@@ -198,7 +199,8 @@ integralClosure Ring := Ring => o -> (R) -> (
      T := ambient S;
      kk := ultimate(coefficientRing,T);
      allgens := generators(T, CoefficientRing => kk);
-     keepvars := o.Keep;
+     keepvars := o.Keep; -- TODO MES: bug? these will not be in the correct ring, bring them over?
+       -- TODO MES: check that o.Keep contains a list of variables in the ring R?
      if keepvars === null then keepvars = allgens;
 
      P := ideal S;
@@ -209,7 +211,8 @@ integralClosure Ring := Ring => o -> (R) -> (
      isS2 := isCompleteIntersection; -- true means is, false means 'do not know'
      nsteps := 0;
      t1 := null;  -- used for timings
-
+     
+     allCodimensionsNotPresent := not member(AllCodimensions, strategies);
      codim1only := not member(AllCodimensions, strategies);
        -- this means: don't bother to compute the S2-ification
        -- and don't try to take only the codim 1 part of the radical
@@ -307,7 +310,7 @@ commonDenom = X -> findSmallGen intersect(apply (X, x->ideal x));
 --   nsteps: ZZ (currently unused.  If > 0, this was an indication to add in some minors of the 
 --       Jacobian ideal of J).
 --   strategies: List, containing a subset of: 
---     RadicalCodim1, Radical, AddMinor
+--     RadicalCodim1, Radical, AddMinors
 --     These mean:
 --       Radical: compute radical using command 'radical'
 --       RadicalCodim1: compute radical using command 'rad' in PrimaryDecomposition package
@@ -539,7 +542,6 @@ integralClosure1 = (F,G,J,nsteps,varname,keepvars,strategies,verbosity) -> (
        iinvfrac := map(frac R1temp , frac R1, substitute(iinv,frac R1temp));
      
        -- We also want to trim the ring     
-
        F0 = i*F0; -- R0 --> R1
        (F0*F,G*G0*iinvfrac,F0 radJ)
        )
@@ -766,7 +768,7 @@ fInIdeal = (f,I) -> (
   R1=ringFromFractions vasconcelos(K,f)
   R2=ringFromFractions endomorphisms(K,f)
   betti res I -- NOT depth 2.
-  time integralClosure(S/I, Strategy => {"vasconcelos"})
+  time integralClosure(S/I, Strategy => {"vasconcelos"}) -- TODO MES: this doesn't do anything.
   time integralClosure(S/I, Strategy => {})
   makeS2 R
 ///
@@ -822,6 +824,7 @@ isNormal(Ring) := Boolean => (R) -> (
      )
 
 --------------------------------------------------------------------
+-- MES TODO: don't require homogeneeous!!
 conductor = method()
 conductor RingMap := Ideal => (F) -> (
      --Input:  A ring map where the target is finitely generated as a 
@@ -832,6 +835,7 @@ conductor RingMap := Ideal => (F) -> (
      R := source F;
      if false and R.?icFractions
        then (
+            -- MES TODO: why is this commented out?
 	    -- here we have a set of fractions which generate the integral closure
 	    L := R.icFractions;
 	    L = apply(L, h -> {numerator h, denominator h});
@@ -876,19 +880,17 @@ icMap(Ring) := RingMap => R -> (
   loadPackage "IntegralClosure"
   debug loadPackage("IntegralClosure", Reload => true)
 *-
-  -- TODO: fix this: J is first an ideal, then the integral closure.
-  --       last assert doesn't type match (List == Matrix).
   S = QQ [(symbol Y)_1, (symbol Y)_2, (symbol Y)_3, (symbol Y)_4, symbol x, symbol y, Degrees => {{7, 1}, {5, 1}, {6, 1}, {6, 1}, {1, 0}, {1, 0}}, MonomialOrder => ProductOrder {4, 2}]
   J =
     ideal(Y_3*y-Y_2*x^2,Y_3*x-Y_4*y,Y_1*x^3-Y_2*y^5,Y_3^2-Y_2*Y_4*x,Y_1*Y_4-Y_2^2*y^3)
-  T = S/J       
-  J = integralClosure T
-  KF = frac(ring ideal J)
-  M1 = first entries substitute(vars T, KF)
-  M2 = apply(T.icFractions, i -> matrix{{i}})
+  R = S/J       
+  R' = integralClosure R
+  KF = frac(ring ideal R')
+  M1 = first entries substitute(vars R, KF)
+  M2 = apply(R.icFractions, i -> matrix{{i}})
 
-  assert(icFractions T == substitute(matrix {{(Y_2*y^2)/x, (Y_1*x)/y,
-                  Y_1, Y_2, Y_3, Y_4, x, y}}, frac T))
+  assert(matrix{icFractions R} == substitute(matrix {{(Y_2*y^2)/x, (Y_1*x)/y,
+                  Y_1, Y_2, Y_3, Y_4, x, y}}, frac R))
 ///
 
 --------------------------------------------------------------------
@@ -979,22 +981,6 @@ icPIdeal (RingElement, RingElement, ZZ) := Ideal => (a, D, N) -> (
      J
      )
 
-----------------------------------------
--- Integral closure of ideal -----------
-----------------------------------------
--- MES TODO: remove this commented out code that doesn't really work anyway, and has been supplanted.
--*
-extendIdeal = (I,f) -> (
-     --input: f: (module I) --> M, a map from an ideal to a module that is isomorphic
-     --to a larger ideal
-     --output: generators of an ideal J isomorphic to M, so that f becomes
-     --the inclusion map.
-     M:=target f;
-     iota:= matrix f;
-     psi:=syz transpose presentation M;
-     trim ideal psi)
-*-
-
 TEST ///
 -*
   restart
@@ -1026,6 +1012,10 @@ TEST ///
   f=inducedMap(M,module I)
   extendIdeal(f)     
 ///
+
+----------------------------------------
+-- Integral closure of ideal -----------
+----------------------------------------
 
 integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     S := ring I;
@@ -1157,6 +1147,7 @@ basisOfDegreeD (List,Ring) := Matrix => (L,R) ->(
     map(target g,,g)
     )
 
+-- MES TODO: this function needs to be documented.
 integralClosures = method (Options => options integralClosure)
 integralClosures(Ideal) := opts -> I -> (
     -- input: ideal I in an affine ring A
@@ -1701,9 +1692,10 @@ doc ///
      S = QQ[x,y]
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
      R = S/f
-     time R' = integralClosure R
+     time R' = integralClosure(R, Verbosity => 6)
+     see ideal R'
      icFractions R
-
+     
    Example
      S = QQ[x,y]
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
@@ -1785,7 +1777,7 @@ doc ///
    Text
     Projected Veronese
    Example
-     S' = QQ[a..f]
+     S' = QQ[symbol a .. symbol f]
      M' = genericSymmetricMatrix(S',a,3)
      I' = minors(2,M')
      center = ideal(b,c,e,a-d,d-f)
@@ -3234,3 +3226,26 @@ elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
 
 
 
+-- MES: this is me playing around tryiing to find better fractions, cvan be removed.
+use ring ideal R'
+contract(w_(2,0), gens ideal R')
+see ideal R'
+
+use R'
+use R
+f = y^3 + 6*y^2 - 16*y
+g = 2*x-y
+(ideal g) : (ideal f)
+
+-- eliminate: error: expected a polynomial ring over ZZ or a field
+denoms = (ideal g) : (ideal f)
+lift(denoms, ambient R)
+eliminate(oo, S_1)
+radical((ideal g) : (ideal f))
+lift(oo, S)
+ideal gens gb oo
+eliminate(oo, S_1)
+
+-- write it with denominator x^3*(x+4)
+((x^3*(x+4) * f)) // g
+----- MES: can be removed above this line --

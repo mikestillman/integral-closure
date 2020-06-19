@@ -12,7 +12,7 @@ newPackage(
         DebuggingMode => true
         )
 
-TODO: shamashData stuff is really internal (first 4 exports). Add tests.
+-- TODO: shamashData stuff is really internal (first 4 exports). Add tests.
 
 export {
     "ShamashData",
