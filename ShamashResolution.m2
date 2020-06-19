@@ -12,7 +12,7 @@ newPackage(
         DebuggingMode => true
         )
 
-TODO: shamashData stuff is really internal (first 4 exports). Add tests.
+--TODO: shamashData stuff is really internal (first 4 exports). Add tests.
 
 export {
     "ShamashData",
@@ -121,9 +121,15 @@ dim(List,ShamashData) := (L,D) -> (
 S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
 D = shamashData I
-L = shamashFrees(D,3)
+L = shamashFrees(D,10)
 dim(L,D)
 ///
+
+--BUG: this works only for the first 5 steps of the
+--resolution. 
+--Need functions that make maps for longer sequences,
+--eg {0,1,1,1}.
+--I guess these are the higher Massey ops.
 
 shamashMap = method()
 shamashMap(List, ShamashData) := (src, D) -> (
@@ -192,6 +198,26 @@ cleanShamashMap = (M) -> (
     new HashTable from M1
     ) 
     
+///
+--BUG
+break
+debug ShamashResolution
+S = ZZ/101[a]
+R = S/(ideal a^3)
+n = 6
+           I = ideal presentation R;
+           D = shamashData I;
+	   netList (F = apply(7, i -> shamashFrees(D,i)))
+	   netList(apply(6, i-> (i+1,shamashMap(F_(i+1)_0,D))))
+	   shamashMap(F6_0,D)  --returns null
+--
+	   cleanShamashMap (new HashTable from 
+	       for s in F5 list (s => shamashMap(s,D))
+	       )
+	   cleanShamashMap (new HashTable from 
+	       for s in F6 list (s => shamashMap(s,D))
+	       )
+///
 shamashMatrix = method()
 shamashMatrix(List, List, ShamashData) := (tar, src, D) -> (
     F := cleanShamashMap (new HashTable from for s in src list (s => shamashMap(s,D)));
@@ -894,7 +920,19 @@ doc ///
     holds intermediate computations for shamashResolution
 ///
 
+
 TEST ///
+-*
+restart
+loadPackage("ShamashResolution", Reload => true)
+*-
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b,c)*ideal(b,c)
+     F = shamashResolution(6,S/I)
+
+     S = ZZ/101[a]
+     I = ideal(a^3)
+     F = shamashResolution(6,S/I)
 --test exactness, composition 0, compare with DGAlgebras code.
 -- test code and assertions here
 --
