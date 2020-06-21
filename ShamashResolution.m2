@@ -76,6 +76,7 @@ free = (n, maxelem) -> (
         x/(x1 -> prepend(i,x1))
         )
     )
+
 shamashFrees = method()
 shamashFrees(ZZ,ZZ,ZZ) := (r,maxK, maxF) -> (
     -*
@@ -105,6 +106,15 @@ shamashFrees(ShamashData,ZZ,ZZ) := (D,r,maxlength) -> (
 
 shamashFrees(ShamashData,ZZ) := (D,r) -> shamashFrees(D,r,infinity)
 
+shamashFreeModule = method()
+shamashFreeModule(List, ShamashData) := (L,D) -> (
+    K := D.koszul;
+    F := D.resolution;
+    FF = K_(L_0);
+    for i from 1 to #L-1 do FF = FF**F_(L_i);
+    FF)
+    
+
 dim = method()
 dim(List,ShamashData) := (L,D) -> (
     --L must be of the form shamashFrees(D,r)
@@ -117,21 +127,127 @@ dim(List,ShamashData) := (L,D) -> (
         )
     )
 ///
+restart
+--installPackage
+loadPackage("ShamashResolution", Reload => true)
 S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
 D = shamashData I
-L = shamashFrees(D,10)
+peek D
+L = shamashFrees(D,4)
 dim(L,D)
+L
+apply(L, ell -> targetList(ell,D))
+
+src_{0..i-1}
 ///
 
---BUG: this works only for the first 5 steps of the
---resolution. 
---Need functions that make maps for longer sequences,
---eg {0,1,1,1}.
---I guess these are the higher Massey ops.
+targetList = method()
+targetList(List) := List => src -> (
+    --src specifies the source free module; has the form
+    --{p_0,p_1,...p_n}. p_0 is a non-neg ZZ, p_i is a pos ZZ for i>0. 
+    --The degree of src is by definition sum_i p_i + n.
+    --src then represents the free module K_(p_0) ** F_(p_1) ** .. ** F_(p_n).
+    --The output is a list of the lists representing all the
+    --free modules of weight one less than src that can be targets of components of the differential. These
+    --are gotten by diminishing one p_0 if it is >0, or one of the p_i, i>0 that is >1;
+    --and by adding two adjacent p_i.
+    type10 = apply (#src, i -> src_{0..i-1}|{src_i -1}|src_{i+1..#src-1});
+    type11 = select(type10, ell-> ell_0>=0 and product drop(ell,1) =!=0);
+    type1 = select(type11, ell-> #ell>0);
+    type2 = apply(#src-1, i-> src_{0..i-1}|{src_i+src_(i+1)}|src_{i+2..#src-1});
+    type1 | type2
+    )
+
+-- plan: induction: if gamma: F_(i_1)**..**F_(i_n) is defined on such products with deg = n+sum_j(i_j)<=i and has
+-- values in the sum of terms of weight (== number of factors) <=n, and the differential d is defined
+-- on all terms of degree <=n, then: 
+-- we define d on K_j * FF by as 
+--             d(x_0**x_1**..**x_n) = d(x_0)**(x_1**..**x_n) + (-1)^(deg x_0)**x_0**d(x_1**..**x_n).
+-- and we define gamma on x_1**..**x_(n+1) so that
+--             d gamma(x_1**..**x_(n+1)) = - d(d(x_1**..**x_n)*x_(n+1)
+-- and then 
+--             d(x_1**..**x_(n+1)) = d(x_1**..**x_n)**x_n+ gamma(x_1**..**x_(n+1)).
+
+
 
 shamashMap = method()
-shamashMap(List, ShamashData) := (src, D) -> (
+shamashMap(List, ShamashData) := (HashTable => (src, D) -> (
+    --src specifies the source free module; has the form
+    --{p_0,p_1,...p_n}. 
+    --p_0 is a non-neg ZZ, p_i is a pos ZZ for i>0. 
+    --The *weight* is n = #src-1.     
+    --The degree is sum_i p_i + n.
+    --src represents the free module K_(p_0) ** F_(p_1) ** .. ** F_(p_n).
+    --The output is a HashTable. The keys 
+    --are the lists representing
+    --each possible free modules of degree one less than deg src and weight < weight src
+    --to which src might map.
+    --These
+    --are gotten by diminishing one of the p_i that is > the bound and by
+    --adding two adjacent p_i.
+    --If p_0 = 0, then the table also contains the key gamma, whose value
+    --is the map from src to the sum of all the free modules above satisfying
+    --d gamma(x_1**..**x_n) = d(d(x_1**...x_(n-1))**x_n). 
+
+    K := D#"KoszulR";
+    F := D#"ResolutionR";
+    alpha := prepend("NOT USED", D#"Alpha");
+
+    --weight 0, arbitrary degree:
+    if #src == 1 then (
+        -- this is a Koszul map
+        p := src#0;
+        new HashTable from {{p-1} => K.dd_p}
+        )
+    --weight 1, arbitrary degree
+    --differential
+    else if #src == 2 then (
+        i := src#0;
+        j := src#1;
+        new HashTable from (
+          if i == 0 --note that 
+          then {{j} => alpha#j}
+          else (
+              f := wedgeProduct(i,j,K_1) * (id_(K_i) ** alpha#j);
+              -- need alpha followed by multiplication
+              {{i-1,j} => K.dd_i ** id_(F_j),
+               {i+j} => (-1)^i * f
+              }
+              )
+        ))
+    --induction on weight: d has been defined up to weight #src-1, gamma has been defined up to #src
+    else if #src>2 then (
+	if src_0>0 then {src =>
+	    shamashMap({src_0},D)**id_(shamashFreeModule(drop(src,1),D))+
+	                (-1)^(src_0)*shamashMap(drop(src,1),D)
+	else
+	if src_0 = 0 then {{src =>shamashMap(drop(src,-1)**id_(F_(last src))= shamashMap(src).gamma)}
+		    {gamma => *******}}
+
+)
+
+gamma = method()
+gamma(List,ShamashData) := Matrix => (L1,D) ->(
+    K := D#"KoszulR";
+    F := D#"ResolutionR";
+    alpha := prepend("NOT USED", D#"Alpha");
+
+    if #L1 = 1 then alpha#(L1_0);
+    else 
+    target = ***
+    gamma = map(target, shamashFreeModule({0}|L1),
+	--is this FKmap in a special case?
+      )
+  )
+    
+  
+
+--BUG: shamashMap0, Mike's old code, 
+--works only for the first 5 steps of the
+--resolution. 
+shamashMap0 = method()
+shamashMap0(List, ShamashData) := (src, D) -> (
     K := D#"KoszulR";
     F := D#"ResolutionR";
     alpha := prepend("NOT USED", D#"Alpha");
@@ -142,6 +258,21 @@ shamashMap(List, ShamashData) := (src, D) -> (
         p := src#0;
         new HashTable from {{p-1} => K.dd_p}
         )
+    else if #src == 2 then (
+        i := src#0;
+        j := src#1;
+        new HashTable from (
+          if i == 0 
+          then {{j} => alpha#j}
+          else (
+              f := wedgeProduct(i,j,K_1) * (id_(K_i) ** alpha#j);
+              -- need alpha followed by multiplication
+              {{i-1,j} => K.dd_i ** id_(F_j),
+               {i+j} => (-1)^i * f
+              }
+              )
+        ))
+
 --maps{i,j}->{i-1,j} and {i+j}
     else if #src == 2 then (
         i := src#0;
@@ -197,26 +328,6 @@ cleanShamashMap = (M) -> (
     new HashTable from M1
     ) 
     
-///
---BUG
-break
-debug ShamashResolution
-S = ZZ/101[a]
-R = S/(ideal a^3)
-n = 6
-           I = ideal presentation R;
-           D = shamashData I;
-	   netList (F = apply(7, i -> shamashFrees(D,i)))
-	   netList(apply(6, i-> (i+1,shamashMap(F_(i+1)_0,D))))
-	   shamashMap(F6_0,D)  --returns null
---
-	   cleanShamashMap (new HashTable from 
-	       for s in F5 list (s => shamashMap(s,D))
-	       )
-	   cleanShamashMap (new HashTable from 
-	       for s in F6 list (s => shamashMap(s,D))
-	       )
-///
 shamashMatrix = method()
 shamashMatrix(List, List, ShamashData) := (tar, src, D) -> (
     F := cleanShamashMap (new HashTable from for s in src list (s => shamashMap(s,D)));
@@ -229,7 +340,7 @@ shamashMatrix(List, List, ShamashData) := (tar, src, D) -> (
     )
 
 ///
-D = shamashData I
+D = shamashData I 
 Ls = for i from 0 to 8 list shamashFrees(D,i,2)
 Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
 netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
