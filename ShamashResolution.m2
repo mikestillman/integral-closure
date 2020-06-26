@@ -23,7 +23,8 @@ export {
     "matrixFromShamashMatrix",
     "picture",
     "shamashResolution",
-    "isGolodByShamash"
+    "isGolodByShamash",
+    "shamashFreeModule"
     }
 
 ShamashData = new Type of MutableHashTable
@@ -106,14 +107,39 @@ shamashFrees(ShamashData,ZZ,ZZ) := (D,r,maxlength) -> (
 
 shamashFrees(ShamashData,ZZ) := (D,r) -> shamashFrees(D,r,infinity)
 
+shamashFrees(ShamashData,ZZ,ZZ) := (D,r,w) -> (
+    --the lists giving summands of degree r and weight at most w
+    select(shamashFrees(D,r), L -> #L<=w-1)
+    )
+
 shamashFreeModule = method()
-shamashFreeModule(List, ShamashData) := (L,D) -> (
+shamashFreeModule(ShamashData,List) := (D,L) -> (
     K := D.koszul;
     F := D.resolution;
     FF = K_(L_0);
     for i from 1 to #L-1 do FF = FF**F_(L_i);
-    FF)
+    FF
+    )
     
+shamashFreeModule = method()
+shamashFreeModule(ShamashData,r,w) := (D,r,w) -> 
+    --the free module of homological degree = r, weight <= w.
+    directSum apply(shamashFrees(D,r,w), L -> shamashFreeModule(D,L))
+///
+restart
+debug loadPackage "ShamashResolution"
+S = QQ[x_1..x_6]
+I = ideal(x_1,x_2)*ideal vars S
+D = shamashData I
+netList shamashFrees(D,6)
+netList shamashFrees(D,6,2)
+D.resolution
+L = {1,1}
+shamashFreeModule(D,L)
+r = 2;w=1;
+shamashFrees(D,2,1)
+shamashFreeModule(D,2,1)
+///
 
 dim = method()
 dim(List,ShamashData) := (L,D) -> (
@@ -173,34 +199,34 @@ targetList(List) := List => src -> (
 
 shamashMap = method()
 shamashMap(List, ShamashData) := (HashTable => (src, D) -> (
-    --src specifies the source free module; has the form
+    --computes components of the differential of the Shamash resolution by induction on the weight = number
+    --of factors from F = D.resolution.
+    --The induction is linked to a parallel induction defining auxilliary maps gamma.
+    --src specifies the source free module (summand of the resolution); has the form
     --{p_0,p_1,...p_n}. 
     --p_0 is a non-neg ZZ, p_i is a pos ZZ for i>0. 
     --The *weight* is n = #src-1.     
-    --The degree is sum_i p_i + n.
+    --(The homological degree is sum_i p_i + n).
     --src represents the free module K_(p_0) ** F_(p_1) ** .. ** F_(p_n).
     --The output is a HashTable. The keys 
     --are the lists representing
-    --each possible free modules of degree one less than deg src and weight < weight src
+    --each possible free module of degree one less than deg src and weight < weight src
     --to which src might map.
     --These
-    --are gotten by diminishing one of the p_i that is > the bound and by
+    --are gotten by diminishing one of the p_i that is > the bound or by
     --adding two adjacent p_i.
-    --If p_0 = 0, then the table also contains the key gamma, whose value
-    --is the map from src to the sum of all the free modules above satisfying
-    --d gamma(x_1**..**x_n) = d(d(x_1**...x_(n-1))**x_n). 
 
     K := D#"KoszulR";
     F := D#"ResolutionR";
     alpha := prepend("NOT USED", D#"Alpha");
-
-    --weight 0, arbitrary degree:
+    
+    --weight 0
     if #src == 1 then (
         -- this is a Koszul map
         p := src#0;
         new HashTable from {{p-1} => K.dd_p}
         )
-    --weight 1, arbitrary degree
+    --weight 1
     --differential
     else if #src == 2 then (
         i := src#0;
@@ -216,7 +242,8 @@ shamashMap(List, ShamashData) := (HashTable => (src, D) -> (
               }
               )
         ))
-    --induction on weight: d has been defined up to weight #src-1, gamma has been defined up to #src
+    --induction on weight: d has been defined up to weight #src-1, gamma has been defined up to
+    weight #src
     else if #src>2 then (
 	if src_0>0 then {src =>
 	    shamashMap({src_0},D)**id_(shamashFreeModule(drop(src,1),D))+
@@ -228,7 +255,11 @@ shamashMap(List, ShamashData) := (HashTable => (src, D) -> (
 )
 
 gamma = method()
-gamma(List,ShamashData) := Matrix => (L1,D) ->(
+gamma(List,ShamashData) := Matrix => (src,D) ->(
+    --gamma is the map from src to (certain?) modules of weight one less than L
+    --d gamma(x_1**..**x_n) = d(d(x_1**...x_(n-1))**x_n). 
+    --src is a list of the form {0,p_1,..,p_n}. It is assumed that d has been
+    --defined for such tuples of smaller weight.
     K := D#"KoszulR";
     F := D#"ResolutionR";
     alpha := prepend("NOT USED", D#"Alpha");

@@ -3313,3 +3313,24 @@ eliminate(oo, S_1)
 -- write it with denominator x^3*(x+4)
 ((x^3*(x+4) * f)) // g
 ----- MES: can be removed above this line --
+
+needsPackage "Normaliz"
+
+-- Bug in program.  Perhaps the extra variable is causing issues?
+R = ZZ/101[x,y,z]
+I = ideal(y^2-x^3)
+normalToricRing(I, t) -- gives an error.
+
+-- How does the following give me any info about the integral closure?
+-- (It probably does, but how?)
+R = ZZ/101[x,y]
+I = ideal(y^2-x^3)
+normalToricRing(I, t)
+
+-- This is correct, how can I get the actual fractions added?
+-- Can I?  Or the image of R in this new ring?
+R = ZZ/101[a,b,c,d]
+I = monomialCurveIdeal(R, {1,3,4})
+normalToricRing(I, t)
+
+viewHelp normalToricRing
