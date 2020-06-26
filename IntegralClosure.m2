@@ -9,17 +9,21 @@ newPackage(
         },
     Headline => "integral closure",
     PackageImports => { 
-        "PrimaryDecomposition", 
-        "ReesAlgebra",
-        "FastLinAlg",
-        "Normaliz"
+        "PrimaryDecomposition",  -- only used for an obscure "rad" function
+        "ReesAlgebra", -- used for integral closure of an ideal
+        "FastLinAlg", -- not used yet
+        "Normaliz" -- not used yet
         },
     PackageExports => {
-        "MinimalPrimes"
+        "MinimalPrimes" -- really helps speed up most computations here. Use minprimes.
         },
-    DebuggingMode => true,
+    DebuggingMode => false,
     AuxiliaryFiles => true
     )
+
+-- The present version (for M2 1.16) is not done being cleaned up,
+-- but it does fix a bad bug involving integral closure of ideals.
+-- 
 
 -*TODO next: 
 documentation (strategies); 
@@ -34,8 +38,6 @@ StartWithS2
 
 AddMinors ??
 Vasconcelos??
-
-
 
 ConductorElement??
 
@@ -52,8 +54,6 @@ FastLinAlg?
 generatorSymbols = value Core#"private dictionary"#"generatorSymbols" -- use as R#generatorSymbols.
 rad = value PrimaryDecomposition#"private dictionary"#"rad" -- a function we seem to be using in integralClosure.
 
-installMinprimes()
-
 export{
     -- methods
      "integralClosure", 
@@ -67,16 +67,16 @@ export{
      "makeS2",
      "idealizer", 
      "ringFromFractions", 
-     "extendIdeal",
+     --mes--"extendIdeal",
      "simplifyFractions",
-     "testLT",
+     --mes--"testLT",
     -- optional argument names
      "Keep",
-     "Denominator",
+     --mes--"Denominator",
      "ConductorElement",
      "Index",
      -- strategy options
-     "AddMinors",
+     --mes--"AddMinors", -- probably remove this one?  it isn't used.
      "StartWithOneMinor",
      "SimplifyFractions", -- simplify fractions
      "Radical",
@@ -112,7 +112,7 @@ integralClosure = method(Options=>{
         Limit => infinity,
         Strategy => {}, -- a mix of certain symbols
         Verbosity => 0,
-        Denominator => null, -- if given, should be a nonzero divisor in Jacobian ideal of the ring.
+        --mes--Denominator => null, -- if given, should be a nonzero divisor in Jacobian ideal of the ring.
         Keep => null -- list of variables to not simplify away.  Default is all original vars
         }
     )
@@ -222,7 +222,7 @@ integralClosure Ring := Ring => o -> (R) -> (
 	     )
          );
 
-     denom := o.Denominator; -- either null (means for the routine to find a possible denominator),
+     denom := null; --mes--o.Denominator; -- either null (means for the routine to find a possible denominator),
      -- or a nzd in the radical of the ideal J.
      
      -------------------------------------------
@@ -269,7 +269,7 @@ commonDenom = X -> findSmallGen intersect(apply (X, x->ideal x));
 --   nsteps: ZZ (currently unused.  If > 0, this was an indication to add in some minors of the 
 --       Jacobian ideal of J).
 --   strategies: List, containing a subset of: 
---     RadicalCodim1, Radical, AddMinors
+--     RadicalCodim1, Radical
 --     These mean:
 --       Radical: compute radical using command 'radical'
 --       RadicalCodim1: compute radical using command 'rad' in PrimaryDecomposition package
@@ -302,27 +302,28 @@ radicalJ = (J,codim1only,nsteps,strategies,verbosity) -> (
     --  (c) what else?
      useRadical := false;
      useRadicalCodim1 := false;
-     useDecompose := true;
+     useDecompose := false; --mes-todo-- this is always false here.
      if member(RadicalCodim1, strategies) then useRadicalCodim1 = true;
      if member(Radical, strategies) then useRadical = true;
      
      R0 := ring J;
      J = trim J;
-     if false and nsteps > 0 and member(AddMinors, strategies) then ( 
-	  -- MES: compute dimension of the orig ring above, so that we know the size of minors here,
-	                  -- with no extra computation
-	  newminors := ideal (0_R0);
-	  while newminors == 0 do
-	    newminors = ideal randomMinors(10,numgens R0 - dim R0,jacobian R0);
-	  J = J + newminors
-	  );
+     -- if false and nsteps > 0 and member(AddMinors, strategies) then ( 
+     --      -- MES: compute dimension of the orig ring above, so that we know the size of minors here,
+     --                      -- with no extra computation
+     --      newminors := ideal (0_R0);
+     --      while newminors == 0 do
+     --        newminors = ideal randomMinors(10,numgens R0 - dim R0,jacobian R0);
+     --      J = J + newminors
+     --      );
      if codim1only and codim J > 1 then return {};
 
      if verbosity >= 2 then (
        	  << endl << "      radical " <<
 	  (if useRadical then "(use usual radical) "
      	  else if useRadicalCodim1 then "(use codim1radical) "
-	  else "(use decompose) ")
+	  else if useDecompose then "(use decompose) "
+          else "(use minprimes) ")
           << flush;
 	  );
 
@@ -338,7 +339,8 @@ radicalJ = (J,codim1only,nsteps,strategies,verbosity) -> (
      t1 := timing(radJup := 
        if useRadical then {radical Jup}
        else if useRadicalCodim1 then {rad(Jup,0)}
-       else if useDecompose then decompose Jup);
+       else if useDecompose then decompose Jup
+       else minprimes(Jup, Verbosity => verbosity));
 
      radJ := apply(radJup, L -> trim promote(L, R0));
      
@@ -459,6 +461,8 @@ integralClosure1 = (F,G,J,denom,nsteps,varname,keepvars,strategies,verbosity) ->
      };
 *-
 
+    --mes-todo-- This is almost always a bad idea:  !!
+    -- the issue is that the fraction field operations can be very bad.
        if member(SimplifyFractions, strategies)
        then (He,fe) = (
      	    Hef := apply(flatten entries He, h->h/f);
@@ -1454,12 +1458,9 @@ doc ///
     integralClosure(R, Strategy=>L)
   Inputs
     L:List
-      of a subset of the following: {\tt RadicalCodim1, AllCodimensions}
-      
-      --StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
+      of a subset of the following: {\tt RadicalCodim1, Radical, AllCodimensions}
   Description
    Text
-     
      {\tt RadicalCodim1} chooses an alternate, often much faster, sometimes much slower,
      algorithm for computing the radical of ideals.  This will often produce a different
      presentation for the integral closure.
@@ -1476,48 +1477,33 @@ doc ///
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
      R = S/f
      time R' = integralClosure R
-     see ideal R'
+     netList (ideal R')_*
      icFractions R
-     XXX     
-     time R' = integralClosure(R, Denominator => x*(x+4)) -- crash!
-     time R' = integralClosure(R, Denominator => x*(x+4), Verbosity => 2) -- crash!
-     time R' = integralClosure(R, Denominator => x, Verbosity => 2)
-     time R' = integralClosure(R, Denominator => x+4, Verbosity => 2)
    Example
      S = QQ[x,y]
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
      R = S/f
      time R' = integralClosure(R, Strategy => Radical)
+     netList (ideal R')_*
      icFractions R
-
-   Example
-     S = QQ[x,y]
-     f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-     R = S/f
-     --time R' = integralClosure (R, Strategy => StartWithOneMinor)
-     icFractions R
-
    Example
      S = QQ[x,y]
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
      R = S/f
      time R' = integralClosure(R, Strategy => AllCodimensions)
      icFractions R
-
    Example
      S = QQ[x,y]
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
      R = S/f
      time R' = integralClosure(R, Strategy => SimplifyFractions)
      icFractions R
-
    Example
      S = QQ[x,y]
      f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
      R = S/f
      time R' = integralClosure (R, Strategy => RadicalCodim1)
      icFractions R
-
    Example
      S = QQ[a,b,c,d]
      f = monomialCurveIdeal(S,{1,3,4})
@@ -1532,35 +1518,18 @@ doc ///
      R = S/I
      time R' = integralClosure(R, Strategy => Radical)
      icFractions R
-
-   Example
-     S = QQ[a,b,c,d]
-     I = monomialCurveIdeal(S,{1,3,4})
-     R = S/I
-     time R' = integralClosure (R, Strategy => StartWithOneMinor)
-     icFractions R
-
    Example
      S = QQ[a,b,c,d]
      I = monomialCurveIdeal(S,{1,3,4})
      R = S/I
      time R' = integralClosure(R, Strategy => AllCodimensions)
      icFractions R
-
-   Example
-     S = QQ[a,b,c,d]
-     I = monomialCurveIdeal(S,{1,3,4})
-     R = S/I
-     time R' = integralClosure(R, Strategy => SimplifyFractions)
-     icFractions R
-
    Example
      S = QQ[a,b,c,d]
      I = monomialCurveIdeal(S,{1,3,4})
      R = S/I
      time R' = integralClosure (R, Strategy => RadicalCodim1)
      icFractions R
-
    Text
     Projected Veronese
    Example
@@ -1575,7 +1544,6 @@ doc ///
      R = S/I
      time R' = integralClosure(R, Strategy => Radical)
      icFractions R
-
    Example
      S' = QQ[a..f]
      M' = genericSymmetricMatrix(S',a,3)
@@ -1588,34 +1556,59 @@ doc ///
      R = S/I
      time R' = integralClosure(R, Strategy => Radical)
      icFractions R
-
-   Example
-     S = QQ[a,b,d,e]
-     R = S/sub(I,S)
-     time R' = integralClosure (R, Strategy => StartWithOneMinor)
-     icFractions R
-
    Example
      S = QQ[a,b,d,e]
      R = S/sub(I,S)
      time R' = integralClosure(R, Strategy => AllCodimensions)
      icFractions R
-
-   Example
-     S = QQ[a,b,d,e]
-     R = S/sub(I,S)
-     time R' = integralClosure(R, Strategy => SimplifyFractions)
-     icFractions R
-
    Example
      S = QQ[a,b,d,e]
      R = S/sub(I,S)
      time R' = integralClosure (R, Strategy => RadicalCodim1)
      icFractions R
-
   Caveat
    The list of strategies may change in the future! 
 ///
+
+--mes--  
+   --StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
+   -- Example
+   --   S = QQ[x,y]
+   --   f = ideal (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+   --   R = S/f
+   --   --time R' = integralClosure (R, Strategy => StartWithOneMinor)
+   --   icFractions R
+   -- Example
+   --   S = QQ[a,b,c,d]
+   --   I = monomialCurveIdeal(S,{1,3,4})
+   --   R = S/I
+   --   time R' = integralClosure (R, Strategy => StartWithOneMinor)
+   --   icFractions R
+   -- Example
+   --   S = QQ[a,b,c,d]
+   --   I = monomialCurveIdeal(S,{1,3,4})
+   --   R = S/I
+   --   time R' = integralClosure(R, Strategy => SimplifyFractions)
+   --   icFractions R
+
+   -- Example
+   --   S = QQ[a,b,d,e]
+   --   R = S/sub(I,S)
+   --   time R' = integralClosure (R, Strategy => StartWithOneMinor)
+   --   icFractions R
+
+   -- Example
+   --   S = QQ[a,b,d,e]
+   --   R = S/sub(I,S)
+   --   time R' = integralClosure(R, Strategy => SimplifyFractions)
+   --   icFractions R
+-- The use of Denominator isn't working well yet.
+     -- XXX     
+     -- time R' = integralClosure(R, Denominator => x*(x+4)) -- crash!
+     -- time R' = integralClosure(R, Denominator => x*(x+4), Verbosity => 2) -- crash!
+     -- time R' = integralClosure(R, Denominator => x, Verbosity => 2)
+     -- time R' = integralClosure(R, Denominator => x+4, Verbosity => 2)
+
 
 doc ///
   Key
@@ -2188,10 +2181,10 @@ TEST ///
   elapsedTime  R' = integralClosure R
   icFractions R'
 
-  debug IntegralClosure
-  nonzeroMinor (5,jacobian R)
-  needsPackage "FastLinAlg"
-  chooseGoodMinors(1,5,jacobian R')
+  -- debug IntegralClosure
+  -- nonzeroMinor (5,jacobian R)
+  -- needsPackage "FastLinAlg"
+  -- chooseGoodMinors(1,5,jacobian R')
   -- chooseGoodMinors(5,5,jacobian R', Strategy => StrategyDefaultNonRandom) -- BUG: 
 
 ///
@@ -2285,6 +2278,7 @@ TEST ///
   restart
   loadPackage("IntegralClosure", Reload => true)
 *-
+  debug IntegralClosure
   kk=ZZ/101
   S=kk[a,b,c]
   I =ideal"a3,ac2"
@@ -2417,9 +2411,8 @@ TEST ///
      c*u^8+7111*c*z*u^6+3556*d*u^7+10667*c*z*u^5+3556*d*u^6+14224*c*z^2*u^3+14223*c*z*u^4-7112*d*z*u^4+3556*d*u^5+10668*c*z^2*u^2-7112*d*z*u^3+7112*c*z^2*u-7112*d*z*u^2+10668*d*z^2);
   R = S/I
   time R' = integralClosure(R, Strategy=>{RadicalCodim1})
-  time R' = integralClosure(R, Denominator => y)
-  -- XXX
-    time R' = integralClosure(R)
+  --mes--time R' = integralClosure(R, Denominator => y)
+  time R' = integralClosure(R)
   use R
   netList icFractions R
   assert isWellDefined icMap R
@@ -2720,6 +2713,7 @@ TEST ///
   restart
   loadPackage("IntegralClosure", Reload => true)
 *-
+    debug IntegralClosure -- for extendIdeal
     S = ZZ/101[a,b,c,d]
     K =ideal(a,b)
     I = c*d*K
@@ -2739,6 +2733,7 @@ TEST ///
   restart
   loadPackage("IntegralClosure", Reload => true)
 *-
+    debug IntegralClosure -- for extendIdeal
     S = ZZ/101[a,b,c]/ideal(a^3-b*(b-c)*(b+c))
     K =ideal(a,b)
     I = c*(b+c)*K
@@ -2758,6 +2753,7 @@ TEST///
   restart
   loadPackage("IntegralClosure", Reload => true)
 *-
+    debug IntegralClosure -- for extendIdeal
     S = ZZ/101[a,b,c]/ideal(a^3-b^2*c)
     K =ideal(a,b)
     I = c*(b+c)*K
@@ -2792,16 +2788,12 @@ TEST ///
   F % J
   RJ = reesAlgebra J
   RJ = first flattenRing RJ
-  see ideal RJ
   elapsedTime RJ' = integralClosure(RJ, Verbosity => 2)
--*
- -- MES BUG: I thuoght this was working?!
-  elapsedTime J' = integralClosure J  -- OH OH, this takes a long time now? 
+  elapsedTime J' = integralClosure J
   assert(J != J')
-  -- assert(F % J' == 0) -- false, is that correct!?  Ask David?
+  --assert(F % J' == 0) -- false, is that correct!?  Ask David?
   assert(isSubset(J, J'))
-*-
-  icFractions RJ -- note! MES TODO: RJ' doesn't store that it is an integral closure...?  icFractions RJ' takes awhile...
+  icFractions RJ
   assert(10 == # icFractions RJ)
 ///
 
@@ -2820,14 +2812,34 @@ TEST ///
   S = R/F
   V = integralClosure S
   ring presentation V
-  see ideal V
-  see trim ideal V -- MES: should we be using this? It is much simpler
+  ideal V
+  trim ideal V -- MES: should we be using this? It is much simpler
   icFractions S -- nasty fraction, is it that bad?
     -- notice that this fraction is actually algebraic over the base field
   use ring ideal V
   G = eliminate(ideal V, {x,y,z})
   assert(numgens G == 1)
   assert(isPrime G_0)  -- G_0 is a cubic over kk
+///
+
+TEST ///
+  -- git issue #1117
+  R = QQ[a,b,c,d,e,f]
+  I = ideal(a*b*d,a*c*e,b*c*f,d*e*f);
+  J = I^2;
+  K = integralClosure(I,2)
+  F = ideal(a*b*c*d*e*f);
+  assert not isSubset(F,J)
+  assert isSubset(F,K)
+  assert isSubset(F^2,J^2)
+  assert(K != J)
+///
+
+TEST ///
+  -- git issue #846
+  R = QQ[x,y]
+  I = ideal(x^2,y^2)
+  assert(integralClosure I == ideal(x^2, x*y, y^2))
 ///
 
 end-------------------------------------------------------------------------
@@ -3293,7 +3305,7 @@ elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
 -- MES: this is me playing around tryiing to find better fractions, cvan be removed.
 use ring ideal R'
 contract(w_(2,0), gens ideal R')
-see ideal R'
+ideal R'
 
 use R'
 use R
@@ -3313,3 +3325,25 @@ eliminate(oo, S_1)
 -- write it with denominator x^3*(x+4)
 ((x^3*(x+4) * f)) // g
 ----- MES: can be removed above this line --
+
+restart
+loadPackage("IntegralClosure", Reload => true)
+needsPackage "Normaliz"
+
+-- Bug in program.  Perhaps the missing variable is causing issues?
+R = ZZ/101[x,y,z]
+I = ideal(y^2-x^3)
+normalToricRing(I, t) -- gives an error.
+
+-- How does the following give me any info about the integral closure?
+-- (It probably does, but how?)
+R = ZZ/101[x,y]
+I = ideal(y^2-x^3)
+normalToricRing(I, t)
+
+-- This is correct, how can I get the actual fractions added?
+-- Can I?  Or the image of R in this new ring?
+R = ZZ/101[a,b,c,d]
+I = monomialCurveIdeal(R, {1,3,4})
+normalToricRing(I, t)
+
