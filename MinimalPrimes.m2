@@ -1457,9 +1457,8 @@ Description
     release this will be renamed to {\tt minimalPrimes}.
     
     Use @TO "installMinprimes"@ to replace the system versions of 'decompose Ideal', 
-    'minimalPrimes Ideal' and 'isPrime Ideal'.  Warning!  Although this code passes
-    many tests, it has not been used any where near as often as the 'decompose'
-    function in Macaulay2.  However, in many cases the new function is {\it much} faster.
+    'minimalPrimes Ideal' and 'isPrime Ideal'.  In many cases the new function is {\it much} faster,
+    although there are cases when the older, current, version is faster.
 Caveat
   Only works for ideals in (commutative)polynomial rings or quotients of 
     polynomial rings over a prime field, might have bugs in small characteristic and larger degree 
