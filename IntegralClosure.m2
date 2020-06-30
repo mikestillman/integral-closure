@@ -69,8 +69,8 @@ export{
      "ringFromFractions", 
      --mes--"extendIdeal",
      "simplifyFractions",
-     --mes--"testLT",
-    -- optional argument names
+     "testHunekeConjecture",
+     -- optional argument names
      "Keep",
      --mes--"Denominator",
      "ConductorElement",
@@ -951,20 +951,18 @@ ideal apply(numgens R,i-> df/dx_i).
 *-
 jacobian RingElement := Matrix => f -> jacobian ideal f
 
-testLT = method()
-testLT(Ring, RingElement) := String => (R,f) -> (
+testHunekeConjecture = method()
+testHunekeConjecture RingElement := Boolean => f -> (
+    R := ring f;
     mm := ideal vars R;
     j := ideal jacobian f;
-    if f % (j+mm*f) == 0 then return "power series is quasi-homogeneous" else
-    <<"power series is not quasi-homogeneous"<<flush<<endl;
+    if f % (j+mm*f) == 0 then (
+	<< "power series is crypto-quasi-homogeneous"<<flush<<endl;
+	return true);
+    <<"power series is not even crypto-quasi-homogeneous"<<flush<<endl;
     j' := ideal apply(numgens R, i -> R_i*j_i);
-    J' := integralClosure (j',Verbosity => 3);
---    j' := ideal apply(numgens R, i-> (vars R)_{i}*J_{i});
-    assert((f % (f*mm+J')) == 0);
-    <<"checked Lejeune-Teissier Theorem"<<flush<<endl;
-    assert(f % (mm*f+ mm*integralClosure j) == 0);
-    <<"checked Huneke's conjecture"<<endl;
-    J'
+    J' := integralClosure j';
+    f % (mm*f+ mm*integralClosure j) == 0
     )
 
 -*
@@ -1188,6 +1186,7 @@ content(RingElement, RingElement) := Ideal => (f,x) ->(
 *-
 content(RingElement, RingElement) := Ideal => (f,x) -> ideal last coefficients(f, Variables => {x})
 --------------------------------------------------------------------
+
 beginDocumentation()
 --StartWithOneMinor, "vasconcelos",RadicalCodim1,AllCodimensions,SimplifyFractions
 --radical(J, Unmixed)
@@ -1641,47 +1640,22 @@ doc ///
      time integralClosure J
      time integralClosure(J, Strategy=>{RadicalCodim1})
      integralClosure(J,2)
-   Text
-    Theorem (Saito): If R is a formal power series ring over a field of char 0, 
-    then f\in R is contained in j(f), the Jacobian ideal iff f is
-    quasi-homogeneous after a change of variables.
 
-    Theorem (Lejeune-Teisser?; see Swanson-Huneke Thm 7.1.5) 
-    f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
-
-    Conjecture (Huneke: f is never a minimal generator of the integral closure of
-    ideal apply(numgens R,i-> df/dx_i).
-    
-    The method (testLT, Ring, RingElement) verifies these assertions.
-    
-    It's surprisingly hard to write down non-quasihomogeneous polynomials
-   Example
-    R = QQ[x,y,z]
-    f = random(3,R)+random(4,R)+random(5,R)
-    testLT(R,f)
-   Text
-    The function y^4-2*x^3*y^2-4*x^5*y+x^6-x^7 is defines the simplest plane curve
-    singularity with 2 characteristic pairs -- and is thus NOT quasi-homogeneous.
-   Example
-    R = QQ[x,y]
-    f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-    testLT(R,f)
-
-    R = ZZ/32003[x,y,z]
-    f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7+z^4)
-    --    testLT(R,f) -- currently too slow	   
   Caveat
     It is usally much faster to use {\tt integralClosure(J,d)}
     rather than {\tt integralClosure(J^d)}
   SeeAlso
     (integralClosure,Ring)
     reesAlgebra
+    testHunekeConjecture
 ///
 
 doc ///
   Key
     idealizer
     (idealizer, Ideal, RingElement)
+    [idealizer, Strategy]
+    [idealizer, Verbosity]
   Headline
     compute Hom(I,I) as a quotient ring
   Usage
@@ -1693,6 +1667,10 @@ doc ///
       a non-zero element of the ideal $I$
     Variable:Symbol
     Index:ZZ
+    Strategy => List
+     possible elements include
+    Verbosity => ZZ
+     larger numbers give more information 
   Outputs
     F:RingMap
       The inclusion map from $R$ into $S = Hom_R(I,I)$
@@ -1702,7 +1680,8 @@ doc ///
   Description
    Text
      This is a key subroutine used in the computation of 
-     integral closures.
+     integral closures. Note that this is NOT the common use of the term
+     in commutative algebra.
    Example
      R = QQ[x,y]/(y^3-x^7)
      I = ideal(x^2,y^2)
@@ -1892,6 +1871,8 @@ doc ///
   Key
     ringFromFractions
     (ringFromFractions,Matrix,RingElement)
+    [ringFromFractions,Variable]
+    [ringFromFractions,Verbosity]
   Headline
     find presentation for f.g. ring  
   Usage
@@ -1900,6 +1881,10 @@ doc ///
     H:Matrix
       a one row matrix over a ring $R$
     f:RingElement
+    Variable => Symbol
+     name of symbol used for new variables
+    Verbosity => ZZ
+     values up to 6 are implemented. Larger values show more output.
   Outputs
     F:RingMap
       $R \rightarrow S$, where $S$ is the extension ring
@@ -1925,6 +1910,7 @@ doc ///
   Key
     makeS2
     (makeS2,Ring)
+    [makeS2, Verbosity]
   Headline
     compute the S2ification of a reduced ring
   Usage
@@ -1932,6 +1918,8 @@ doc ///
   Inputs
     R:Ring
       an equidimensional reduced (or just unmixed and genericaly Gorenstein) affine ring
+    Verbosity => ZZ
+     larger values give more information.
   Outputs
     F:RingMap
       $R \rightarrow S$, where $S$ is the so-called S2-ification of $R$
@@ -1966,6 +1954,55 @@ doc ///
   SeeAlso
     integralClosure
 ///
+
+doc ///
+   Key
+    testHunekeConjecture
+    (testHunekeConjecture, RingElement)
+   Headline
+    tests a conjecture on integral closures strengthening the Eisenbud-Mazur conjecture
+   Usage
+    B = testHunekeConjecture(f)
+   Inputs
+    f:RingElement
+   Outputs
+    B:Boolean
+     whether f satisfies the conjecture
+   Description
+    Text
+     Theorem (Saito): If R is a formal power series ring over a field of char 0, 
+     then f\in R is contained in j(f), the Jacobian ideal iff f is
+     quasi-homogeneous after a change of variables. 
+     
+     This can be tested over an affine ring by testing f % (j(f)+ideal vars S).
+     If the result is 0 we call f crypto-quasi-homogeneous.
+
+     Theorem (Lejeune-Teisser; see Swanson-Huneke Thm 7.1.5) 
+     f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
+
+     Conjecture (Huneke): f is never a minimal generator of the integral closure of
+     ideal apply(numgens R,i-> df/dx_i).
+     
+     Note that the conjecture is trivial if f is crypto-quasi-homogeneous.
+     
+     The truth of this conjecture would imply the truth of the Eisenbud-Mazur conjecture.
+    
+    Example
+     R = QQ[x,y,z]
+     f = random(3,R)+random(4,R)+random(5,R)
+     testHunekeConjecture f
+    Text
+     The function y^4-2*x^3*y^2-4*x^5*y+x^6-x^7 is defines the simplest plane curve
+     singularity with 2 characteristic pairs, and is thus NOT crypto- quasi-homogeneous.
+    Example
+     R = QQ[x,y]
+     f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
+     testHunekeConjecture f
+   SeeAlso
+    (integralClosure, Ideal)
+///
+
+
 
 document {
      Key => {icFracP, (icFracP, Ring)},
@@ -2150,8 +2187,16 @@ doc ///
 ///
 
 -*
-restart
+
+loadPackage("MinimalPrimes",Reload =>true)
 loadPackage("IntegralClosure",Reload =>true)
+
+restart
+installPackage("MinimalPrimes")
+
+uninstallPackage("IntegralClosure")
+installPackage("IntegralClosure")
+
 *-
 TEST ///
   debug IntegralClosure
@@ -3039,21 +3084,25 @@ f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
 Conjecture (Huneke: f is never a minimal generator of the integral closure of
 ideal apply(numgens R,i-> df/dx_i).
 
---the method (testLT, Ring, RingElement) checks this
-viewHelp testLT
+--the method (testHunekeConjecture, Ring, RingElement) checks this
+viewHelp testHunekeConjecture
 *-
-
+debug IntegralClosure -- for testHunekeConjecture
 n = 3
 R = QQ[x_0..x_(n-1)]
 mm = ideal vars R
 f = random({3},R)+random({4},R)+random(5,R)
-testLT(R,f)
+testHunekeConjecture f
+
+    R = ZZ/32003[x,y,z]
+    f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7+z^4)
+    --    testHunekeConjecture(R,f) -- currently too slow	   
 
 
 --from Eisenbud-Neumann p.11: simplest poly with 2 characteristic pairs. 
 R = QQ[y,x]
 f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-testLT(R,f)
+testHunekeConjecture f
 R = R/f
 time R' = integralClosure R
 icFractions R
