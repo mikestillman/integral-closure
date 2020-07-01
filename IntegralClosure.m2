@@ -840,7 +840,7 @@ integralClosure(Ideal) := Ideal => o -> I -> integralClosure(I, I_0, 1, o)
 
 -*
 Theorem (Saito): If R is a formal power series ring over a field of char 0, 
-then f\in R is contained in j(f), the Jacobian ideal iff f is
+and f\in R has isolated singularity, then f is contained in j(f), the Jacobian ideal iff f is
 quasi-homogeneous after a change of variables.
 
 Theorem (Lejeune-Teisser?; see Swanson-Huneke Thm 7.1.5) 
@@ -3045,6 +3045,7 @@ radical ideal oo
 --------------
 -*
 Theorem (Saito): If R is a formal power series ring over a field of char 0, 
+and f has isolated singularity,
 then f\in R is contained in j(f), the Jacobian ideal iff f is
 quasi-homogeneous after a change of variables.
 
