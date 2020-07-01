@@ -40,7 +40,7 @@ export{
      "icFracP", 
      "icPIdeal",
      --mes--"extendIdeal",
-     "testHunekeConjecture",
+     "testHunekeQuestion",
      -- optional argument names
      "Keep",
      "Index",
@@ -507,9 +507,9 @@ idealizer = method(Options=>{
     )
 
 idealizer (Ideal, RingElement) := o -> (J, g) ->  (
-     -- J is an ideal in a ring R
-     -- f is a nonzero divisor in J
-     -- compute R1 = Hom(J,J) = (f*J:J)/f
+     -- J is an ideal in a ring R containing a nonzerodivisor
+     -- g is a nonzero divisor in J
+     -- compute R1 = Hom(J,J) = (g*J:J)/g
      -- returns a sequence (F,G), where 
      --   F : R --> R1 is the natural inclusion
      --   G : frac R1 --> frac R, 
@@ -851,18 +851,18 @@ ideal apply(numgens R,i-> df/dx_i).
 *-
 jacobian RingElement := Matrix => f -> jacobian ideal f
 
-testHunekeConjecture = method()
-testHunekeConjecture RingElement := Boolean => f -> (
+testHunekeQuestion = method()
+testHunekeQuestion RingElement := Boolean => f -> (
     R := ring f;
     mm := ideal vars R;
     j := ideal jacobian f;
     if f % (j+mm*f) == 0 then (
 	<< "power series is crypto-quasi-homogeneous"<<flush<<endl;
-	return true);
+	return "yes");
     <<"power series is not crypto-quasi-homogeneous"<<flush<<endl;
     j' := ideal apply(numgens R, i -> R_i*j_i);
     J' := integralClosure j';
-    f % (mm*f+ mm*integralClosure j) == 0
+    if f % (mm*f+ mm*integralClosure j) == 0 then return "yes";
     )
 
 extendIdeal = method()
@@ -897,7 +897,7 @@ basisOfDegreeD (List,Ring) := Matrix => (L,R) ->(
 -- I have un-exported this function.
 integralClosures = method (Options => options integralClosure)
 integralClosures(Ideal) := opts -> I -> (
-    -- input: ideal I in an affine ring A
+    -- input: ideal I in an affine ring S
     -- output: 
      S := ring I;
      z := local z;
@@ -1164,7 +1164,6 @@ doc ///
    Text
      Sometimes using @TO trim@ provides a cleaner set of generators.
    Text
-   
      If $R$ is not a domain, first decompose it, and collect all of the 
      integral closures.
    Example
@@ -1248,9 +1247,10 @@ doc ///
    Text
      The algorithm works in stages, each time adding new fractions to the ring.
      A variable {\tt t_(3,0)} represents the first (zero-th) variables added at stage 3.
-     In the future, the variables added will likely just be {\tt t_1, t_2, ...}.
+     
   Caveat
     The base name should be a symbol
+    The variables added may be changed to {\tt t_1, t_2, ...} in the future.
 ///
 
 doc ///
@@ -1566,7 +1566,7 @@ doc ///
   SeeAlso
     (integralClosure,Ring)
     reesAlgebra
-    testHunekeConjecture
+    testHunekeQuestion
 ///
 
 doc ///
@@ -1581,13 +1581,13 @@ doc ///
     (F,G) = idealizer(I,f)
   Inputs
     I:Ideal
-      in a domain $R$
+      whose endomorphism ring we'll compute
     f:RingElement
-      a non-zero element of the ideal $I$
+      a nonzerodivisor in $I$
     Variable:Symbol
     Index:ZZ
     Strategy => List
-     possible elements include
+     possible elements include ``Vasconcelos''
     Verbosity => ZZ
      larger numbers give more information 
   Outputs
@@ -1598,9 +1598,13 @@ doc ///
       corresponding to each generator of $S$.
   Description
    Text
-     This is a key subroutine used in the computation of 
-     integral closures. Note that this is NOT the common use of the term
+     The idealizer of $I$, computed as target F, 
+     is the largest subring of the fraction field of ring I in which $I$ is
+     still an ideal.  Note that this is NOT the common use of the term
      in commutative algebra.
+     
+     This is a key subroutine used in the computation of 
+     integral closures.
    Example
      R = QQ[x,y]/(y^3-x^7)
      I = ideal(x^2,y^2)
@@ -1722,8 +1726,9 @@ doc ///
   Caveat
      (a) Currently in Macaulay2, fractions over quotients of polynomial rings
      do not have a nice normal form.  In particular, sometimes
-     the fractions are 'simplified' to give much nastier looking fractions.
-     We hope that in the near future, this misfeature will be corrected.
+     the fractions are `simplified' to give much nastier looking fractions.
+     We hope to improve this.
+
      (b)
      If you want to control the computation of the integral closure via optional
      arguments, then make sure you call @TO (integralClosure,Ring)@ first, since
@@ -1855,23 +1860,20 @@ doc ///
      then there is a unique smallest extension $R\subset S\subset {\rm frac}(R)$ satisfying S2, 
      and $S$ is finite as an $R$-module.
 
-     There are several methods to compute $S$.  Currently, only two of these methods
-     is implemented in this package.  Stay tuned, or help write the other
-     methods!
+     Uses the method of Vasconcelos, "Computational Methods..." p. 161, taking the idealizer
+     of a canonical ideal.
+     
+     There are other methods to compute $S$, not currently implemented in this package. See
+     for example the function (S2,Module) in the package "CompleteIntersectionResolutions".
 
-     One simple example is the rational quartic curve.
+     We compute the S2-ification of the rational quartic curve in $P^3$
    Example
      A = ZZ/101[a..d];
      I = monomialCurveIdeal(A,{1,3,4})
      R = A/I;
      (F,G) = makeS2 R
-   Text
-     This function is probabilistic, and can fail if $R$ is not a domain.  
-     If it fails and the characteristic is not too small,
-     then simply rerun it.  If the characteristic is small, 
-     then another method may be needed.  This
-     might mean that you need to either write it or ask us to do so!
   Caveat
+     Assumes that first element of canonicalIdeal R is a nonzerodivisor; else returns error.
      The return value of this function is likely to change in the future
   SeeAlso
     integralClosure
@@ -1879,21 +1881,24 @@ doc ///
 
 doc ///
    Key
-    testHunekeConjecture
-    (testHunekeConjecture, RingElement)
+    testHunekeQuestion
+    (testHunekeQuestion, RingElement)
    Headline
     tests a conjecture on integral closures strengthening the Eisenbud-Mazur conjecture
    Usage
-    B = testHunekeConjecture(f)
+    B = testHunekeQuestion f
    Inputs
     f:RingElement
    Outputs
     B:Boolean
-     whether f satisfies the conjecture
+     whether f the answer to the question is yes for f
    Description
     Text
+     Background:
+     
      Theorem (Saito): If R is a formal power series ring over a field of char 0, 
-     then f\in R is contained in j(f), the Jacobian ideal iff f is
+     and f \in R is a power series with an isolated singularity,
+     then f\in j(f), the Jacobian ideal iff f becomes
      quasi-homogeneous after a change of variables. 
      
      This can be tested over an affine ring by testing f % (j(f)+ideal vars S).
@@ -1902,24 +1907,26 @@ doc ///
      Theorem (Lejeune-Teisser; see Swanson-Huneke Thm 7.1.5) 
      f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
 
-     Conjecture (Huneke): f is never a minimal generator of the integral closure of
+     Question (Huneke): Is f actually contained in the maximal ideal
+     times the integral closure of
      ideal apply(numgens R,i-> df/dx_i).
      
-     Note that the conjecture is trivial if f is crypto-quasi-homogeneous.
+     Note that the answer is trivially yes if f is crypto-quasi-homogeneous.
      
-     The truth of this conjecture would imply the truth of the Eisenbud-Mazur conjecture.
+     Huneke has shown that if the answer is always yes, then the Eisenbud-Mazur conjecture
+     on evolutions is true.
     
     Example
      R = QQ[x,y,z]
      f = random(3,R)+random(4,R)+random(5,R)
-     testHunekeConjecture f
+     testHunekeQuestion f
     Text
      The function y^4-2*x^3*y^2-4*x^5*y+x^6-x^7 is defines the simplest plane curve
      singularity with 2 characteristic pairs, and is thus NOT crypto- quasi-homogeneous.
     Example
      R = QQ[x,y]
      f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-     testHunekeConjecture f
+     testHunekeQuestion f
    SeeAlso
     (integralClosure, Ideal)
 ///
@@ -2017,7 +2024,7 @@ document {
      integral closures of principal ideals in ", TT "R", " via ",
      TO icPIdeal, ".",
      SeeAlso => {"icPIdeal", "integralClosure", "isNormal"},
-     Caveat => "The interface to this algorithm will likely change in Macaulay2 1.4"
+     Caveat => "The interface to this algorithm will likely change eventually"
 --     Caveat => "NOTE: mingens is not reliable, neither is kernel of the zero map!!!"
 }
 
@@ -2086,7 +2093,7 @@ document {
           "icPIdeal(x, x^2, 3)"
      },
      SeeAlso => {"icFracP"},
-     Caveat => "The interface to this algorithm will likely change in Macaulay2 1.4"     
+     Caveat => "The interface to this algorithm will likely change eventually"     
 }
 
 doc ///
@@ -2840,7 +2847,8 @@ restart
 uninstallPackage("IntegralClosure")
 restart
 installPackage("IntegralClosure")
-
+check IntegralClosure
+viewHelp IntegralClosure
 *-
 
 restart
@@ -3046,25 +3054,25 @@ f \in integral closure(ideal apply(numgens R,i-> x_i*df/dx_i))
 Conjecture (Huneke: f is never a minimal generator of the integral closure of
 ideal apply(numgens R,i-> df/dx_i).
 
---the method (testHunekeConjecture, Ring, RingElement) checks this
-viewHelp testHunekeConjecture
+--the method (testHunekeQuestion, Ring, RingElement) checks this
+viewHelp testHunekeQuestion
 *-
-debug IntegralClosure -- for testHunekeConjecture
+debug IntegralClosure -- for testHunekeQuestion
 n = 3
 R = QQ[x_0..x_(n-1)]
 mm = ideal vars R
 f = random({3},R)+random({4},R)+random(5,R)
-testHunekeConjecture f
+testHunekeQuestion f
 
     R = ZZ/32003[x,y,z]
     f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7+z^4)
-    --    testHunekeConjecture(R,f) -- currently too slow	   
+    --    testHunekeQuestion(R,f) -- currently too slow	   
 
 
 --from Eisenbud-Neumann p.11: simplest poly with 2 characteristic pairs. 
 R = QQ[y,x]
 f = (y^4-2*x^3*y^2-4*x^5*y+x^6-x^7)
-testHunekeConjecture f
+testHunekeQuestion f
 R = R/f
 time R' = integralClosure R
 icFractions R
