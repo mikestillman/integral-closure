@@ -2408,9 +2408,8 @@ TEST ///
      a*z*u^6+9142*a*z*u^5+13715*a*z^2*u^3-9143*a*z*u^4-9145*a*u^5-13716*a*z^2*u^2-13712*a*z^2*u-13713*a*z*u^2+4568*a*z^2+9145*c*y*u-9145*c*y+4572*d*y,
      c*u^8+7111*c*z*u^6+3556*d*u^7+10667*c*z*u^5+3556*d*u^6+14224*c*z^2*u^3+14223*c*z*u^4-7112*d*z*u^4+3556*d*u^5+10668*c*z^2*u^2-7112*d*z*u^3+7112*c*z^2*u-7112*d*z*u^2+10668*d*z^2);
   R = S/I
-  time R' = integralClosure(R, Strategy=>{RadicalCodim1})
-  --mes--time R' = integralClosure(R, Denominator => y)
-  time R' = integralClosure(R)
+  time R' = integralClosure(R, Strategy=>{RadicalCodim1}) -- slightly faster than without it
+
   use R
   netList icFractions R
   assert isWellDefined icMap R
