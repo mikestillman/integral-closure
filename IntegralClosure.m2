@@ -3403,4 +3403,8 @@ FastLinAlg?
      "S2None", -- when to do S2-ification
      "RadicalBuiltin" -- true: use 'intersect decompose' to get radical, other wise use 'rad' in PrimaryDecomposition package
 
-
+S = ZZ/101[a..f]
+I = ideal(a*b*d, a*c*e, b*c*f, d*e*f)
+I1 = integralClosure(I,1)
+I1 == I
+I2 = gens integralClosure(I,2) % I1^2
