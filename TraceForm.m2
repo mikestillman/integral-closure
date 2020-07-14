@@ -474,9 +474,11 @@ TEST ///
   assert(ring b === L)
   c/b -- error, recursion limit exceeded.
   d/a -- error, same
-  assert(1 // b == d // (a*e)) -- this is currently how we need to do fractions, why?
   fraction(1_L,b_L) -- error.
+  assert(1 // b == d // (a*e)) -- this is currently how we need to do fractions, why?
+  1//(a+b)
   methods fraction
+
   factor(e*b*(a+d)^4)
   (a+d)^4
   use B; use A
@@ -499,6 +501,21 @@ TEST ///
   K = frac A
   L = frac B
   describe B
+  
+  debug TraceForm
+  getBasisMatrix L
+  getBasisMatrix B
+  -- Now let's compute inverses via linear algebra over K.
+  use L; use coefficientRing L
+  f = a+b
+  vf = lift(last coefficients(f, Monomials => getBasis(L), Variables => {b,c,d}), K)
+  M = multiplication(a+b)
+  vg = (M^-1)_{0}
+  w = ((getBasisMatrix L) * vg)_(0,0)
+  assert(w == 1//(a+b))
+  assert(w * (a+b) == 1)
+  M | vg
+  LUdecomposition oo
 ///
 
 TEST ///
