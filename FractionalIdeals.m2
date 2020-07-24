@@ -4,14 +4,20 @@ newPackage(
         Date => "6 June 2009",
         Authors => {
 	     {Name => "Charley Crissman", 
-		  Email => "charleyc@math.berkeley.edu", 
-		  HomePage => "http://math.berkeley.edu/~charleyc/"},
+		  Email => "", 
+		  HomePage => ""
+          },
+         {Name => "David Eisenbud", 
+             Email => "de@msri.org", 
+             HomePage => "http://www.msri.org/~de/"
+             },
 	     {Name => "Mike Stillman", 
               	  Email => "mike@math.cornell.edu", 
                   HomePage => "http://www.math.cornell.edu/~mike"}},
         Headline => "fractional ideals given a domain, possibly in Noether normal position",
         PackageExports => {
-            "TraceForm", 
+            "NoetherNormalForm",
+--            "TraceForm", 
             "Elimination", -- for discriminant.
             "IntegralClosure" -- for Index, Verbosity
             },
@@ -116,7 +122,7 @@ fractionalIdeal List := (L) -> (
      if #L == 0 then error "expected non-empty list";
      R := if instance(L#0, RingElement) then ring L#0 else ring value L#0;
      if instance(R, FractionField) then R = ring numerator 1_R;
-     if inNoetherPosition R then (
+     if inNoetherForm R then (
          << "warning: `fractionalIdeal` not written yet for rings in Noether position" << endl;
          -- TODO
          )
@@ -153,7 +159,7 @@ noetherize FractionalIdeal := F -> (
 
 simplify = method()
 simplify FractionalIdeal := (F) -> (
-     if not inNoetherPosition ring F 
+     if not inNoetherForm ring F 
      then simplifyNonNoether F
      else (
      	  -- return the FractionalIdeal equal to F, but
@@ -198,7 +204,7 @@ simplifyNonNoether FractionalIdeal := (F) -> (
 fractions = method()
 fractions FractionalIdeal := I -> (
      R := ring I;
-     if inNoetherPosition R 
+     if inNoetherForm R 
      then (
        L := noetherField R;
        nums := apply(flatten entries gens numerator I, i-> sub(i,L));
@@ -662,7 +668,7 @@ integralClosureDenominator = method()
 
 trager = method()
 trager(FractionalRing, RingElement) := (F, Q) -> (
-     --R: ring generated via noetherPosition in TraceForm.m2
+     --R: ring generated via noetherForm in TraceForm.m2
      --Q: element of the coefficient field of R in the conductor of R
      R := ring F;
      K := coefficientRing R;
@@ -706,14 +712,14 @@ integralClosureNonNoether(FractionalRing,RingElement) := (R,Q) -> (
      simplify e)
 
 integralClosureDenominator(Ring,RingElement) := (R,Q) -> (
-     if inNoetherPosition R 
+     if inNoetherForm R 
      then trager(fractionalRing R,Q) 
      else integralClosureNonNoether(fractionalRing R, Q)
      )
 
 integralClosureDenominator(Ring,List) := (R,Qs) -> (
      F := fractionalRing R;
-     if inNoetherPosition R 
+     if inNoetherForm R 
      then for Q in Qs do F = trager(F,Q)
      else for Q in Qs do F = integralClosureNonNoether(F,Q);
      F
@@ -728,7 +734,7 @@ getIntegralEquationNoether(RingElement, RingElement, Ring) := (num, denom, Kt) -
      -- denom should be liftable to the coefficient ring
      -- returns true iff num/denom is an integral element of frac R over R
      R := ring num;
-     if not inNoetherPosition R then error "currently, can only find integral equation over a ring in Noether position";
+     if not inNoetherForm R then error "currently, can only find integral equation over a ring in Noether position";
      K := coefficientRing R;
      denom = lift(denom,K);     
      if not K === coefficientRing Kt then error "expected third argument to be polynomial ring over coefficient ring of ring of first argument";
@@ -771,7 +777,7 @@ getIntegralEquationNonNoether = method()
 getIntegralEquationNonNoether(RingElement,RingElement,Ring) := (num, denom, Rt) -> (
      -- idea: num and denom are in a domain R
      --  this ring can be a quotient of a poly ring (over kk say)
-     --  or: it can be a Noether ring R = A[x]/I (inNoetherPosition R === true)
+     --  or: it can be a Noether ring R = A[x]/I (inNoetherForm R === true)
      -- num should be in R
      -- denom should be in either A or R
      -- Rt should either be R[T]   (name of the var is not relevant)
@@ -784,7 +790,7 @@ getIntegralEquationNonNoether(RingElement,RingElement,Ring) := (num, denom, Rt) 
      R := ring num;
      if ring denom =!= R then
        try promote(denom, R) else error "different rings";
-     if coefficientRing Rt === coefficientRing R and inNoetherPosition R
+     if coefficientRing Rt === coefficientRing R and inNoetherForm R
        then getIntegralEquation(num,denom,Rt)
        else (
 	    -- 2 options for the ring Rt: it should be R[T], or K[T], where
@@ -855,7 +861,7 @@ getIntegralEquation(RingElement,RingElement,Ring) := opts -> (num, denom, Rt) ->
      denomR := denom;
      if ring denomR =!= R then
        try denomR = promote(denom, R) else error "different rings";
-     if coefficientRing Rt === coefficientRing R and inNoetherPosition R
+     if coefficientRing Rt === coefficientRing R and inNoetherForm R
        then getIntegralEquationNoether(num,denomR,Rt)
        else if coefficientRing Rt === R
          then 
@@ -929,7 +935,7 @@ TEST ///
   S = QQ[a..d]
   I = monomialCurveIdeal(S, {1,3,4})
   A = S/I
-  R = noetherPosition {a,d}
+  R = noetherForm {a,d}
   
   kk = coefficientRing R
   assert(ring a === kk)
@@ -988,7 +994,7 @@ TEST ///  -- test of getIntegralEquation
 --  elapsedTime integralClosureDenominator(A, z*t)
 --  elapsedTime integralClosureDenominator(A, {t,z}) -- FAILS right now.
     
-  R = noetherPosition{w,t}
+  R = noetherForm{w,t}
   kx = coefficientRing R
   time F = getIntegralEquation(x, 1_kx, kx[T]) -- should return MONIC polynomial!
   assert(degree(T,F) == 23)
@@ -1046,7 +1052,7 @@ TEST ///
   singF = intersect decompose(ideal F + ideal jacobian ideal F)
   see trim oo
   use A
-  R = noetherPosition {v}
+  R = noetherForm {v}
   singF = decompose(ideal F + ideal jacobian ideal F)
   singF = sub(intersect singF, R)
   Q = (ideal selectInSubring(1,gens gb singF))_0
@@ -1070,7 +1076,7 @@ TEST ///
   I = ideal"y20+y13x+x4y5+x3(x+1)2"
   R = S/I
   elapsedTime integralClosure R -- 1.96 sec
-  B = noetherPosition {y}
+  B = noetherForm {y}
 
 ///
 
@@ -1110,7 +1116,7 @@ viewHelp FractionalIdeals
   I = ideal(u^3-v^4)
   R = S/I
 
-  B = noetherPosition({v})
+  B = noetherForm({v})
   -- Basically, 4 rings get created:
   noetherField B
   noetherRing B -- do we need this?
@@ -1151,9 +1157,9 @@ ringFromFractions(oo, Variable => getSymbol "w")
 fractionalRingPresentation R'
 minimalPresentation oo
 
-A = noetherPosition {x}
+A = noetherForm {x}
 debug FractionalIdeals
-inNoetherPosition A
+inNoetherForm A
 
 netList factorize det traceForm A
 F = integralClosureDenominator(A, x)
@@ -1161,8 +1167,8 @@ fractions F
 oo/value
 
 use R
-A = noetherPosition {y}
-inNoetherPosition A
+A = noetherForm {y}
+inNoetherForm A
 
 use coefficientRing A
 F1 = time integralClosureDenominator(A, y^2-y)
