@@ -926,6 +926,7 @@ parametersInIdeal Ideal := I -> (
      --c = codim I elements generating an ideal of codimension c.
      --assumes ring I is affine. 
      --routine is probabilistic, often fails over ZZ/2, returns null when it fails.
+     --caveat: assumes DegreeLength == 1.
      R := ring I;
      c := codim I;
      G := sort(gens I, DegreeOrder=>Ascending);
@@ -936,7 +937,8 @@ parametersInIdeal Ideal := I -> (
      	  while codim ideal(G_{0..t})<=s and t<rank source G -1 do t=t+1;
      	  G1 := G_{s..t};
 	  coeffs := random(source G1, R^{-last flatten degrees G1});
-	  lastcoef := lift(last last entries coeffs,ultimate(coefficientRing, R));
+	  --coeffs := random(source G1, R^{-last flatten degrees G1});	  
+	  --lastcoef := lift(last last entries coeffs,ultimate(coefficientRing, R));
 	  --coeffs = (1/lastcoef)*coeffs;
      	  newg := G1*coeffs;
      	  if s<c-1 then G = G_{0..s-1}|newg|G_{t..rank source G-1}
@@ -947,6 +949,14 @@ parametersInIdeal Ideal := I -> (
 	       );
 	  s = s+1);
       ideal G)
+  
+  ///
+  kk = ZZ/101
+  Q = kk[a,b,c,d,Degrees =>{2:{1,0},2:{0,1}}]
+  mm = ideal vars Q
+  parametersInIdeal mm
+  mm
+  ///
 
 canonicalIdeal1 = method()
 canonicalIdeal1 Ring := R -> (
@@ -3407,3 +3417,40 @@ I = ideal(a*b*d, a*c*e, b*c*f, d*e*f)
 I1 = integralClosure(I,1)
 I1 == I
 I2 = gens integralClosure(I,2) % I1^2
+-----------------
+--Huneke non-homog example
+kk = ZZ/32003
+S = kk[a,b,c,d]
+T = kk[t]
+phi = map(T,S,gens ideal"t5,t8+t11,t9+t11,t12+t11")
+I = trim kernel phi
+R = S/I
+time R' = integralClosure (R,Verbosity => 2);
+
+
+--7/10/20 inhomogeneous examples suggested by craig:
+--integral dependence of a power series on its derivatives.
+restart
+needs "bug-integralClosure.m2"
+mm = ideal vars S
+scan(#I_*,i->(f = I_i;
+dim singularLocus(S/f);
+f' = ideal diff(vars S,f);
+<<i<<f%(f'+f*mm)<<endl;)
+)
+f = I_0
+f' = ideal diff(vars S,f);
+--assert(f%(f'+f*mm)!=0)--f is not even locally in I
+time (U = integralClosure(f', Verbosity=>2));
+assert(f%J != 0)--f is not in the integral closure of I; but 
+assert(f % (J+f*mm) == 0) --f IS locally in the integral closure of I
+
+debug IntegralClosure
+p = parametersInIdeal f'
+codim f'
+codim p
+gens p % f'
+f' == p
+netList f'_*
+netList p_*
+isHomogeneous f
