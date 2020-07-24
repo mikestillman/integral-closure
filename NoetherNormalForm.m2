@@ -11,6 +11,7 @@ newPackage(
                 HomePage => "http://www.math.cornell.edu/~mike"}
             },
         Headline => "code for Noether normal forms of affine rings",
+        PackageExports => {"NoetherNormalization"},
         DebuggingMode => true
         )
 
@@ -46,6 +47,10 @@ setNoetherInfo(Ring, Ring) := (B, KB) -> (
     KB.NoetherInfo = new MutableHashTable;
     B.NoetherInfo#"noetherField" = KB;
     KB.NoetherInfo#"noetherRing" = B;
+      -- this one should contain:
+      --   map B --> R (original ring)
+      --   map R --> B
+      --   map B --> KB
     )
 
 -- private routine
@@ -80,11 +85,11 @@ noetherRing Ring := Ring => (R) -> (
 -- the ring has been placed in Noether normal form.
 basisOfRing = method()
 basisOfRing Ring := (R) -> (
+    -- assumption: R is finite over the coefficient ring
+    -- returns a matrix over R whose entries are generators
+    -- of R over the coeff ring
     NI := noetherInfo R;
     if not NI#?"basis" then (
-        -- assumption: R is finite over the coefficient ring
-        -- returns a matrix over R whose entries are generators
-        -- of R over the coeff ring
         LT := leadTerm ideal R;
         K := ultimate(coefficientRing, R);
         R1 := K (monoid R);
@@ -119,6 +124,8 @@ multiplication RingElement := (m) -> (
      lift(cf,coefficientRing R)
      )
 
+-- private function.
+-- is only called for a noetherField.
 setTraces = (R) -> (
      -- R should be a Noether field
     H := noetherInfo R;
@@ -133,7 +140,6 @@ setTraces = (R) -> (
 	    );
         H#"traces" = matrix{traces};
         );
-    H#"traces"
     )
 
 tr = method()
@@ -191,14 +197,65 @@ findComplement RingMap := phi -> (
     )
 
 makeFrac = method()
-makeFrac Ring := (B) -> (
-    A := coefficientRing B;
+makeFrac Ring := Ring => (B) -> (
+    A := coefficientRing B; -- ASSUME: a polynomial ring over a field.
+    KA := frac A;
+    kk := coefficientRing A; -- must be a field, but not a fraction field.
     I := ideal B;
-    ambientL := ((frac A)(monoid B));
-    L := ambientL / sub(I, vars ambientL);
-    B.frac = L; -- TODO: also add in promotion/lift functions?
-    L.frac = L; -- I wonder if we need to set KB to be a field too?
-    L
+    ambientB := ring I;
+    ambientKB := ((frac A)(monoid B)); -- TODO: does this handle degrees correctly?
+    phiK := map(ambientKB,ambientB, vars ambientKB);
+    JK := trim phiK I;
+    KB := ambientKB / JK;
+    B.frac = KB; -- TODO: also add in promotion/lift functions?
+    KB.frac = KB; -- I wonder if we need to set KB to be a field too? YES
+    -- We now have create KB, now to make it play well with M2.
+    BtoKB := map(KB,B,generators KB);
+    inverse B := f -> 1_KB // BtoKB f;
+    B / A := (f,g) -> (1/g) * BtoKB f;
+    B / B := (f,g) -> (BtoKB f) * (inverse g);
+    KB / A := (f,g) -> (1/g) * f;
+    promote(B, KB) := (f,KB) -> BtoKB f;
+-*
+    KA + B := (f,g) -> f + BtoKB g;
+    B + KA := (f,g) -> BtoKB f + g;
+    KA - B := (f,g) -> f - BtoKB g;
+    B - KA := (f,g) -> BtoKB f - g;
+    KA * B := (f,g) -> f * BtoKB g;
+    B * KA := (f,g) -> BtoKB f * g;
+*-
+    KB + B := (f,g) -> f + BtoKB g;
+    B + KB := (f,g) -> BtoKB f + g;
+    KB - B := (f,g) -> f - BtoKB g;
+    B - KB := (f,g) -> BtoKB f - g;
+    KB * B := (f,g) -> f * BtoKB g;
+    B * KB := (f,g) -> BtoKB f * g;
+
+    -- Now we consider factorization.  The plan is to factor (numerator and denominator if needed)
+    -- over a polynomial ring, then bring back to B or KB
+    (flattenedB, mapBtoFlattenedB) := flattenRing ambientB;
+    S := ambient flattenedB; -- this is the polynomial ring where we will factor elements...
+    mapBtofracS := map(frac S, B); -- TODO: does this do a 'sub'?
+    mapKBtofracS := map(frac S, KB); -- TODO: does this do a 'sub'?
+    StoB := map(B, S);
+    numerator B := (f) -> StoB (numerator mapBtofracS f);
+    numerator KB := (f) -> StoB (numerator mapKBtofracS f);
+    denominator B := (f) -> lift(StoB denominator mapBtofracS f, A);
+    denominator KB := (f) -> lift(StoB denominator mapKBtofracS f, A);
+    -- net KB := (f) -> (
+    --     n := numerator f; 
+    --     d := denominator f;
+    --     resultDenom := if d == 1 then 1 else factor d;
+    --     (hold n) / resultDenom
+    --     );
+    factor B := opts -> (f) -> (hold factor (numerator mapBtofracS f))/(factor denominator f);
+    factor KB := opts -> (f) -> (hold factor (numerator mapKBtofracS f))/(factor denominator f);
+    B.frac = KB; -- TODO: also add in promotion/lift functions?
+    KB.frac = KB; -- I wonder if we need to set KB to be a field too?  If so, that might be a problem...
+    KB.isField = true; -- this does not seem to make KB a field??
+    setNoetherInfo(B, KB);
+    setTraces KB;
+    KB
     )
 
 noetherForm = method()
@@ -228,8 +285,6 @@ noetherForm RingMap := Ring => (f) -> (
     J2 = trim ideal((gens J2) % J1);
     B := ambientB/(J1 + J2);
     L := makeFrac B;
-    setNoetherInfo(B, L);
-    setTraces L;
     B)
 
 noetherForm List := (xv) -> (
@@ -248,72 +303,16 @@ noetherForm List := (xv) -> (
      kk := coefficientRing R;
      A := kk [xv, Degrees => (degrees R)_xindices, Join=>false];
      KA := frac A;
-     SProd := kk(monoid[(gens R)_otherindices, xv, 
-             MonomialOrder => {#otherindices, #xv}, 
-             Degrees=>join((degrees R)_otherindices, (degrees R)_xindices)]);
      S := A[(gens R)_otherindices, Degrees => (degrees R)_otherindices, Join=>false];
-     SK := KA[(gens R)_otherindices, Degrees => (degrees R)_otherindices, Join=>false];
      phi := map(S,Rambient, sub(vars Rambient, S));
-     phiK := map(SK,Rambient, sub(vars Rambient, SK));
      J := trim phi I;
-     JK := trim phiK I;
      B := S/J;
-     KB := SK/JK;
-     BtoKB := map(KB,B,generators KB);
-     inverse B := f -> 1_KB // BtoKB f;
-     B / A := (f,g) -> (1/g) * BtoKB f;
-     B / B := (f,g) -> (BtoKB f) * (inverse g);
-     KB / A := (f,g) -> (1/g) * f;
-     mapBtofracSProd := map(frac SProd, B);
-     mapKBtofracSProd := map(frac SProd, KB);
-     SProdToB := map(B, SProd);
-     SProdToS := map(S, SProd);
-     numerator B := (f) -> SProdToB (numerator mapBtofracSProd f);
-     numerator KB := (f) -> SProdToB (numerator mapKBtofracSProd f);
-     denominator B := (f) -> lift(SProdToB denominator mapBtofracSProd f, A);
-     denominator KB := (f) -> lift(SProdToB denominator mapKBtofracSProd f, A);
-     -- net KB := (f) -> (
-     --     n := numerator f; 
-     --     d := denominator f;
-	 --     resultDenom := if d == 1 then 1 else factor d;
-	 --     (hold n) / resultDenom
-     --     );
-     factor B := opts -> (f) -> (hold factor (numerator mapBtofracSProd f))/(factor denominator f);
-     factor KB := opts -> (f) -> (hold factor (numerator mapKBtofracSProd f))/(factor denominator f);
-     B.frac = KB; -- TODO: also add in promotion/lift functions?
-     KB.frac = KB; -- I wonder if we need to set KB to be a field too?  If so, that might be a problem...
-     KB.isField = true;
-     setNoetherInfo(B, KB);
-     setTraces KB;
-     B)
+    L := makeFrac B;
+    B)
 
---noetherForm RingMap := Ring => (phi) -> (
-    -- input: a ring map phi : A --> R, where
-    --   A is a polynomial ring
-    --   R is finite over A, a quotient of a polynomial ring over a field (which is not a fraction field, currently)
-    -- output:
-    --   B is a polynomial ring with coefficient ring A.
-    -- consequences:
-    --   R.cache#"NoetherForm" is set to B, or is it set to the pair of isomorphisms R --> B, B --> R?
-    --   B.cache#"NoetherRing" is set to B
-    --   B.cache#"NoetherField" is set to L = frac B (but this frac is (frac A)[newvars]/I)
-    --   L.cache#"NoetherRing" is set to B
-    --   L.cache#"NoetherField" is set to L.
-    --   what else is set?  We also create:
-    --     B as an A-module
-    --     L as an K-module (K = frac A).
-    --     trace : L --> frac A
-    --     trace : B --> A
-    --     multiplication maps?
-    --     trace form itself?
-    -- Step 1.  Check that phi is gives a NNF.
-    -- Step 2.  Create B, unless R is already of the form A[vars]/I, finite over A.
-    -- Step 3.  Create frac B.
-    -- Step 4.  Create the modules over A, K.
-    -- Step 5.  Create the trace maps
-    -- Step 6.  What else to make
---    )
-
+noetherForm Ring := Ring => (R) -> (
+    error "not yet implemented"
+    )
 
 beginDocumentation()
 
@@ -329,13 +328,22 @@ doc ///
 doc ///
   Key
     noetherForm
+    (noetherForm, List)
+    (noetherForm, RingMap)
+    (noetherForm, Ring)
   Headline
     place the target of a ring map into Noether normal form, via the map
   Usage
     B = noetherForm phi
+    B = noetherForm xv
+    B = noetherForm R
   Inputs
     phi:RingMap
       from a ring {\tt A} to a ring {\tt R}
+    xv:List
+      of variables in an affine ring {\tt R} over which {\tt R} is finite
+    R:Ring
+      an affine equidimensional and reduced ring
   Outputs
     B:Ring
       isomorphic to B, but of the form {\tt A[new variables]/(ideal)}.
@@ -364,6 +372,7 @@ doc ///
       B = noetherForm phi
   Caveat
     The base field must currently be a finite field, or the rationals.
+    Finiteness is not yet checked.  The 3rd version is not yet written.
   SeeAlso
 ///
 
@@ -389,6 +398,22 @@ TEST ///
   trace M
   tr(y_L)
   tr y
+///
+
+TEST ///
+  -- of makeFrac
+-*
+  restart
+  debug needsPackage "NoetherNormalForm"
+*-
+  kk = ZZ/101
+  A = kk[x];
+  B = A[y, Join => false]/(y^4-x*y^3-(x^2+1)*y-x^6)
+  L = makeFrac B
+  describe L
+  assert(degree y_L === {1})
+  assert(monoid L === monoid B)
+  --assert(isField L) -- not yet.
 ///
 
 TEST ///
@@ -470,29 +495,6 @@ TEST ///
   traceForm L
 ///
 
-end----------------------------------------------------------
-
-restart
-uninstallPackage "NoetherNormalForm"
-restart
-installPackage "NoetherNormalForm"
-check NoetherNormalForm
-restart
-needsPackage  "NoetherNormalForm"
-
-doc ///
-  Key
-  Headline
-  Usage
-  Inputs
-  Outputs
-  Description
-    Text
-    Example
-  Caveat
-  SeeAlso
-///
-
 -- WIP --
 TEST ///
   -- test of creation of Noether normal form from a list of variables in a ring.
@@ -538,6 +540,8 @@ TEST ///
   factor h
   denominator h == a^2*d - a*d^2 -- ?? these are in different rings??? But this is true...
   numerator h -- in the ring B
+  assert(ring numerator h === B)
+  assert(ring denominator h === A)
   
   getBasis B
   getBasis L
@@ -548,8 +552,6 @@ TEST ///
 
   R = QQ[a..d]/(b^2-a, b*c-d)
   B = noetherForm{a,d} -- needs to give an error! BUG need to check that it is finite...
-  
-
 ///
 
 TEST ///
@@ -564,8 +566,7 @@ TEST ///
   phi = map(R,A,{x+y})
   noetherForm phi
 
-  noetherForm R  -- call noetherNormalization, to find the linear forms that are independent.
-    -- 
+  --noetherForm R  -- call noetherNormalization, to find the linear forms that are independent.
     
   (F, J, xv) = noetherNormalization R
   R' = (ambient R)/J
@@ -579,6 +580,57 @@ TEST ///
   A = kk[t]
   phi = map(R, A, for x in xv list G^-1 x)
   noetherForm phi
-  
-  F^-1 ((target 
 ///
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+  kk = ZZ/101
+  R = kk[a,b,c,d]
+  I = ideal"a2,ab,cd,d2"
+  S = reesAlgebra I
+  S = first flattenRing S
+  
+  elapsedTime (F, J, xv) = noetherNormalization S -- wow, this takes more time than I would have thought!
+
+  xv/(x -> F x)
+
+  F (ideal S) == J  
+  R' = (ambient S)/J  
+  A = kk[t_0..t_(#xv-1)]
+  
+  phi = map(S,A, xv/(x -> F x))
+  
+  B = noetherForm phi
+  L = frac B
+  describe L
+  
+  isHomogeneous S -- true
+  isHomogeneous R' -- false
+///
+
+end----------------------------------------------------------
+
+restart
+uninstallPackage "NoetherNormalForm"
+restart
+installPackage "NoetherNormalForm"
+check NoetherNormalForm
+restart
+needsPackage  "NoetherNormalForm"
+
+doc ///
+  Key
+  Headline
+  Usage
+  Inputs
+  Outputs
+  Description
+    Text
+    Example
+  Caveat
+  SeeAlso
+///
+
