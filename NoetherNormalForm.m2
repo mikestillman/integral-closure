@@ -40,6 +40,13 @@ export {
     "NoetherInfo"
     }
 
+raw = value Core#"private dictionary"#"raw"
+rawIsField = value Core#"private dictionary"#"rawIsField"
+isField EngineRing := R -> (R.?isField and R.isField) or rawIsField raw R
+
+inNoetherPosition = method()
+inNoetherPosition Ring := Boolean => (R) -> R.?NoetherInfo
+
 -- private routine
 setNoetherInfo = method()
 setNoetherInfo(Ring, Ring) := (B, KB) -> (
@@ -250,8 +257,8 @@ makeFrac Ring := Ring => (B) -> (
     --     );
     factor B := opts -> (f) -> (hold factor (numerator mapBtofracS f))/(factor denominator f);
     factor KB := opts -> (f) -> (hold factor (numerator mapKBtofracS f))/(factor denominator f);
-    B.frac = KB; -- TODO: also add in promotion/lift functions?
-    KB.frac = KB; -- I wonder if we need to set KB to be a field too?  If so, that might be a problem...
+    B.frac = KB;
+    KB.frac = KB;
     KB.isField = true; -- this does not seem to make KB a field??
     setNoetherInfo(B, KB);
     setTraces KB;
