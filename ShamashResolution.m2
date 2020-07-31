@@ -116,15 +116,12 @@ shamashFreeModule = method()
 shamashFreeModule(ShamashData,List) := (D,L) -> (
     K := D.koszul;
     F := D.resolution;
-    FF = K_(L_0);
+    FF := K_(L_0);
     for i from 1 to #L-1 do FF = FF**F_(L_i);
     FF
     )
     
-shamashFreeModule = method()
-shamashFreeModule(ShamashData,r,w) := (D,r,w) -> 
-    --the free module of homological degree = r, weight <= w.
-    directSum apply(shamashFrees(D,r,w), L -> shamashFreeModule(D,L))
+
 ///
 restart
 debug loadPackage "ShamashResolution"
@@ -178,10 +175,10 @@ targetList(List) := List => src -> (
     --free modules of weight one less than src that can be targets of components of the differential. These
     --are gotten by diminishing one p_0 if it is >0, or one of the p_i, i>0 that is >1;
     --and by adding two adjacent p_i.
-    type10 = apply (#src, i -> src_{0..i-1}|{src_i -1}|src_{i+1..#src-1});
-    type11 = select(type10, ell-> ell_0>=0 and product drop(ell,1) =!=0);
-    type1 = select(type11, ell-> #ell>0);
-    type2 = apply(#src-1, i-> src_{0..i-1}|{src_i+src_(i+1)}|src_{i+2..#src-1});
+    type10 := apply (#src, i -> src_{0..i-1}|{src_i -1}|src_{i+1..#src-1});
+    type11 := select(type10, ell-> ell_0>=0 and product drop(ell,1) =!=0);
+    type1 := select(type11, ell-> #ell>0);
+    type2 := apply(#src-1, i-> src_{0..i-1}|{src_i+src_(i+1)}|src_{i+2..#src-1});
     type1 | type2
     )
 
@@ -198,7 +195,8 @@ targetList(List) := List => src -> (
 
 
 shamashMap = method()
-shamashMap(List, ShamashData) := (HashTable => (src, D) -> (
+-*
+shamashMap(List, ShamashData,Nothing) := (HashTable => (src, D,notused) -> (
     --computes components of the differential of the Shamash resolution by induction on the weight = number
     --of factors from F = D.resolution.
     --The induction is linked to a parallel induction defining auxilliary maps gamma.
@@ -241,18 +239,19 @@ shamashMap(List, ShamashData) := (HashTable => (src, D) -> (
                {i+j} => (-1)^i * f
               }
               )
-        ))
+        ))    else if #src>2 then (
     --induction on weight: d has been defined up to weight #src-1, gamma has been defined up to
-    weight #src
-    else if #src>2 then (
+    --weight #src
 	if src_0>0 then {src =>
 	    shamashMap({src_0},D)**id_(shamashFreeModule(drop(src,1),D))+
-	                (-1)^(src_0)*shamashMap(drop(src,1),D)
-	else
-	if src_0 = 0 then {{src =>shamashMap(drop(src,-1)**id_(F_(last src))= shamashMap(src).gamma)}
-		    {gamma => *******}}
-
+	                (-1)^(src_0)*shamashMap(drop(src,1),D)})
 )
+			
+	--else
+	--if src_0 = 0 then {{src =>shamashMap(drop(src,-1)**id_(F_(last src))= shamashMap(src).gamma)}
+	--	    {gamma => *******}}
+
+*-
 
 gamma = method()
 gamma(List,ShamashData) := Matrix => (src,D) ->(
@@ -264,21 +263,22 @@ gamma(List,ShamashData) := Matrix => (src,D) ->(
     F := D#"ResolutionR";
     alpha := prepend("NOT USED", D#"Alpha");
 
-    if #L1 = 1 then alpha#(L1_0);
-    else 
+--    if #L1 == 1 then alpha#(L1_0)
+-*    else 
     target = ***
     gamma = map(target, shamashFreeModule({0}|L1),
 	--is this FKmap in a special case?
       )
+*-
   )
     
   
 
---BUG: shamashMap0, Mike's old code, 
+--BUG: shamashMap, Mike's old code, 
 --works only for the first 5 steps of the
 --resolution. 
-shamashMap0 = method()
-shamashMap0(List, ShamashData) := (src, D) -> (
+shamashMap = method()
+shamashMap(List, ShamashData) := (src, D) -> (
     K := D#"KoszulR";
     F := D#"ResolutionR";
     alpha := prepend("NOT USED", D#"Alpha");
