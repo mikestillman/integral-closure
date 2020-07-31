@@ -18,13 +18,13 @@ export {
     "shamashData",
     "koszulMap",
     "shamashFrees", 
-    "dim",
     "shamashMatrix",
---    "matrix"
     "picture",
     "shamashResolution",
     "isGolodByShamash",
-    "shamashFreeModule"
+    "shamashFreeModule",
+    "targetList",
+    "sourceList"
     }
 
 ShamashData = new Type of MutableHashTable
@@ -107,10 +107,11 @@ shamashFrees(ShamashData,ZZ,ZZ) := (D,r,maxlength) -> (
 
 shamashFrees(ShamashData,ZZ) := (D,r) -> shamashFrees(D,r,infinity)
 
-shamashFrees(ShamashData,ZZ,ZZ) := (D,r,w) -> (
-    --the lists giving summands of degree r and weight at most w
-    select(shamashFrees(D,r), L -> #L<=w-1)
-    )
+-- TODO: potentially new code.
+-- shamashFrees(ShamashData,ZZ,ZZ) := (D,r,w) -> (
+--     --the lists giving summands of degree r and weight at most w
+--     select(shamashFrees(D,r), L -> #L<=w-1)
+--     )
 
 shamashFreeModule = method()
 shamashFreeModule(ShamashData,List) := (D,L) -> (
@@ -138,8 +139,7 @@ shamashFrees(D,2,1)
 shamashFreeModule(D,2,1)
 ///
 
-dim = method()
-dim(List,ShamashData) := (L,D) -> (
+dim(List,ShamashData) := List => (L,D) -> (
     --L must be of the form shamashFrees(D,r)
     --returns the ranks of the components of the r-th term of the Shamash resolution.
     K := D#"KoszulR";
@@ -153,6 +153,7 @@ dim(List,ShamashData) := (L,D) -> (
 restart
 --installPackage
 loadPackage("ShamashResolution", Reload => true)
+loadPackage("ShamashResolutionOrig", Reload => true)
 S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
 D = shamashData I
@@ -161,6 +162,7 @@ L = shamashFrees(D,4)
 dim(L,D)
 L
 apply(L, ell -> targetList(ell,D))
+apply(L, ell -> targetList(ell))
 
 src_{0..i-1}
 ///
@@ -427,7 +429,7 @@ net ShamashMatrix := (M) -> (
     )
 
 --matrix = method()
-matrix ShamashMatrix := M -> (
+matrix ShamashMatrix := opts -> M -> (
     src := M.source;
     tar := M.target;
     mats := for t in tar list for s in src list getEntry(M,t,s,0);
@@ -853,7 +855,6 @@ doc ///
 
 doc ///
    Key
-    dim
     (dim, List, ShamashData)
    Headline
     computes the dimensions of the components of a free module
