@@ -20,7 +20,7 @@ export {
     "shamashFrees", 
     "dim",
     "shamashMatrix",
-    "matrixFromShamashMatrix",
+--    "matrix"
     "picture",
     "shamashResolution",
     "isGolodByShamash",
@@ -274,10 +274,10 @@ gamma(List,ShamashData) := Matrix => (src,D) ->(
     
   
 
---BUG: shamashMap, Mike's old code, 
+--This is Mike's old shamashMap.
 --works only for the first 5 steps of the
 --resolution. 
-shamashMap = method()
+--shamashMap = method()
 shamashMap(List, ShamashData) := (src, D) -> (
     K := D#"KoszulR";
     F := D#"ResolutionR";
@@ -289,21 +289,6 @@ shamashMap(List, ShamashData) := (src, D) -> (
         p := src#0;
         new HashTable from {{p-1} => K.dd_p}
         )
-    else if #src == 2 then (
-        i := src#0;
-        j := src#1;
-        new HashTable from (
-          if i == 0 
-          then {{j} => alpha#j}
-          else (
-              f := wedgeProduct(i,j,K_1) * (id_(K_i) ** alpha#j);
-              -- need alpha followed by multiplication
-              {{i-1,j} => K.dd_i ** id_(F_j),
-               {i+j} => (-1)^i * f
-              }
-              )
-        ))
-
 --maps{i,j}->{i-1,j} and {i+j}
     else if #src == 2 then (
         i := src#0;
@@ -319,6 +304,8 @@ shamashMap(List, ShamashData) := (src, D) -> (
               }
               )
         ))
+
+
 --maps f1: {i,j,k} = K_i**F_j**F_k -> K_i**K_j**F_k
     else if #src == 3 then (
         -- K_i ** F_j ** F_k
@@ -439,8 +426,8 @@ net ShamashMatrix := (M) -> (
         )
     )
 
-matrixFromShamashMatrix = method()
-matrixFromShamashMatrix ShamashMatrix := M -> (
+--matrix = method()
+matrix ShamashMatrix := M -> (
     src := M.source;
     tar := M.target;
     mats := for t in tar list for s in src list getEntry(M,t,s,0);
@@ -601,7 +588,7 @@ shamashResolution (ZZ, Ring) := (n,R) ->(
     D := shamashData I;
     frees := apply(n+1, i-> shamashFrees(D,i));
     smats := apply(n, i-> shamashMatrix(frees_i,frees_(i+1),D));
-    mats := apply(n,i->matrixFromShamashMatrix smats_i);
+    mats := apply(n,i->matrix smats_i);
     phi := map(R,ring mats_0 , vars R);
     chainComplex apply(n, i-> phi mats_i)
     )
@@ -615,7 +602,7 @@ shamashResolution (ZZ, Ring) := (n,R) ->(
      L0 = shamashFrees(D,2)
      M = shamashMatrix(L0, L1, D)
      picture M
-     matrixFromShamashMatrix M
+     matrix M
      M.source
 ///
 
@@ -809,7 +796,7 @@ doc ///
      Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
      netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
      picture Fs#2
-     matrixFromShamashMatrix Fs#2
+     matrix Fs#2
     Text
      The dots indicate that the compositions of the components are all 0, as they 
      should be in a complex.
@@ -817,7 +804,7 @@ doc ///
     shamashFrees
     shamashData
     picture
-    matrixFromShamashMatrix
+    matrix
       ///
 doc ///
    Key
@@ -922,22 +909,21 @@ doc ///
      L0 = shamashFrees(D,2)
      M = shamashMatrix(L0, L1, D)
      picture M
-     matrixFromShamashMatrix M
+     matrix M
    SeeAlso
     shamashMatrix
     shamashFrees
     shamashData
-    matrixFromShamashMatrix
+    matrix
 ///
-
+ 
 doc ///
    Key
-    matrixFromShamashMatrix
-    (matrixFromShamashMatrix, ShamashMatrix)
+    (matrix, ShamashMatrix)
    Headline
     turns the HashTable respresentation into an ordinary matrix
    Usage
-    M1 = matrixFromShamashMatrix M
+    M1 = matrix M
    Inputs
     M:ShamashMatrix
    Outputs
@@ -945,7 +931,7 @@ doc ///
    Description
     Text
      A ShamashMatrix M is a HashTable with keys {source, map, ring, target}. Source and target are
-     lists of lists representing free summands. matrixFromShamashMatrix M assembles the blocks into an ordinary matrix.
+     lists of lists representing free summands. matrix M assembles the blocks into an ordinary matrix.
     Example
      S = ZZ/101[a,b,c]
      I = ideal(a,b)*ideal(a,b,c)
@@ -954,12 +940,12 @@ doc ///
      L0 = shamashFrees(D,2)
      M = shamashMatrix(L0, L1, D)
      picture M
-     matrixFromShamashMatrix M
+     matrix M
    SeeAlso
     shamashMatrix
     shamashFrees
     shamashData
-    matrixFromShamashMatrix
+    matrix
 ///
 
 doc ///
@@ -1088,7 +1074,7 @@ restart
 installPackage "ShamashResolution"
 viewHelp ShamashResolution
 debug ShamashResolution
-viewHelp matrixFromShamashMatrix
+viewHelp matrix
 S = ZZ/101[a..e]
 I = ideal"ab-bc,b2-cd,ac-be"
 I = ideal"ab,bc,cd,de,ea"
@@ -1097,11 +1083,12 @@ R = S/I
 
 D = shamashData I
 Ls = for i from 0 to 8 list shamashFrees(D,i,2)
-Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
+Fs = for i from 1 to 5 list shamashMatrix(Ls#(i-1), Ls#i, D);
 netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
-
+Fs/matrix
 for m in Fs do assert isHomogeneous matrix m
 
+Fs
 
 L0 = shamashFrees(D,0)
 L1 = shamashFrees(D,1)
@@ -1129,6 +1116,7 @@ F4*F5
 F5*F6
 F6*F7
 F7*F8
+F6
 
 M1 = matrix F1
 M2 = matrix F2
