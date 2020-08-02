@@ -17,9 +17,13 @@ export {
     "ShamashData",
     "shamashData",
     "koszulMap",
-    "shamashFreeModule",
+
+    "ShamashFreeSummand",
+    "shamashFreeSummand",
     "ShamashFreeModule",
-    "shamashFrees", 
+    "shamashFreeModule",
+
+    "shamashFree", 
     "dim",
     "shamashMatrix",
     "picture",
@@ -35,16 +39,25 @@ export {
 
 ShamashData = new Type of MutableHashTable
 ShamashMatrix = new Type of HashTable
-ShamashFreeModule = new Type of List
+ShamashFreeSummand = new Type of List --list of ZZ
+ShamashFreeModule = new Type of List -- list of Shamash free summands
     --A ShamashFreeModule is represented as a list of ZZ, representing a tensor product; 
     --the first element i represents a factor K_i; subsequent elements
     --represent factors F_j. K_0 = S is suppressed (represented by the empty list).
 
-degree ShamashFreeModule := ZZ => L -> sum L -- homological degree
-weight = method()
-weight ShamashFreeModule := ZZ => L -> #L
 shamashFreeModule = method()
 shamashFreeModule List := ShamashFreeModule => L -> new ShamashFreeModule from L
+
+shamashFreeSummand = method()
+shamashFreeSummand List := ShamashFreeModule => L -> new ShamashFreeSummand from L
+--the first element of this list can be 0; but subsequent elements must be >=2.
+--the 0th element indicates a Koszul factor K_i;
+--the i-th element s_i denotes basis HH_(i-1) and has homological degree s_i.
+
+
+degree ShamashFreeSummand := ZZ => L -> sum L -- homological degree
+weight = method()
+weight ShamashFreeSummand := ZZ => L -> if L_0 !=0 then #L else #L-1
 
 -- plan: induction: if gamma: F_(i_1)**..**F_(i_n) is defined on such products with degree <=i and has
 -- values in the sum of terms of weight (== number of factors) <=n, and the differential d is defined
@@ -64,67 +77,84 @@ shamashData Ring := ShamashData => R -> (
     i := 0;
     D#HKBasis= while (B := basis HH_i D.koszul) !=0 list (
     i = i+1;
-    B);
+    B); --Note that D#HKBasis_i is in homological degree i+1
     D#pd = #select(D#HKBasis, f -> f !=0) -1; 
     -- the number of nonzero Koszul groups -1. This is the projective dimension of R
     -- as module over a regular ring with the same number of variables.
     D
     )
 
-module(ShamashData,ShamashFreeModule) := (Data, F) ->(
-    --recover the actual free module from a ShamashFreeModule
+module(ShamashData,ShamashFreeSummand) := Module => (Data, F) ->(
+    --recover the actual free module from a ShamashFreeSummand
     Fmodule := Data.koszul_(F_0);
-    for i from 1 to weight F do Fmodule = Fmodule**source ((Data#HKBasis)_i);
+    for i from 1 to  #F-1 do Fmodule = Fmodule**source ((Data#HKBasis)_(F_(i-1)));
     Fmodule
     )
+module(ShamashData, ShamashFreeModule) := Module => (D,FF) ->(
+    directSum(FF/(F->module(D, F)))
+    )
 
-shamashFrees = method(Options => {MaxDegree => InfiniteNumber, MaxWeight => InfiniteNumber})
-shamashFrees (ShamashData, ZZ) := List => o->(D,n) -> (
-    --list of shamashFreeModules: all the ShamashFreeModules of homological degree n that can occur.
+shamashFree = method(Options => {MaxDegree => InfiniteNumber, MaxWeight => InfiniteNumber})
+
+--the following is wrong! We need the permutation of the partitions, not the partitions.
+shamashFree(ShamashData, ZZ) := ShamashFreeModule => o->(D,n) -> (
+    --list of shamashFreeSummands: all the ShamashFreeSummands of homological degree n that can occur.
     if n == 0 then return {{0}};
-    P := (partitions n)/toList;
+    P := sort((partitions n)/toList);
     Q := P | P/(p->{0}|p);
-    Q1 := select(Q,q-> q_0<=D#pd);
-    Q1/shamashFreeModule
+    Q = select(Q,q-> q_0<=D#pd and  all(#q-1, i-> (2 <= q_(i+1)) and q_(i+1) <= D#pd+1));
+    shamashFreeModule (Q/shamashFreeSummand)
     )
 
-shamashFrees(ShamashData,ZZ,ZZ) := List => o-> (D,n,w) ->(
-    --list of lists, representing all the ShamashFreeModules of homological degree n 
+shamashFree(ShamashData,ZZ,ZZ) := ShamashFreeModule => o-> (D,n,w) ->(
+    --list of lists, representing all the ShamashFreeSummands of homological degree n 
     --and weight w that can occur.
-    select(shamashFrees(D,n), L -> weight L == w)
+    shamashFreeModule select(shamashFree(D,n), L -> weight L == w)
     )
 
-shamashFrees(ShamashData) := List => o -> D ->(
+shamashFree(ShamashData) := ShamashFreeModule => o -> D ->(
     --the ones of homological degree <= n and weight <= w
     )
 
 ///
 restart
-loadPackage("ShamashResolutiona", Reload => true)
+debug loadPackage("ShamashResolutiona", Reload => true)
 S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
 R = S/I
 D = shamashData R
 peek D
-shamashFrees(D,0)
-shamashFrees(D,4)
-assert(shamashFrees(D,4,2) == {{3, 1}, {2, 2}, {0, 4}}/shamashFreeModule)
-F = shamashFreeModule {3,1}
+shamashFree(D,0)
+FF = shamashFree(D,4) -- bug; we're missing {1,3}
+n = 4
+module(D,FF)
+///
+
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal(a,b)*ideal(a,b,c)
+R = S/I
+D = shamashData R
+module shamashFree(D,4,2)
+assert(shamashFree(D,4,2) ==shamashFreeModule({{3, 1}, {2, 2}, {0, 3, 1}, {0, 2, 2}}/shamashFreeSummand))
+F = shamashFreeSummand {3,1}
 assert(module(D, F) == R^{30:-8})
+module(D, shamashFree(D,4))
+module((shamashFree(D,4))_0)
 ///
 
 targets = method()
-targets ShamashFreeModule := List => F ->(
-    --list of lists representing all the ShamashFreeModules of degree = deg F -1 and weight <= weight F.
+targets ShamashFreeSummand := List => F ->(
+    --list of lists representing all the ShamashFreeSummands of degree = deg F -1 and weight <= weight F.
     )
 
 shamashDifferential = method()
-shamashDifferential ShamashFreeModule := F ->(
+shamashDifferential ShamashFreeSummand := F ->(
 --    if weight F == 0 then 
 )
 
 gamma = method()
-gamma(ShamashData, ShamashFreeModule) := ShamashMatrix => (D,F) -> (
+gamma(ShamashData, ShamashFreeSummand) := ShamashMatrix => (D,F) -> (
     )
 
 end-- temporary end!
