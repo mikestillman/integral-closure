@@ -49,7 +49,7 @@ shamashFreeModule = method()
 shamashFreeModule List := ShamashFreeModule => L -> new ShamashFreeModule from L
 
 shamashFreeSummand = method()
-shamashFreeSummand List := ShamashFreeModule => L -> new ShamashFreeSummand from L
+shamashFreeSummand List := ShamashFreeSummand => L -> new ShamashFreeSummand from L
 --the first element of this list can be 0; but subsequent elements must be >=2.
 --the 0th element indicates a Koszul factor K_i;
 --the i-th element s_i denotes basis HH_(i-1) and has homological degree s_i.
@@ -87,22 +87,22 @@ shamashData Ring := ShamashData => R -> (
 module(ShamashData,ShamashFreeSummand) := Module => (Data, F) ->(
     --recover the actual free module from a ShamashFreeSummand
     Fmodule := Data.koszul_(F_0);
-    for i from 1 to  #F-1 do Fmodule = Fmodule**source ((Data#HKBasis)_(F_(i-1)));
+    for i from 1 to  #F-1 do Fmodule = Fmodule**source ((Data#HKBasis)_(F_i-1));
     Fmodule
     )
+
 module(ShamashData, ShamashFreeModule) := Module => (D,FF) ->(
     directSum(FF/(F->module(D, F)))
     )
 
 shamashFree = method(Options => {MaxDegree => InfiniteNumber, MaxWeight => InfiniteNumber})
 
---the following is wrong! We need the permutation of the partitions, not the partitions.
 shamashFree(ShamashData, ZZ) := ShamashFreeModule => o->(D,n) -> (
     --list of shamashFreeSummands: all the ShamashFreeSummands of homological degree n that can occur.
-    if n == 0 then return {{0}};
-    P := sort((partitions n)/toList);
+    if n == 0 then return shamashFreeModule{shamashFreeSummand{0}};
+    P := unique flatten ((partitions n)/toList/(L->permutations L));
     Q := P | P/(p->{0}|p);
-    Q = select(Q,q-> q_0<=D#pd and  all(#q-1, i-> (2 <= q_(i+1)) and q_(i+1) <= D#pd+1));
+    Q = select(Q,q-> q_0<=numgens D.ring and  all(#q-1, i-> (2 <= q_(i+1)) and q_(i+1) <= 1+D#pd));
     shamashFreeModule (Q/shamashFreeSummand)
     )
 
@@ -119,15 +119,20 @@ shamashFree(ShamashData) := ShamashFreeModule => o -> D ->(
 ///
 restart
 debug loadPackage("ShamashResolutiona", Reload => true)
+///
+
+TEST///
 S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
+I = (ideal(a^2,b^3))^2
 R = S/I
 D = shamashData R
-peek D
-shamashFree(D,0)
-FF = shamashFree(D,4) -- bug; we're missing {1,3}
-n = 4
-module(D,FF)
+netList apply(5, n->shamashFree(D,n))
+time betti res (coker vars R, LengthLimit =>4)
+time apply(5, n->module(D,shamashFree(D,n))) -- slower! Where's the bottleneck?
+FF = res coker vars R
+assert(apply(length FF+1, i-> rank FF_i) == 
+       apply(length FF+1, n-> rank module(D, shamashFree(D,n)))
 ///
 
 TEST///
@@ -135,12 +140,9 @@ S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
 R = S/I
 D = shamashData R
-module shamashFree(D,4,2)
-assert(shamashFree(D,4,2) ==shamashFreeModule({{3, 1}, {2, 2}, {0, 3, 1}, {0, 2, 2}}/shamashFreeSummand))
+assert(shamashFree(D,4,2) ==shamashFreeModule ({{1, 3}, {2, 2}, {0, 2, 2}}/shamashFreeSummand))
 F = shamashFreeSummand {3,1}
-assert(module(D, F) == R^{30:-8})
-module(D, shamashFree(D,4))
-module((shamashFree(D,4))_0)
+assert(module(D, F) == R^{-3})
 ///
 
 targets = method()
