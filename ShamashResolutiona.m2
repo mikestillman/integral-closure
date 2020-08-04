@@ -22,9 +22,8 @@ export {
     "shamashFreeSummand",
     "ShamashFreeModule",
     "shamashFreeModule",
-
+    
     "shamashFree", 
-    "dim",
     "shamashMatrix",
     "picture",
     "shamashResolution",
@@ -35,6 +34,29 @@ export {
     "MaxDegree",--option for shamashFrees
     "MaxWeight"--option for shamashFrees
     }
+
+-- methods: dim.
+
+-- place this into M2 core.
+compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
+    -- nparts is the number of terms
+    -- k is the sum of the elements
+    -- each element is between 0 <= maxelem.
+     compositionn := (n,k) -> (
+	  if n===0 or k < 0 then {}
+	  else if k===0 then {toList(n:0)}
+	  else (
+          set1 := apply(compositionn(n-1,k), s -> s | {0});
+          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
+          set2 = select(set2, s -> s#(n-1) <= maxelem);
+          join(set1, set2)
+          )
+      );
+     compositionn = memoize compositionn;
+     result := compositionn(nparts,k);
+     compositionn = null;
+     result
+     );
 
 
 ShamashData = new Type of MutableHashTable
@@ -98,12 +120,16 @@ module(ShamashData, ShamashFreeModule) := Module => (D,FF) ->(
 shamashFree = method(Options => {MaxDegree => InfiniteNumber, MaxWeight => InfiniteNumber})
 
 shamashFree(ShamashData, ZZ) := ShamashFreeModule => o->(D,n) -> (
-    --list of shamashFreeSummands: all the ShamashFreeSummands of homological degree n that can occur.
-    if n == 0 then return shamashFreeModule{shamashFreeSummand{0}};
-    P := unique flatten ((partitions n)/toList/(L->permutations L));
-    Q := P | P/(p->{0}|p);
-    Q = select(Q,q-> q_0<=numgens D.ring and  all(#q-1, i-> (2 <= q_(i+1)) and q_(i+1) <= 1+D#pd));
-    shamashFreeModule (Q/shamashFreeSummand)
+    maxK := numgens D.ring;
+    maxE := D#pd + 1;
+    result := flatten for i from 0 to maxK list (
+        flatten for j from 1 to (n-i)//2 list (
+            c := compositions(j, n-i-2*j, maxE-2);
+            for c1 in c list prepend(i, (for a in c1 list a+2))
+            )
+        );
+    if n <= maxK then result = append(result, {n});
+    shamashFreeModule (result/shamashFreeSummand)
     )
 
 shamashFree(ShamashData,ZZ,ZZ) := ShamashFreeModule => o-> (D,n,w) ->(
@@ -128,11 +154,31 @@ I = (ideal(a^2,b^3))^2
 R = S/I
 D = shamashData R
 netList apply(5, n->shamashFree(D,n))
-time betti res (coker vars R, LengthLimit =>4)
-time apply(5, n->module(D,shamashFree(D,n))) -- slower! Where's the bottleneck?
-FF = res coker vars R
-assert(apply(length FF+1, i-> rank FF_i) == 
-       apply(length FF+1, n-> rank module(D, shamashFree(D,n)))
+time betti res (coker vars R, LengthLimit => 4)
+time apply(5, n->module(D,shamashFree(D,n)))
+FF = res(coker vars R, LengthLimit => 10)
+assert(
+    apply(length FF+1, i-> rank FF_i) == 
+    apply(length FF+1, n-> rank module(D, shamashFree(D,n)))
+    )
+
+netList apply(8, n->shamashFree(D,n))
+time betti res (coker vars R, LengthLimit => 8)
+time apply(12, n->module(D,elapsedTime shamashFree(D,n)))
+FF = res(coker vars R, LengthLimit => 15)
+assert(
+    apply(length FF+1, i-> rank FF_i) == 
+    apply(length FF+1, n-> rank module(D, shamashFree(D,n)))
+    )
+///
+
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal(a,b)*ideal(a,b,c)
+I = (ideal(a^2,b^3))^2
+R = S/I
+D = shamashData R
+peek D
 ///
 
 TEST///
@@ -140,18 +186,18 @@ S = ZZ/101[a,b,c]
 I = ideal(a,b)*ideal(a,b,c)
 R = S/I
 D = shamashData R
-assert(shamashFree(D,4,2) ==shamashFreeModule ({{1, 3}, {2, 2}, {0, 2, 2}}/shamashFreeSummand))
+assert(shamashFree(D,4,2) == shamashFreeModule ({{0, 2, 2}, {1, 3}, {2, 2}}/shamashFreeSummand))
 F = shamashFreeSummand {3,1}
 assert(module(D, F) == R^{-3})
 ///
 
 targets = method()
-targets ShamashFreeSummand := List => F ->(
+targets ShamashFreeSummand := List => F -> (
     --list of lists representing all the ShamashFreeSummands of degree = deg F -1 and weight <= weight F.
     )
 
 shamashDifferential = method()
-shamashDifferential ShamashFreeSummand := F ->(
+shamashDifferential ShamashFreeSummand := F -> (
 --    if weight F == 0 then 
 )
 
@@ -165,12 +211,12 @@ beginDocumentation()
 
 -*
 restart
-loadPackage "ShamashResolution"
+loadPackage "ShamashResolutiona"
 *-
 
 doc ///
 Key
-  ShamashResolution
+  ShamashResolutiona
 Headline
  Construct the Shamash resolution of the residue field
 Description
@@ -267,7 +313,7 @@ doc ///
      R = S/I
      shamashResolution(5,R)
    SeeAlso
-     ShamashResolution
+     ShamashResolutiona
 ///
 
 doc ///
@@ -329,9 +375,10 @@ doc ///
      Fs prints as a display containing the matrices that are components of the 
      i-th map in the Shamash resolution.      
     Example
-     S = ZZ/101[a,b,c]
+     S = ZZ/101[a,b,c];
      I = ideal(a,b)*ideal(a,b,c)
-     D = shamashData I
+     R = S/I;
+     D = shamashData R
      Ls = for i from 0 to 8 list shamashFrees(D,i,2)
      Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
      netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
@@ -393,7 +440,6 @@ doc ///
 
 doc ///
    Key
-    dim
     (dim, List, ShamashData)
    Headline
     computes the dimensions of the components of a free module
@@ -527,7 +573,7 @@ doc ///
      assert(isGolodByShamash R == false)
    SeeAlso
     shamashResolution
-    ShamashResolution
+    ShamashResolutiona
 ///
 
 doc ///
@@ -591,7 +637,7 @@ doc ///
 TEST ///
 -*
 restart
-loadPackage("ShamashResolution", Reload => true)
+loadPackage("ShamashResolutiona", Reload => true)
 *-
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
@@ -609,11 +655,9 @@ loadPackage("ShamashResolution", Reload => true)
 end--
 
 restart
-uninstallPackage "ShamashResolution"
+uninstallPackage "ShamashResolutiona"
 restart
-installPackage "ShamashResolution"
-viewHelp ShamashResolution
-debug ShamashResolution
-viewHelp matrix
+installPackage "ShamashResolutiona"
+viewHelp ShamashResolutiona
+check ShamashResolutiona
 
-end--
