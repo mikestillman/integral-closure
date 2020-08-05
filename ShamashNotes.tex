@@ -1,0 +1,76 @@
+\documentclass[11pt]{amsart}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\DeclareGraphicsRule{.tif}{png}{.png}{`convert #1 `dirname #1`/`basename #1 .tif`.png}
+\def\g{{\gamma}}
+\def\mm{{\frak m}}
+\title{Shamash Complex induction}
+\author{DE+MES}
+%\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+Tired of redoing the computation, I decided to TeX it:
+
+\section{Conventions:} $B\subset Z \subset K;\ H$ for boundaries, cycles, homology of the Koszul complex of a  ring $R,\mm$ (local). $T$ for a basis element of the homology; $E$ for the free $R$-module $R^T$; 
+$(a,b...)$ represents $K_a\otimes E_b\otimes \cdots$. Elements such as $k\otimes x_1\cdots$ are written without the $\otimes$.
+Here $0\leq a\leq numgens\ R$; and $0\leq b,c\dots\leq pd(R)$, the highest degree of the Koszul homology. The homological degree of $(a,b\dots$ is the sum; the weight is the
+number of factors that are $>0$.
+
+Note that $KK \subset K$; and $ZZ\subset H+B = Z$. Also $ZB\subset B$.
+
+\section{Formulas, start of induction}
+$d,\g$ are to be defined inductively on the weight (and degree??) using formulas:
+
+\begin{enumerate}
+\item $d:K\to K$ is the Koszul differential; $d: E \to K$ is the projection to $E/\mm E \cong H$.
+\item 
+$$
+d(ku_1\cdots) = (dk)u_1\cdots +(-1)^kd(1u_1\cdots).
+$$
+\item
+on $(0,b,c\dots)$, 
+$$
+d(x_1x_2\cdots x_n) = d(x_1\cdots x_{n-1})x_n+\g(x_1,\dots, x_n)
+$$
+with weight $\g(x_1,\dots, x_n)<n$.
+\end{enumerate}
+
+\section{weight 2} 
+For $kx\in KE$ 
+$$
+d(kx) = (dk)x+(-1)^k k(dx) \in BE+K^2.
+$$
+Note that the weight may not decrease.
+
+For $x_1x_2\in E^2$
+$$
+d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2+\gamma(x_1,x_2)
+$$
+
+
+For $x_1,x_2\in E$
+$$
+d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2+\gamma(x_1,x_2)
+$$
+so 
+$$
+d\gamma(x_1,x_2) = -d((dx_1)x_2) = T_1T_2 = T' = T+B  \in K;
+$$
+This lifts to $\g(x_1,x_2) \in E+K$, 
+and we see that $d:E^2\to HE+ E+K$.
+
+\section{weight 3}
+For $kx_1x_2\in KE^2$,
+$$
+d(kx_1x_2) = (dk)x_1x_2 + (-1)^k kd(x_1x_2) \in BE^2
+$$
+so $K: KE^2 \to BE^2+KHE+KE+K^2 = BE^2+KE+K.$
+
+
+\end{document}  
