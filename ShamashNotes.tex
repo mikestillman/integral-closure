@@ -46,15 +46,9 @@ For $kx\in KE$
 $$
 d(kx) = (dk)x+(-1)^k k(dx) \in BE+K^2.
 $$
-Note that the weight may not decrease.
+Note that the weight does not decrease unless $k\in K_1$ or $k \in Z$.
 
 For $x_1x_2\in E^2$
-$$
-d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2+\gamma(x_1,x_2)
-$$
-
-
-For $x_1,x_2\in E$
 $$
 d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2+\gamma(x_1,x_2)
 $$
@@ -68,9 +62,46 @@ and we see that $d:E^2\to HE+ E+K$.
 \section{weight 3}
 For $kx_1x_2\in KE^2$,
 $$
-d(kx_1x_2) = (dk)x_1x_2 + (-1)^k kd(x_1x_2) \in BE^2
+d(kx_1x_2) = -[(dk)x_1x_2 + (-1)^k kd(x_1x_2)]
 $$
-so $K: KE^2 \to BE^2+KHE+KE+K^2 = BE^2+KE+K.$
+so $d: KE^2 \to BE^2+KHE+KE+K^2 = BE^2+KE+K.$
 
+for $x = x_1x_2x_3\in E^3$,
+$$
+dx = d(x_1x_2)x_3+\g(x) = (dx_1)x_2x_3+\g(x_1x_2)x_3+\g(x),
+$$
+so
+$$
+d\g(x) = -[T_1x_2x_3 + (-1)^{x_1-1}x_1d(x_2x_3) + d(\g(x_1x_2)x_3)]
+$$
+and thus $\g(x_1x_2x_3) = -[G+\g(x_1x_2)x_3)]$, for some $G$ such that
+$$
+dG = T_1x_2x_3 + (-1)^{x_1-1}x_1d(x_2x_3).
+$$
 
+We'd better be able to show that the RHS is a cycle!
+$$
+d(T_1x_2x_3) = (-1)^{T_1}T_1d(x_2x_3)=  (-1)^{T_1}T_1T_2x_3+ (-1)^{T_1}T_1\g(x_2x_3)
+$$
+while 
+$$
+d(x_1d(x_2x_3)) = d(x_1T_2x_3+x_1\g(x_2x_3)) = \cdots
+$$
+Note that $x_1T_2x_3$ is NOT in standard form. Do we set it equal to $T_2x_1x_3$? Or that with a sign, as we would if $x_1\in K$??
+Assuming that it's $\pm x_1T_2$: 
+$$
+\cdots = \pm T_2T_1x_3\pm T_2\g(x_1x_3)+d(x_1\gamma(x_2x_3)). 
+$$
+so it seems that we need to have
+$$
+d(x_1\gamma(x_2x_3)) = \pm T_1\g(x_2x_3). \quad \hbox{missing term???}
+$$
+Now $\g(x_2x_3) = x_{2,3}+k$ for some element $x_{2,3}\in E$ and $k\in K$ such that 
+$$
+d(x_{2,3})+db = T_2T_3\in K.
+$$
+Substituting, and allowing ourselves to permute to put the elements of $K$ in front, we want
+$$
+d(x_1x_{2,3})\pm d(kx_1))= \pm T_1x_{2,3}+T_1k
+$$
 \end{document}  
