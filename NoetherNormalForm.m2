@@ -38,7 +38,8 @@ export {
     -- keys used:
     "noetherField",
     "noetherRing",
-    "NoetherInfo"
+    "NoetherInfo",
+    "Remove"
     }
 
 raw = value Core#"private dictionary"#"raw"
@@ -215,29 +216,26 @@ makeFrac Ring := Ring => (B) -> (
     phiK := map(ambientKB,ambientB, vars ambientKB);
     JK := trim phiK I;
     KB := ambientKB / JK;
-    B.frac = KB; -- TODO: also add in promotion/lift functions?
-    KB.frac = KB; -- I wonder if we need to set KB to be a field too? YES
-    -- We now have create KB, now to make it play well with M2.
+    B.frac = KB;
+    KB.frac = KB;
+    KB.isField = true;
+    KB.baseRings = append(KB.baseRings, B);    
     BtoKB := map(KB,B,generators KB);
     inverse B := f -> 1_KB // BtoKB f;
-    B / A := (f,g) -> (1/g) * BtoKB f;
-    B / B := (f,g) -> (BtoKB f) * (inverse g);
-    KB / A := (f,g) -> (1/g) * f;
+    inverse KB := f -> 1 // f;
+    fraction(B,B) := (f,g) -> (BtoKB f) * inverse g;
+    fraction(KB,KB) := (f,g) -> f * inverse g;
     promote(B, KB) := (f,KB) -> BtoKB f;
--*
     KA + B := (f,g) -> f + BtoKB g;
     B + KA := (f,g) -> BtoKB f + g;
     KA - B := (f,g) -> f - BtoKB g;
     B - KA := (f,g) -> BtoKB f - g;
     KA * B := (f,g) -> f * BtoKB g;
     B * KA := (f,g) -> BtoKB f * g;
-*-
-    KB + B := (f,g) -> f + BtoKB g;
-    B + KB := (f,g) -> BtoKB f + g;
-    KB - B := (f,g) -> f - BtoKB g;
-    B - KB := (f,g) -> BtoKB f - g;
-    KB * B := (f,g) -> f * BtoKB g;
-    B * KB := (f,g) -> BtoKB f * g;
+    KA % B := (f,g) -> f % BtoKB g;
+    B % KA := (f,g) -> BtoKB f % g;
+    KA // B := (f,g) -> f // BtoKB g;
+    B // KA := (f,g) -> BtoKB f // g;
 
     -- Now we consider factorization.  The plan is to factor (numerator and denominator if needed)
     -- over a polynomial ring, then bring back to B or KB
@@ -250,17 +248,8 @@ makeFrac Ring := Ring => (B) -> (
     numerator KB := (f) -> StoB (numerator mapKBtofracS f);
     denominator B := (f) -> lift(StoB denominator mapBtofracS f, A);
     denominator KB := (f) -> lift(StoB denominator mapKBtofracS f, A);
-    -- net KB := (f) -> (
-    --     n := numerator f; 
-    --     d := denominator f;
-    --     resultDenom := if d == 1 then 1 else factor d;
-    --     (hold n) / resultDenom
-    --     );
-    factor B := opts -> (f) -> (hold factor (numerator mapBtofracS f))/(factor denominator f);
-    factor KB := opts -> (f) -> (hold factor (numerator mapKBtofracS f))/(factor denominator f);
-    B.frac = KB;
-    KB.frac = KB;
-    KB.isField = true; -- this does not seem to make KB a field??
+    factor KB := opts -> (f) -> hold numerator f/factor denominator f;
+    expression KB := f -> expression numerator f / expression denominator f;
     setNoetherInfo(B, KB);
     setTraces KB;
     KB
@@ -310,7 +299,6 @@ noetherForm List := Ring => opts -> (xv) -> (
     otherindices := sort toList (set toList(0..numgens R - 1) - set xindices);
     kk := coefficientRing R;
     A := kk [xv, Degrees => (degrees R)_xindices, Join=>false];
-    KA := frac A;
     S := A[(gens R)_otherindices, Degrees => (degrees R)_otherindices, Join=>false];
     phi := map(S,Rambient, sub(vars Rambient, S));
     J := trim phi I;
@@ -552,16 +540,18 @@ TEST ///
   use frac A
   assert(ring a === frac A)
 
+  use L
   gens(L, CoefficientRing => ZZ)
   assert(all(oo, v -> ring v === L))
-  assert((1//L_0) * L_0 == 1) -- BUG: would like 1/L_0 to work here...
-  assert((1//L_1) * L_1 == 1)
-  assert((1//(L_0+L_1)) * (L_0 + L_1) == 1)
-  (1//(L_0 + L_1)) * (b+c) == 1 -- FAILS: * is not defined for L * B ?
+  assert((1/b) * b == 1)
+  assert((1/c) * c == 1)
+  assert((1/(b+c)) * (b+c) == 1)
+  assert(1/(a+b)*(a+b) == 1)
+  assert (1/(b+c) * (b+c) == 1)
 
-  h = 1//(L_0 + L_1)
+  h = 1/(b+c)
   factor h
-  denominator h == a^2*d - a*d^2 -- ?? these are in different rings??? But this is true...
+  assert (denominator h == a^2*d - a*d^2)
   numerator h -- in the ring B
   assert(ring numerator h === B)
   assert(ring denominator h === A)
