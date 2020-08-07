@@ -54,9 +54,9 @@ d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2+\gamma(x_1,x_2)
 $$
 so 
 $$
-d\gamma(x_1,x_2) = -d((dx_1)x_2) = T_1T_2 = T' = T+B  \in K;
+d\gamma(x_1,x_2) = -d((dx_1)x_2) = -T_1T_2 = T' = T+B  \in K;
 $$
-This lifts to $\g(x_1,x_2)=x_{1,2}+z \in E+K$, 
+This lifts to $\g(x_1,x_2)=-x_{1,2}-z \in E+K$, 
 and we see that $d:E^2\to HE+ E+K$.
 
 \section{weight 3}
@@ -72,12 +72,24 @@ dx = d(x_1x_2)x_3+\g(x) = T_1x_2x_3+\g(x_1x_2)x_3+\g(x), \hbox{ where $T_1 = dx_
 $$
 so
 $$
-d\g(x) = -[T_1x_2x_3 + (-1)^{T_1}T_1d(x_2x_3) + d(\g(x_1x_2)x_3)].
+d\g(x) = -[d(T_1x_2x_3)  + d(\g(x_1x_2)x_3)].
 $$
-Now $d(\g(x_1x_2)x_3)$ is a boundary by definition, and also $(-1)^{T_1}T_1d(x_2x_3) = d(T_1x_2x_3)$, so
- $\g(x_1x_2x_3) = -G-\g(x_1x_2)x_3-T_1x_2x_3$, for some $G$ such that
+and $d(T_1x_2x_3) = (-1)^{T_1}T_1d(x_2x_3)$.
+
+Now $d(\g(x_1x_2)x_3)$ is a boundary by definition. So
+ $\g(x_1x_2x_3) = -G-\g(x_1x_2)x_3$, for some $G$  of weight $<3$ such that
 $$
-dG = T_1x_2x_3.
+dG = d(T_1x_2x_3).
 $$
 
+We have 
+$$
+d(T_1x_2x_3) = T_1d(x_2x_3) = T_1T_2x_3+T_1\g(x_{2}x_3) = T_1T_2x_3-T_1(x_{2,3}+k)
+$$
+Note that $T_1T_2 = d(x_{1,2}+k_{1,2})$.
+Is the RHS actually a cycle??
+$$
+d(T_1T_2x_3+T_1(x_{2,3}+k)) = (-1)^{T_1T_2}T_1T_2T_3 + (-1)^{T_1}T_1T_2T_3 
+$$
+ 
 \end{document}  
