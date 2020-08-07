@@ -56,7 +56,7 @@ so
 $$
 d\gamma(x_1,x_2) = -d((dx_1)x_2) = T_1T_2 = T' = T+B  \in K;
 $$
-This lifts to $\g(x_1,x_2) \in E+K$, 
+This lifts to $\g(x_1,x_2)=x_{1,2}+z \in E+K$, 
 and we see that $d:E^2\to HE+ E+K$.
 
 \section{weight 3}
@@ -66,42 +66,18 @@ d(kx_1x_2) = -[(dk)x_1x_2 + (-1)^k kd(x_1x_2)]
 $$
 so $d: KE^2 \to BE^2+KHE+KE+K^2 = BE^2+KE+K.$
 
-for $x = x_1x_2x_3\in E^3$,
+For $x = x_1x_2x_3\in E^3$,
 $$
-dx = d(x_1x_2)x_3+\g(x) = (dx_1)x_2x_3+\g(x_1x_2)x_3+\g(x),
+dx = d(x_1x_2)x_3+\g(x) = T_1x_2x_3+\g(x_1x_2)x_3+\g(x), \hbox{ where $T_1 = dx_1$ }
 $$
 so
 $$
-d\g(x) = -[T_1x_2x_3 + (-1)^{x_1-1}x_1d(x_2x_3) + d(\g(x_1x_2)x_3)]
+d\g(x) = -[T_1x_2x_3 + (-1)^{T_1}T_1d(x_2x_3) + d(\g(x_1x_2)x_3)].
 $$
-and thus $\g(x_1x_2x_3) = -[G+\g(x_1x_2)x_3)]$, for some $G$ such that
+Now $d(\g(x_1x_2)x_3)$ is a boundary by definition, and also $(-1)^{T_1}T_1d(x_2x_3) = d(T_1x_2x_3)$, so
+ $\g(x_1x_2x_3) = -G$, for some $G$ such that
 $$
-dG = T_1x_2x_3 + (-1)^{x_1-1}x_1d(x_2x_3).
+dG = T_1x_2x_3.
 $$
 
-We'd better be able to show that the RHS is a cycle!
-$$
-d(T_1x_2x_3) = (-1)^{T_1}T_1d(x_2x_3)=  (-1)^{T_1}T_1T_2x_3+ (-1)^{T_1}T_1\g(x_2x_3)
-$$
-while 
-$$
-d(x_1d(x_2x_3)) = d(x_1T_2x_3+x_1\g(x_2x_3)) = \cdots
-$$
-Note that $x_1T_2x_3$ is NOT in standard form. Do we set it equal to $T_2x_1x_3$? Or that with a sign, as we would if $x_1\in K$??
-Assuming that it's $\pm x_1T_2$: 
-$$
-\cdots = \pm T_2T_1x_3\pm T_2\g(x_1x_3)+d(x_1\gamma(x_2x_3)). 
-$$
-so it seems that we need to have
-$$
-d(x_1\gamma(x_2x_3)) = \pm T_1\g(x_2x_3). \quad \hbox{missing term???}
-$$
-Now $\g(x_2x_3) = x_{2,3}+k$ for some element $x_{2,3}\in E$ and $k\in K$ such that 
-$$
-d(x_{2,3})+db = T_2T_3\in K.
-$$
-Substituting, and allowing ourselves to permute to put the elements of $K$ in front, we want
-$$
-d(x_1x_{2,3})\pm d(kx_1))= \pm T_1x_{2,3}+T_1k
-$$
 \end{document}  
