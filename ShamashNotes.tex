@@ -17,9 +17,9 @@
 \maketitle
 Tired of redoing the computation, I decided to TeX it:
 
-\section{Conventions:} $B\subset Z \subset K;\ H$ for boundaries, cycles, homology of the Koszul complex of a  ring $R,\mm$ (local). $T$ for a basis element of the homology; $E$ for the free $R$-module $R^T$; 
+\section{Conventions:} $B\subset Z$ and  $H$ for boundaries, cycles, homology of the Koszul complex $K$ of a  ring $R,\mm$ (local). $T$ for a basis element of the homology; $E$ for the free $R$-module $R^T$; 
 $(a,b...)$ represents $K_a\otimes E_b\otimes \cdots$. Elements such as $k\otimes x_1\cdots$ are written without the $\otimes$.
-Here $0\leq a\leq numgens\ R$; and $0\leq b,c\dots\leq pd(R)$, the highest degree of the Koszul homology. The homological degree of $(a,b\dots$ is the sum; the weight is the
+Here $0\leq a\leq numgens\ R$; and $2\leq b,c\dots\leq 1+pd(R)$, where $pd(R)$ = the highest degree of the Koszul homology. The homological degree of $(a,b\dots$ is the sum; the weight is the
 number of factors that are $>0$.
 
 Note that $KK \subset K$; and $ZZ\subset H+B = Z$. Also $ZB\subset B$.
@@ -75,7 +75,7 @@ $$
 d\g(x) = -[T_1x_2x_3 + (-1)^{T_1}T_1d(x_2x_3) + d(\g(x_1x_2)x_3)].
 $$
 Now $d(\g(x_1x_2)x_3)$ is a boundary by definition, and also $(-1)^{T_1}T_1d(x_2x_3) = d(T_1x_2x_3)$, so
- $\g(x_1x_2x_3) = -G$, for some $G$ such that
+ $\g(x_1x_2x_3) = -G-\g(x_1x_2)x_3-T_1x_2x_3$, for some $G$ such that
 $$
 dG = T_1x_2x_3.
 $$
