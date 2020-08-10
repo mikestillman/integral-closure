@@ -31,8 +31,13 @@ export {
     "weight",
     "HKBasis",
     "pd",
-    "MaxDegree",--option for shamashFrees
-    "MaxWeight"--option for shamashFrees
+    "MaxDegree", --option for shamashFrees
+    "MaxWeight", --option for shamashFrees
+    
+    "eagon", --a different approach
+    "eBetti", -- total betti numbers from Eagon res
+    "vert", --make a vertical strand of the Eagon complex
+    "isIsomorphic"
     }
 
 -- methods: dim.
@@ -212,6 +217,114 @@ gamma = method()
 gamma(ShamashData, ShamashFreeSummand) := ShamashMatrix => (D,F) -> (
     )
 
+eBetti = method()
+eBetti HashTable := List => E ->(
+    K := keys E;
+    K00 := sort select(K, k-> k_0 == 0 and k_2 == 0);
+    apply(K00, k-> rank E#k)
+)
+
+isDegreeZeroSurjection := method()
+isDegreeZeroSurjection(Module,Module) := (A,B)->(
+    --tests a random degree 0 map to see whether its a surjection
+    H := Hom(A,B);
+    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
+    f := homomorphism(B0*random(source B0, (ring B0)^1));
+    coker f == 0)
+
+isIsomorphic = method()
+isIsomorphic(Module,Module) := (A,B) -> (
+    --tests random degree 0 maps A->B, B->A and returns true
+    --if both are surjective.
+    if not(isHomogeneous A and isHomogeneous B) then 
+	  error"not implemented for inhomogeneous modules";
+    Ap := prune A;
+    Bp := prune B;
+    dA := set flatten degrees source gens Ap;
+    dB := set flatten degrees source gens Bp;
+    if dA =!= dB then false else    
+    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap)
+    )
+
+
+eagon = method()
+eagon(Ring, ZZ) := HashTable => (R,n) ->(
+    --compute the Eagon configuration up to level n
+    D := shamashData R;
+    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m);
+    pd := length D#HKBasis - 1;
+    multiplier := j -> if j<=pd then source D#HKBasis_j else R^0;
+    west := "W";
+    north := "N";
+    northwest :="NW";
+    verticaldiff := "d";
+    Eagon := new MutableHashTable;
+    
+    Eagon#"D" = D;
+    --first make the free modules F^i_j = Eagon#{0,i,j}. 
+    for i from 0 to n do(
+    for j from -1 to n-i do(
+      if i == 0 then Eagon#{0,i,j} = D.koszul_j else
+       if j == 0 then Eagon#{0,i,j} = Eagon#{0,i-1,1}++R^0 else
+        Eagon#{0,i,j} = Eagon#{0,i-1,j+1}++Eagon#{0,i-1,0}**multiplier j
+    ));
+
+    --Now make the northward maps; the maps of the complexes F^n = E#{0,i,*}
+    for i from 0 to n do 
+    for j from 1 to n-i do 
+      if i == 0 then Eagon#{north,i,j} = D.koszul.dd_j else
+        Eagon#{north,i,j} = (Eagon#{0,i,j-1})_[0]*(Eagon#{north,i-1,j+1})*(Eagon#{0,i,j})^[0]; -- map from the first component of F^i_j.
+
+    V:= null;
+    for i from 1 to n do (
+    for j from  1 to n-i do 
+      if i == 1 then (
+         Eagon#{northwest,i,j} = if j>pd then map(Eagon#{0,i,j-1}, Eagon#{0,i,j},0) else
+	       (Eagon#{0,i,j-1})_[0]*(ebasis_j)*(Eagon#{0,i,j})^[1]; -- map from the first component of F^i_j.
+	 Eagon#{verticaldiff, i, j} = Eagon#{north,i,j}+Eagon#{northwest,i,j}
+	 );
+    V = chainComplex 
+    Eagon
+    )
+vert = method()
+vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
+    --the "vertical" complex F^i
+    len := #select(keys E, k->k_0 === "d" and k_1 ===1);
+    D:= E#"D";
+    V := chainComplex apply(len-1, j-> E#{"d",i,j+1});
+    X := apply(D#HKBasis, k -> source k);
+    <<apply(1+length V, i-> isIsomorphic(prune HH_(i) V,  prune( X_i**HH_0 V)))<<endl;
+    V
+	)
+///
+restart
+needsPackage "DGAlgebras"
+loadPackage("ShamashResolutiona", Reload =>true)
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+E = eagon(R,5)
+V=vert(E,1)
+coker V.dd_1
+V_0
+F = res coker vars R
+F.dd_2
+prune (HH_0 V)
+
+HH_2 V
+ideal R
+pairs E
+K = keys E
+isGolod R
+D = shamashData R;
+E#"D" = D
+E#D
+keys E
+apply(3, i-> prune HH_i (D.koszul))
+i=j=1
+netList{(Eagon#{0,i,j-1})_[0], (D#HKBasis_j), (Eagon#{0,i,j})^[1]}
+netList {(Eagon#{0,i,j-1})_[0],(gens target D#HKBasis_j),(D#HKBasis_j),(Eagon#{0,i,j})^[1]}
+D#HKBasis
+///
 end-- temporary end!
 
 beginDocumentation()
