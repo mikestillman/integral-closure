@@ -1,5 +1,5 @@
 newPackage(
-        "ShamashResolution",
+        "ShamashResolutiona",
         Version => "0.9", 
         Date => "rev June 2020",
         Authors => {{Name => "Mike Stillman", 
@@ -17,174 +17,76 @@ export {
     "ShamashData",
     "shamashData",
     "koszulMap",
-    "shamashFrees", 
+
+    "ShamashFreeSummand",
+    "shamashFreeSummand",
+    "ShamashFreeModule",
+    "shamashFreeModule",
+    
+    "shamashFree", 
     "shamashMatrix",
     "picture",
     "shamashResolution",
     "isGolodByShamash",
-    "shamashFreeModule",
-    "targetList",
-    "sourceList"
+    "weight",
+    "HKBasis",
+    "pd",
+    "MaxDegree", --option for shamashFrees
+    "MaxWeight", --option for shamashFrees
+    
+    "eagon", --a different approach
+    "eBetti", -- total betti numbers from Eagon res
+    "vert", --make a vertical strand of the Eagon complex
+    "isIsomorphic"
     }
+
+-- methods: dim.
+
+-- place this into M2 core.
+compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
+    -- nparts is the number of terms
+    -- k is the sum of the elements
+    -- each element is between 0 <= maxelem.
+     compositionn := (n,k) -> (
+	  if n===0 or k < 0 then {}
+	  else if k===0 then {toList(n:0)}
+	  else (
+          set1 := apply(compositionn(n-1,k), s -> s | {0});
+          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
+          set2 = select(set2, s -> s#(n-1) <= maxelem);
+          join(set1, set2)
+          )
+      );
+     compositionn = memoize compositionn;
+     result := compositionn(nparts,k);
+     compositionn = null;
+     result
+     );
+
 
 ShamashData = new Type of MutableHashTable
 ShamashMatrix = new Type of HashTable
-
-shamashData = method()
-shamashData Ideal := ShamashData => (I) -> (
-    S := ring I;
-    R := S/I;
-    K := koszul vars ring I; -- Koszul complex over S
-    F := res I; --minimal free resolution of R over S
-    D := new ShamashData;
-    D.Ideal = I;
-    D.ring = R;
-    D.koszul = K;
-    D#"KoszulR" = K ** R;
-    D.resolution = F;
-    D#"ResolutionR" = F ** R;
-    D#"Alpha" = for i from 1 to numgens S list (koszulMap(i,K,F) ** R);
-    D
-    )
-
-
-koszulMap = method()
-koszulMap(ZZ,ChainComplex,ChainComplex) := Matrix => (i,K,F) -> (
-   --Let K be the koszul complex of a polynomial ring S,
-   --and let F be a resolution of R := S/I. The complexes
-   --F ** k and R**K both compute Tor_*^S(R,k) = F_i**k = H_i(R**K).
-   --Since F_i is free, we may lift the last isomorphism to a map
-   --f'_i: F_i -> Z_i(R**K) \subset R**K_i, and then to a map 
-   --f_i: F_i --> K_i, which is computed by this function.
-    f := F.dd_i;
-    for j from 1 to i-1 do (
-        m1 := F_(i-j) ** K.dd_j;
-        m2 := F.dd_(i-j) ** K_j;
-        if f % m1 != 0 then << "what??";
-        f = m2 * (f // m1);
-        );
-    f // K.dd_i
-    )
-
-free = (n, maxelem) -> (
-    --lists all the terms of homological degree n that can occur.
-    --each term is represented as a list of ZZ, representing a tensor product; 
+ShamashFreeSummand = new Type of List --list of ZZ
+ShamashFreeModule = new Type of List -- list of Shamash free summands
+    --A ShamashFreeModule is represented as a list of ZZ, representing a tensor product; 
     --the first element i represents a factor K_i; subsequent elements
     --represent factors F_j. K_0 = S is suppressed (represented by the empty list).
-    if n == 0 then {{}} else
-    flatten for i from 1 to min(maxelem, n) list (
-        x := free(n-i-1,maxelem);
-        x/(x1 -> prepend(i,x1))
-        )
-    )
-
-shamashFrees = method()
-shamashFrees(ZZ,ZZ,ZZ) := (r,maxK, maxF) -> (
-    -*
-     The r-th term in the Shamash resolution of the residue field over R = S/I
-     is R ** a direct sum of components K_p**F_(q_1)**..**F_(q_k)
-     where r = p + k + sum q_s . 
-     L = shamashFrees(r,n,m) returns a list of lists of lists;
-     the r-th element L_r is a list whose elements are all the lists 
-     {p,q_1,..q_k} with r = p + k + sum q_s
-     such that p<=maxK and q_s <= maxF.
-    *-
-    result := flatten for i from 0 to maxK list (
-        x := free(r-i, maxF);
-        x/(x1 -> prepend(i,x1))
-        );
-    L := result/(x -> (#x, -x#0, x))//sort/last;
-    L
-    )
-
-shamashFrees(ShamashData,ZZ,InfiniteNumber) :=
-shamashFrees(ShamashData,ZZ,ZZ) := (D,r,maxlength) -> (
-    --applies shamashFrees with maxK and maxF taken from some shamashData.
-    maxK := length D.koszul;
-    maxF := length D.resolution;
-    L := shamashFrees(r,maxK,maxF);
-    select(L, x -> #x <= maxlength+1))
-
-shamashFrees(ShamashData,ZZ) := (D,r) -> shamashFrees(D,r,infinity)
-
--- TODO: potentially new code.
--- shamashFrees(ShamashData,ZZ,ZZ) := (D,r,w) -> (
---     --the lists giving summands of degree r and weight at most w
---     select(shamashFrees(D,r), L -> #L<=w-1)
---     )
 
 shamashFreeModule = method()
-shamashFreeModule(ShamashData,List) := (D,L) -> (
-    K := D.koszul;
-    F := D.resolution;
-    FF := K_(L_0);
-    for i from 1 to #L-1 do FF = FF**F_(L_i);
-    FF
-    )
-    
+shamashFreeModule List := ShamashFreeModule => L -> new ShamashFreeModule from L
 
-///
-restart
-debug loadPackage "ShamashResolution"
-S = QQ[x_1..x_6]
-I = ideal(x_1,x_2)*ideal vars S
-D = shamashData I
-netList shamashFrees(D,6)
-netList shamashFrees(D,6,2)
-D.resolution
-L = {1,1}
-shamashFreeModule(D,L)
-r = 2;w=1;
-shamashFrees(D,2,1)
-shamashFreeModule(D,2,1)
-///
+shamashFreeSummand = method()
+shamashFreeSummand List := ShamashFreeSummand => L -> new ShamashFreeSummand from L
+--the first element of this list can be 0; but subsequent elements must be >=2.
+--the 0th element indicates a Koszul factor K_i;
+--the i-th element s_i denotes basis HH_(i-1) and has homological degree s_i.
 
-dim(List,ShamashData) := List => (L,D) -> (
-    --L must be of the form shamashFrees(D,r)
-    --returns the ranks of the components of the r-th term of the Shamash resolution.
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    for t in L list (
-        rk := rank (K_(t#0));
-        rk * product for t1 in drop(t,1) list rank (F_t1)
-        )
-    )
-///
-restart
---installPackage
-loadPackage("ShamashResolution", Reload => true)
-loadPackage("ShamashResolutionOrig", Reload => true)
-S = ZZ/101[a,b,c]
-I = ideal(a,b)*ideal(a,b,c)
-D = shamashData I
-peek D
-L = shamashFrees(D,4)
-dim(L,D)
-L
-apply(L, ell -> targetList(ell,D))
-apply(L, ell -> targetList(ell))
 
-src_{0..i-1}
-///
+degree ShamashFreeSummand := ZZ => L -> sum L -- homological degree
+weight = method()
+weight ShamashFreeSummand := ZZ => L -> if L_0 !=0 then #L else #L-1
 
-targetList = method()
-targetList(List) := List => src -> (
-    --src specifies the source free module; has the form
-    --{p_0,p_1,...p_n}. p_0 is a non-neg ZZ, p_i is a pos ZZ for i>0. 
-    --The degree of src is by definition sum_i p_i + n.
-    --src then represents the free module K_(p_0) ** F_(p_1) ** .. ** F_(p_n).
-    --The output is a list of the lists representing all the
-    --free modules of weight one less than src that can be targets of components of the differential. These
-    --are gotten by diminishing one p_0 if it is >0, or one of the p_i, i>0 that is >1;
-    --and by adding two adjacent p_i.
-    type10 := apply (#src, i -> src_{0..i-1}|{src_i -1}|src_{i+1..#src-1});
-    type11 := select(type10, ell-> ell_0>=0 and product drop(ell,1) =!=0);
-    type1 := select(type11, ell-> #ell>0);
-    type2 := apply(#src-1, i-> src_{0..i-1}|{src_i+src_(i+1)}|src_{i+2..#src-1});
-    type1 | type2
-    )
-
--- plan: induction: if gamma: F_(i_1)**..**F_(i_n) is defined on such products with deg = n+sum_j(i_j)<=i and has
+-- plan: induction: if gamma: F_(i_1)**..**F_(i_n) is defined on such products with degree <=i and has
 -- values in the sum of terms of weight (== number of factors) <=n, and the differential d is defined
 -- on all terms of degree <=n, then: 
 -- we define d on K_j * FF by as 
@@ -194,445 +96,268 @@ targetList(List) := List => src -> (
 -- and then 
 --             d(x_1**..**x_(n+1)) = d(x_1**..**x_n)**x_n+ gamma(x_1**..**x_(n+1)).
 
+shamashData = method()
+shamashData Ring := ShamashData => (cacheValue symbol shamashData) (R -> (
+    D := new ShamashData;
+    D.ring = R;
+    D.koszul = koszul vars R;
+    i := 0;
+    D#HKBasis= while (B := basis HH_i D.koszul) !=0 list (
+    i = i+1;
+    B); --Note that D#HKBasis_i is in homological degree i+1
+    D#pd = #select(D#HKBasis, f -> f !=0) -1; 
+    -- the number of nonzero Koszul groups -1. This is the projective dimension of R
+    -- as module over a regular ring with the same number of variables.
+    D
+    ))
 
+module(ShamashData,ShamashFreeSummand) := Module => (Data, F) ->(
+    --recover the actual free module from a ShamashFreeSummand
+    Fmodule := Data.koszul_(F_0);
+    for i from 1 to  #F-1 do Fmodule = Fmodule**source ((Data#HKBasis)_(F_i-1));
+    Fmodule
+    )
 
-shamashMap = method()
--*
-shamashMap(List, ShamashData,Nothing) := (HashTable => (src, D,notused) -> (
-    --computes components of the differential of the Shamash resolution by induction on the weight = number
-    --of factors from F = D.resolution.
-    --The induction is linked to a parallel induction defining auxilliary maps gamma.
-    --src specifies the source free module (summand of the resolution); has the form
-    --{p_0,p_1,...p_n}. 
-    --p_0 is a non-neg ZZ, p_i is a pos ZZ for i>0. 
-    --The *weight* is n = #src-1.     
-    --(The homological degree is sum_i p_i + n).
-    --src represents the free module K_(p_0) ** F_(p_1) ** .. ** F_(p_n).
-    --The output is a HashTable. The keys 
-    --are the lists representing
-    --each possible free module of degree one less than deg src and weight < weight src
-    --to which src might map.
-    --These
-    --are gotten by diminishing one of the p_i that is > the bound or by
-    --adding two adjacent p_i.
+module(ShamashData, ShamashFreeModule) := Module => (D,FF) ->(
+    directSum(FF/(F->module(D, F)))
+    )
 
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    alpha := prepend("NOT USED", D#"Alpha");
-    
-    --weight 0
-    if #src == 1 then (
-        -- this is a Koszul map
-        p := src#0;
-        new HashTable from {{p-1} => K.dd_p}
-        )
-    --weight 1
-    --differential
-    else if #src == 2 then (
-        i := src#0;
-        j := src#1;
-        new HashTable from (
-          if i == 0 --note that 
-          then {{j} => alpha#j}
-          else (
-              f := wedgeProduct(i,j,K_1) * (id_(K_i) ** alpha#j);
-              -- need alpha followed by multiplication
-              {{i-1,j} => K.dd_i ** id_(F_j),
-               {i+j} => (-1)^i * f
-              }
-              )
-        ))    else if #src>2 then (
-    --induction on weight: d has been defined up to weight #src-1, gamma has been defined up to
-    --weight #src
-	if src_0>0 then {src =>
-	    shamashMap({src_0},D)**id_(shamashFreeModule(drop(src,1),D))+
-	                (-1)^(src_0)*shamashMap(drop(src,1),D)})
+module(Ring,ShamashFreeSummand) := Module => (R, F) -> module(shamashData R, F)
+module(Ring,ShamashFreeModule) := Module => (R, FF) -> module(shamashData R, FF)
+
+shamashFree = method(Options => {MaxDegree => InfiniteNumber, MaxWeight => InfiniteNumber})
+
+-- warning: doesn't use the optional arguments yet.
+shamashFree(ShamashData, ZZ) := ShamashFreeModule => o -> (D,n) -> (
+    maxK := numgens D.ring;
+    maxE := D#pd + 1;
+    result := flatten for i from 0 to maxK list (
+        flatten for j from 1 to (n-i)//2 list (
+            c := compositions(j, n-i-2*j, maxE-2);
+            for c1 in c list prepend(i, (for a in c1 list a+2))
+            )
+        );
+    if n <= maxK then result = append(result, {n});
+    shamashFreeModule (result/shamashFreeSummand)
+    )
+
+shamashFree(Ring, ZZ) := ShamashFreeModule => o -> (R,n) -> shamashFree(shamashData R, n, o)
+
+shamashFree(ShamashData,ZZ,ZZ) := ShamashFreeModule => o -> (D,n,w) -> (
+    --list of lists, representing all the ShamashFreeSummands of homological degree n 
+    --and weight w that can occur.
+    shamashFreeModule select(shamashFree(D,n), L -> weight L == w)
+    )
+
+shamashFree(ShamashData) := ShamashFreeModule => o -> D ->(
+    --the ones of homological degree <= n and weight <= w
+    )
+
+///
+restart
+debug loadPackage("ShamashResolutiona", Reload => true)
+///
+
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal(a,b)*ideal(a,b,c)
+I = (ideal(a^2,b^3))^2
+R = S/I
+D = shamashData R
+netList apply(5, n->shamashFree(R,n))
+--netList apply(5, n->shamashFree(D,n))
+time betti res (coker vars R, LengthLimit => 4)
+time apply(5, n->module(R,shamashFree(R,n)))
+FF = res(coker vars R, LengthLimit => 10)
+assert(
+    apply(length FF+1, i-> rank FF_i) == 
+    apply(length FF+1, n-> rank module(R, shamashFree(R,n)))
+    )
+
+netList apply(8, n->shamashFree(R,n))
+time betti res (coker vars R, LengthLimit => 8)
+time apply(12, n->module(R,elapsedTime shamashFree(R,n)))
+FF = res(coker vars R, LengthLimit => 15)
+assert(
+    apply(length FF+1, i-> rank FF_i) == 
+    apply(length FF+1, n-> rank module(R, shamashFree(R,n)))
+    )
+///
+
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal(a,b)*ideal(a,b,c)
+I = (ideal(a^2,b^3))^2
+R = S/I
+D = shamashData R
+peek D
+///
+
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal(a,b)*ideal(a,b,c)
+R = S/I
+D = shamashData R
+assert(shamashFree(D,4,2) == shamashFreeModule ({{0, 2, 2}, {1, 3}, {2, 2}}/shamashFreeSummand))
+F = shamashFreeSummand {3,1}
+assert(module(R, F) == R^{-3})
+///
+
+targets = method()
+targets ShamashFreeSummand := List => F -> (
+    --list of lists representing all the ShamashFreeSummands of degree = deg F -1 and weight <= weight F.
+    )
+
+shamashDifferential = method()
+shamashDifferential ShamashFreeSummand := F -> (
+--    if weight F == 0 then 
 )
-			
-	--else
-	--if src_0 = 0 then {{src =>shamashMap(drop(src,-1)**id_(F_(last src))= shamashMap(src).gamma)}
-	--	    {gamma => *******}}
-
-*-
 
 gamma = method()
-gamma(List,ShamashData) := Matrix => (src,D) ->(
-    --gamma is the map from src to (certain?) modules of weight one less than L
-    --d gamma(x_1**..**x_n) = d(d(x_1**...x_(n-1))**x_n). 
-    --src is a list of the form {0,p_1,..,p_n}. It is assumed that d has been
-    --defined for such tuples of smaller weight.
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    alpha := prepend("NOT USED", D#"Alpha");
+gamma(ShamashData, ShamashFreeSummand) := ShamashMatrix => (D,F) -> (
+    )
 
---    if #L1 == 1 then alpha#(L1_0)
--*    else 
-    target = ***
-    gamma = map(target, shamashFreeModule({0}|L1),
-	--is this FKmap in a special case?
-      )
-*-
-  )
+eBetti = method()
+eBetti HashTable := List => E ->(
+    K := keys E;
+    K00 := sort select(K, k-> k_0 == 0 and k_2 == 0);
+    apply(K00, k-> rank E#k)
+)
+
+isDegreeZeroSurjection := method()
+isDegreeZeroSurjection(Module,Module) := (A,B)->(
+    --tests a random degree 0 map to see whether its a surjection
+    H := Hom(A,B);
+    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
+    f := homomorphism(B0*random(source B0, (ring B0)^1));
+    coker f == 0)
+
+isIsomorphic = method()
+isIsomorphic(Module,Module) := (A,B) -> (
+    --tests random degree 0 maps A->B, B->A and returns true
+    --if both are surjective.
+    if not(isHomogeneous A and isHomogeneous B) then 
+	  error"not implemented for inhomogeneous modules";
+    Ap := prune A;
+    Bp := prune B;
+    dA := set flatten degrees source gens Ap;
+    dB := set flatten degrees source gens Bp;
+    if dA =!= dB then false else    
+    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap)
+    )
+
+
+eagon = method()
+eagon(Ring, ZZ) := HashTable => (R,n) ->(
+    --compute the Eagon configuration up to level n
+    --Let X_i be the free module R**H_i(K), where K is the Koszul complex on the variables of R.
+    --The module Y^i_j = Eagon#{0,i,j} is described in Gulliksen-Negord as:
+    --Y_(i+1)^0 = Y_i^1; and 
+    --for j>0, Y_(i+1)^j = Y_i^(j+1) ++ Y_i^j**X_j.
+
+    --We count X_j as having degree j+1. With this convention, there is no component of the same degree
+    --but weight exactly i+j+1 other than those in Y_i^(j+1), so, by induction,
+    --Y_i^j is the sum of the components of K**(\bigotimes(\direct sum_j X_j))
+    --having degree i+j and weight <= i+1. 
     
-  
+    --Each Y_i is a complex whose j-th homology is Y_i^0**X_i = H_j(Y_i^0**K) (proved in Gulliksen-Negord).
 
---This is Mike's old shamashMap.
---works only for the first 5 steps of the
---resolution. 
---shamashMap = method()
-shamashMap(List, ShamashData) := (src, D) -> (
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    alpha := prepend("NOT USED", D#"Alpha");
-
---maps {i} -> {i-1}
-    if #src == 1 then (
-        -- this is a Koszul map
-        p := src#0;
-        new HashTable from {{p-1} => K.dd_p}
-        )
---maps{i,j}->{i-1,j} and {i+j}
-    else if #src == 2 then (
-        i := src#0;
-        j := src#1;
-        new HashTable from (
-          if i == 0 
-          then {{j} => alpha#j}
-          else (
-              f := wedgeProduct(i,j,K_1) * (id_(K_i) ** alpha#j);
-              -- need alpha followed by multiplication
-              {{i-1,j} => K.dd_i ** id_(F_j),
-               {i+j} => (-1)^i * f
-              }
-              )
-        ))
-
-
---maps f1: {i,j,k} = K_i**F_j**F_k -> K_i**K_j**F_k
-    else if #src == 3 then (
-        -- K_i ** F_j ** F_k
-        i = src#0;
-        j = src#1;
-        k := src#2;
-        -- first part: maps to K_i ** K_j ** F_k
--- f1,f2,f3: {0,j,k} --> {j,k} ++ {0,j+k} ++ {j+k+1}
-        f1 := (-1)^(j+1) * (alpha#j ** id_(F_k));
-        (f2,f3) := FKmap(j,k,D);
--- g1: {i,j,k} --> {i+j,k}
--- g2: {i,j,k} --> {i,j+k}
--- g3: {i,j,k} --> {i+j+k+1}
-        if i == 0 then 
-            new HashTable from {
-                {i+j,k} => f1,
-                {i,j+k} => f2,
-                {i+j+k+1} => f3
-                }
-        else (
-            g1 := ((wedgeProduct(i,j,K_1)) ** id_(F_k)) * (id_(K_i) ** f1);
-            g2 := id_(K_i) ** f2;
-            g3 := wedgeProduct(i,j+k+1,K_1) * (id_(K_i) ** f3);
-            new HashTable from {
-                {i-1,j,k} => K.dd_i ** id_(F_j) ** id_(F_k),
-                {i+j,k} => (-1)^i * g1,
-                {i,j+k} => (-1)^i * g2,
-                {i+j+k+1} => (-1)^i * g3
-                }
-        )))
-
-cleanShamashMap = (M) -> (
-    -- a hashtable of hashtables: if any entry is the 0 matrix, that entry is removed
-    M1 := for s in keys M list (
-        newRow := for t in keys M#s list (if M#s#t == 0 then null else t=>M#s#t);
-        s => new HashTable from delete(,newRow)
-        );
-    new HashTable from M1
-    ) 
+    --To construct the differential of Y_(i+1) and the map Y_(i+1) \to Y_i, this isomorphism must be made explicit.
+    --Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? Yes (trivially) for i=0.
     
-shamashMatrix = method()
-shamashMatrix(List, List, ShamashData) := (tar, src, D) -> (
-    F := cleanShamashMap (new HashTable from for s in src list (s => shamashMap(s,D)));
-    new ShamashMatrix from {
-        symbol ring => D.ring,
-        symbol source => src,
-        symbol target => tar,
-        symbol map => F
-        }
-    )
+    --To construct the "Eagon Resolution" to stage n is 
+    --Y_n^0 \to...\to Y_2^0 \to Y_1^0 \to Y_0^0. 
+    --To construct it we must construct the first n-i+1 steps of Y_i.
 
+    D := shamashData R;
+    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
+    pd := length D#HKBasis - 1;
+    multiplier := j -> if j<=pd then source D#HKBasis_j else R^0;
+    --The maps Y_(i+1) \to Y_i will be eagon#{"W",i+1,j}
+    west := "W";
+    --The differential of Y_i is the sum of maps eagon#{"N",i,j} and eagon#{"NW",i,j}.
+    north := "N";
+    northwest :="NW";
+    verticaldiff := "d";
+    Eagon := new MutableHashTable;
+    
+    Eagon#"D" = D;
+    --first make the free modules F^i_j = Eagon#{0,i,j}. 
+    for i from 0 to n do(
+    for j from -1 to n-i do(
+      if i == 0 then Eagon#{0,i,j} = D.koszul_j else
+       if j == 0 then Eagon#{0,i,j} = Eagon#{0,i-1,1}++R^0 else
+        Eagon#{0,i,j} = Eagon#{0,i-1,j+1}++Eagon#{0,i-1,0}**multiplier j
+    ));
+
+    --Now make the northward maps; the maps of the complexes F^n = E#{0,i,*}
+    for i from 0 to n do 
+    for j from 1 to n-i do 
+      if i == 0 then Eagon#{north,i,j} = D.koszul.dd_j else
+        Eagon#{north,i,j} = (Eagon#{0,i,j-1})_[0]*(Eagon#{north,i-1,j+1})*(Eagon#{0,i,j})^[0]; -- map from the first component of F^i_j.
+
+    V:= null;
+    for i from 1 to n do (
+    for j from  1 to n-i do 
+      if i == 1 then (
+         Eagon#{northwest,i,j} = if j>pd then map(Eagon#{0,i,j-1}, Eagon#{0,i,j},0) else
+	       (Eagon#{0,i,j-1})_[0]*(ebasis_j)*(Eagon#{0,i,j})^[1]; -- map from the first component of F^i_j.
+	 Eagon#{verticaldiff, i, j} = Eagon#{north,i,j}+Eagon#{northwest,i,j}
+	 );
+    V = chainComplex 
+    Eagon
+    )
+vert = method()
+vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
+    --the "vertical" complex F^i
+    len := #select(keys E, k->k_0 === "d" and k_1 ===1);
+    D:= E#"D";
+    V := chainComplex apply(len-1, j-> E#{"d",i,j+1});
+    X := apply(D#HKBasis, k -> source k);
+    <<apply(1+length V, i-> isIsomorphic(prune HH_(i) V,  prune( X_i**HH_0 V)))<<endl;
+    V
+	)
 ///
-D = shamashData I 
-Ls = for i from 0 to 8 list shamashFrees(D,i,2)
-Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
-netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
+restart
+needsPackage "DGAlgebras"
+loadPackage("ShamashResolutiona", Reload =>true)
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+E = eagon(R,5)
+V=vert(E,1)
+coker V.dd_1
+V_0
+F = res coker vars R
+F.dd_2
+prune (HH_0 V)
+
+HH_2 V
+ideal R
+pairs E
+K = keys E
+isGolod R
+D = shamashData R;
+E#"D" = D
+E#D
+keys E
+apply(3, i-> prune HH_i (D.koszul))
+i=j=1
+netList{(Eagon#{0,i,j-1})_[0], (D#HKBasis_j), (Eagon#{0,i,j})^[1]}
+netList {(Eagon#{0,i,j-1})_[0],(gens target D#HKBasis_j),(D#HKBasis_j),(Eagon#{0,i,j})^[1]}
+D#HKBasis
 ///
-
-compose(ShamashMatrix, ShamashMatrix) := (F,G) -> (
-    -- F and G are hash tables of matrices, keys are descriptions of free modules
-    if ring F =!= ring G then error "expected matrices with the same ring";
-    M := new MutableHashTable;
-    for k in G.source do (
-        srcs := G.map#k;
-        H := new MutableHashTable;
-        for m in F.target do (
-            -- add up all the products of matrices with these targets
-            mats := for p in keys srcs list (h := getEntry(F,m,p,null);
-                if h === null then null else h * srcs#p);
-            mats = delete(null,mats);
-            H#m = sum mats;
-            );
-        M#k = new HashTable from H;
-        -- we need to take the image of each of these
-        -- the way to do this: for each key in G#k, multiply it with F#(all keys)
-        );
-    new ShamashMatrix from {
-        symbol ring => ring F,
-        symbol source => G.source,
-        symbol target => F.target,
-        symbol map => cleanShamashMap (new HashTable from M)
-        }
-    )
-
--- Make the free modules
--- Make the matrices (as hash tables)
--- Compose the matrices
-
-picture = method()
-picture ShamashMatrix := (M) -> (
-    src := M.source;
-    tar := M.target;
-    netList (prepend(
-        prepend("", src),
-        for t in tar list prepend(t, for s in src list (
-                h := getEntry(M,t,s,".");
-                if not instance(h, Matrix) then "" else (
-                    I := ideal compress flatten h;
-                    if I == 1 then "1" else "*"
-                    )
-                ))
-        ), Alignment=>Center)
-    )
-
-getEntry = (M,t,s,val) -> if M.map#?s and M.map#s#?t then M.map#s#t else val
-
-
-source ShamashMatrix := (M) -> M.source
-target ShamashMatrix := (M) -> M.target
-ring ShamashMatrix := (M) -> M.ring
-
-net ShamashMatrix := (M) -> (
-    src := M.source;
-    tar := M.target;
-    netList prepend(
-        prepend("", src),
-        for t in tar list prepend(t, for s in src list getEntry(M,t,s,"."))
-        )
-    )
-
---matrix = method()
-matrix ShamashMatrix := opts -> M -> (
-    src := M.source;
-    tar := M.target;
-    mats := for t in tar list for s in src list getEntry(M,t,s,0);
-    matrix mats
-    )
-
-ShamashMatrix * ShamashMatrix := (F,G) -> compose(F,G)
-
-transpose ShamashMatrix := (M) -> (
-    src := M.source;
-    tar := M.target;
-    newmap := new HashTable from for t in tar list (
-        H := new MutableHashTable;
-        for s in src do (
-            x := getEntry(M,t,s,null);
-            if x =!= null then H#s = transpose x;
-            );
-        t => new HashTable from H
-        );
-    new ShamashMatrix from {
-        symbol ring => ring M,
-        symbol source => tar,
-        symbol target => src,
-        symbol map => cleanShamashMap (new HashTable from newmap)
-        }
-    )
-
-ShamashMatrix _ List := (M, L) -> (
-    -- L should be a list of entries of M.source, this will be the submatrix of those column blocks
-    newmap := for s in L list s => M.map#s;
-    new ShamashMatrix from {
-        symbol ring => ring M,
-        symbol source => L,
-        symbol target => target M,
-        symbol map => cleanShamashMap (new HashTable from newmap)
-        }
-    )
-
-ShamashMatrix _ Sequence := (M, entry) -> getEntry(M,entry#0,entry#1,0)
-
-ShamashMatrix ^ List := (M,L) -> (
-    newmap := for s in source M list (
-        F := M.map#s;
-        mats := for t in L list (if F#?t then t=>F#t else null);
-        s => new HashTable from delete(null,mats)
-        );
-    new ShamashMatrix from {
-        symbol ring => ring M,
-        symbol source => source M,
-        symbol target => L,
-        symbol map => cleanShamashMap (new HashTable from newmap)
-        }
-    )
-
---- Creating matrices.  Here we only keep the ones we need
-ShamashMapData = new Type of MutableHashTable
-
-shamashMapData = method()
-shamashMapData ShamashData := (D) -> (
-    -- We create D#{i}, which is a hash table with key {i-1}
-    -- D#{0,j}, with keys {j}
-    -- D#{0,i,j}, with keys: {i,j}, {0,i+j}, {i+j}
-    -- It does not have D#{i,j,ell}, these can be inferred
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    alpha := prepend("NOT USED", D#"Alpha");
-    G := new ShamashMapData;
-    for i from 1 to length K do addMap(G, D, {i});
-    for i from 1 to length F do addMap(G, D, {0,i});
---    for i from 1 to length K do
---      G#{i} = new HashTable from {{i-1} => K.dd_i};
---    for i from 1 to length F do
---      G#{0,i} = new HashTable from {{i} => alpha#i};
-    G
-    )
-
-addMap = method()
-addMap(ShamashMapData, ShamashData, List) := (G, D, L) -> (
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    alpha := prepend("NOT USED", D#"Alpha");
-    if #L == 1 then (
-        i := L#0;
-        if i <= 0 or i > length K then return;
-        G#{i} = new HashTable from {{i-1} => K.dd_i};
-        )
-    else if #L == 2 then (
-        i = L#0;
-        j := L#1;
-        if i =!= 0 then return; -- we do not need to keep that around
-        if j <= 0 or j > length F then return;
-        G#{0,j} = new HashTable from {{j} => alpha#j};
-        )
-    else if #L == 3 then (
-        a := L#0;
-        (i,j) = (L#1, L#2);
-        if a =!= 0 then return; -- we do not need to keep that around
-        if j <= 0 or j > length F then return;
-        if i <= 0 or i > length F then return;
-        G#{0,j} = new HashTable from {{j} => alpha#j};
-        (g1,g2) := FKmap(i,j);
-        G#L = new HashTable from {
-            {0,i+j} => g1,
-            {i+j} => g2,
-            {i,j} => ((alpha D) i) ** id_(F_j)
-            }
-        );
-    )
-
-alpha = D -> (d) -> (
-    R := D.ring;
-    if instance(d,ZZ) then d = {d}
-    else if instance(d, Sequence) then d = toList d;
-    if #d == 1 then (
-        if d#0 - 1 < #D#"Alpha" then
-            D#"Alpha"#(d#0-1)
-        else
-            map(D#"KoszulR"_(d#0), R^0, 0)
-        )
-    else error "not yet defined"
-    )
-
-dkoz = D -> (i) -> D#"KoszulR".dd_i
-mult = D -> (i,j) -> wedgeProduct(i,j,D#"KoszulR"_1)
-
-liftit = (f, i, D) -> (
-    -- f should be a map F --> K_i
-    -- such that the image consists of cycles
-    -- this returns two maps: F --> F_i, and F --> K_(i+1)
-    K := D#"KoszulR";
-    F := D#"ResolutionR";
-    m1 := (alpha D) i;
-    m2 := (dkoz D) (i+1);
-    bothmodules := m1 | m2;
-    g := f // bothmodules;
-    g1 := g^{0..numColumns m1-1};
-    g2 := g^{numColumns m1 .. numColumns bothmodules - 1};
-    g1 = sub(g1, 0); -- sometimes g1 has non-zero terms in it.  There is probably a better way to insure this is a constant matrix
-    f1 := (f - m1 * g1);
-    if f1 % m2 != 0 then << "hmmm, maybe I have a logic error: this should have been in here\n";
-    g2 = f1 // m2;
-    if m1*g1 + m2*g2 != f then error "wrong";
-    (g1,g2)
-    --(g1,g2,m1,m2)
-    )
-
-FKmap = (i,j,D) -> (
-    m := mult D;
-    a := alpha D;
-    f := (m(i,j)) * ((a i) ** (a j));
-    liftit(f, i+j, D)
-    )
-
-shamashResolution = method()
-shamashResolution (ZZ, Ring) := (n,R) ->(
-    --compute first n steps of the Shamash resolution of ring I/I.
-    I := ideal presentation R;
-    D := shamashData I;
-    frees := apply(n+1, i-> shamashFrees(D,i));
-    smats := apply(n, i-> shamashMatrix(frees_i,frees_(i+1),D));
-    mats := apply(n,i->matrix smats_i);
-    phi := map(R,ring mats_0 , vars R);
-    chainComplex apply(n, i-> phi mats_i)
-    )
-///	
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b)*ideal(a,b,c)
-     R = S/I
-
-     D = shamashData I
-     L1 = shamashFrees(D,3)
-     L0 = shamashFrees(D,2)
-     M = shamashMatrix(L0, L1, D)
-     picture M
-     matrix M
-     M.source
-///
-
-isGolodByShamash = method()
-isGolodByShamash Ring := R -> (
-    I := ideal presentation R;
-    D := shamashData I;
-    n := numgens R;
-    frees := apply(n+2, i-> shamashFrees(D,i));
-    smats := apply(n+1, i-> shamashMatrix(frees_i,frees_(i+1),D));
-    componentMats := apply(smats, M -> (
-	    s := M.source;
-	    flatten apply(s, ss->apply(keys M.map#ss, tt -> M.map#ss#tt))
-	    ));
-    p := map(R, ring((componentMats_0)_0), toList(numgens R:0_R));
-    all((flatten componentMats)/(M->p M), m -> m==0)
-    )
+end-- temporary end!
 
 beginDocumentation()
 
 -*
 restart
-loadPackage "ShamashResolution"
+loadPackage "ShamashResolutiona"
 *-
 
 doc ///
 Key
-  ShamashResolution
+  ShamashResolutiona
 Headline
  Construct the Shamash resolution of the residue field
 Description
@@ -729,7 +454,7 @@ doc ///
      R = S/I
      shamashResolution(5,R)
    SeeAlso
-     ShamashResolution
+     ShamashResolutiona
 ///
 
 doc ///
@@ -791,9 +516,10 @@ doc ///
      Fs prints as a display containing the matrices that are components of the 
      i-th map in the Shamash resolution.      
     Example
-     S = ZZ/101[a,b,c]
+     S = ZZ/101[a,b,c];
      I = ideal(a,b)*ideal(a,b,c)
-     D = shamashData I
+     R = S/I;
+     D = shamashData R
      Ls = for i from 0 to 8 list shamashFrees(D,i,2)
      Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
      netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
@@ -988,7 +714,7 @@ doc ///
      assert(isGolodByShamash R == false)
    SeeAlso
     shamashResolution
-    ShamashResolution
+    ShamashResolutiona
 ///
 
 doc ///
@@ -1052,7 +778,7 @@ doc ///
 TEST ///
 -*
 restart
-loadPackage("ShamashResolution", Reload => true)
+loadPackage("ShamashResolutiona", Reload => true)
 *-
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
@@ -1070,172 +796,9 @@ loadPackage("ShamashResolution", Reload => true)
 end--
 
 restart
-uninstallPackage "ShamashResolution"
+uninstallPackage "ShamashResolutiona"
 restart
-installPackage "ShamashResolution"
-viewHelp ShamashResolution
-debug ShamashResolution
-viewHelp matrix
-S = ZZ/101[a..e]
-I = ideal"ab-bc,b2-cd,ac-be"
-I = ideal"ab,bc,cd,de,ea"
-I = ideal"ab-bc,b2-cd,ac2-be2"
-R = S/I
+installPackage "ShamashResolutiona"
+viewHelp ShamashResolutiona
+check ShamashResolutiona
 
-D = shamashData I
-Ls = for i from 0 to 8 list shamashFrees(D,i,2)
-Fs = for i from 1 to 5 list shamashMatrix(Ls#(i-1), Ls#i, D);
-netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
-Fs/matrix
-for m in Fs do assert isHomogeneous matrix m
-
-Fs
-
-L0 = shamashFrees(D,0)
-L1 = shamashFrees(D,1)
-L2 = shamashFrees(D,2)
-L3 = shamashFrees(D,3)
-L4 = shamashFrees(D,4)
-L5 = shamashFrees(D,5)
-L6 = shamashFrees(D,6,2)
-L7 = shamashFrees(D,7,2)
-L8 = shamashFrees(D,8,2)
-
-F1 = shamashMatrix(L0, L1, D)
-F2 = shamashMatrix(L1, L2, D)
-F3 = shamashMatrix(L2, L3, D)
-F4 = shamashMatrix(L3, L4, D);
-F5 = shamashMatrix(L4, L5, D);
-F6 = shamashMatrix(L5, L6, D);
-F7 = shamashMatrix(L6, L7, D);
-F8 = shamashMatrix(L7, L8, D);
-
-F1*F2
-F2*F3
-F3*F4
-F4*F5
-F5*F6
-F6*F7
-F7*F8
-F6
-
-M1 = matrix F1
-M2 = matrix F2
-M3 = matrix F3
-M4 = matrix F4
-M5 = matrix F5
-M6 = matrix F6;
-M7 = matrix F7;
-M8 = matrix F8;
-assert isHomogeneous M1
-assert isHomogeneous M2
-assert isHomogeneous M3
-assert isHomogeneous M4 
-assert isHomogeneous M5
-assert isHomogeneous M6
-assert isHomogeneous M7
-assert isHomogeneous M8
-
-ker M1 == image M2
-ker M2 == image M3
-ker M3 == image M4 
-ker M4 == image M5
-ker M5 == image M6 -- fails, since we need the map F1 ** F1 ** F1 --> ....
-
-transpose((transpose F2) * (transpose F1))
-transpose F3
-F2
-F2_({1},{2})
-F2_{{2}}^{{1}}
-F3^{{0,1}}
-
--- The following requires D = shamashData I, before running this code
--- alpha maps:
-alpha = d -> (
-    R := D.ring;
-    if instance(d,ZZ) then d = {d}
-    else if instance(d, Sequence) then d = toList d;
-    if #d == 1 then (
-        if d#0 - 1 < #D#"Alpha" then
-            D#"Alpha"#(d#0-1)
-        else
-            map(D#"KoszulR"_(d#0), R^0, 0)
-        )
-    else error "not yet defined"
-    )
-dkoz = (i) -> D#"KoszulR".dd_i
-mult = (i,j) -> wedgeProduct(i,j,D#"KoszulR"_1)
-liftit = (f, i) -> (
-    -- f should be a map F --> K_i
-    -- such that the image consists of cycles
-    -- this returns two maps: F --> F_i, and F --> K_(i+1)
-    m1 := alpha i;
-    m2 := dkoz (i+1);
-    bothmodules := m1 | m2;
-    g := f // bothmodules;
-    g1 := g^{0..numColumns m1-1};
-    g2 := g^{numColumns m1 .. numColumns bothmodules - 1};
-    g1 = sub(g1, 0); -- sometimes g1 has non-zero terms in it.  There is probably a better way to insure this is a constant matrix
-    f1 := (f - m1 * g1);
-    if f1 % m2 != 0 then << "hmmm, maybe I have a logic error: this should have been in here\n";
-    g2 = f1 // m2;
-    if m1*g1 + m2*g2 != f then error "wrong";
-    (g1,g2)
-    --(g1,g2,m1,m2)
-    )
-FKmap = (i,j) -> (
-    f := (mult(i,j)) * ((alpha i) ** (alpha j));
-    liftit(f, i+j)
-    )
-D#"Fmap" = new MutableHashTable
-D#"Kmap" = new MutableHashTable
-Fpos = apply(positions(D#"Alpha", m -> m != 0), x -> x+1)
-for i in Fpos do for j in Fpos do (
-    (g1,g2) := FKmap(i,j);
-    if g1 != 0 then D#"Fmap"#(i,j) = g1;
-    if g2 != 0 then D#"Kmap"#(i,j) = g2;
-    )
-peek D#"Fmap"
-(dkoz 2) * (mult(1,1)) * ((alpha 1) ** (alpha 1))
-(dkoz 3) * (mult(2,1)) * ((alpha 2) ** (alpha 1))
-
-FKmap(1,1)
-FKmap(1,2)
-FKmap(2,1)
-FKmap(2,2)
-FKmap(2,3)
-FKmap(3,2)
-FKmap(2,4)
-FKmap(3,3)
-
-D#"Fmap"#(1,2) * (id_(D#"ResolutionR"_1) ** D#"Fmap"#(1,1))
-D#"Fmap"#(1,2) * (id_(D#"ResolutionR"_1) ** D#"Fmap"#(1,1))
-
-alpha 1
-alpha 2
-
-f = (mult(1,2)) * ((alpha 1) ** (alpha 2))
-(dkoz 3) * f
-
-f = (mult(2,1)) * ((alpha 2) ** (alpha 1))
-(dkoz 3) * f
-
-liftit(
-    f,
-    3
-    )
-D#"Alpha"#0
-alpha 3
-alpha 2
-f // (dkoz 4)
-f % (dkoz 4)
-
-
-n = 0.0
-ntrials = 10000000
-for i from 1 to ntrials do (
-    x := random 1.0;
-    y := random 1.0;
-    if y < x^2 then n = n+1;
-    )
-n/ntrials
