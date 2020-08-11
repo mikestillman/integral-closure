@@ -1,5 +1,5 @@
 newPackage(
-        "ShamashResolutiona",
+        "ShamashResolution",
         Version => "0.9", 
         Date => "rev June 2020",
         Authors => {{Name => "Mike Stillman", 
@@ -155,7 +155,7 @@ shamashFree(ShamashData) := ShamashFreeModule => o -> D ->(
 
 ///
 restart
-debug loadPackage("ShamashResolutiona", Reload => true)
+debug loadPackage("ShamashResolution", Reload => true)
 ///
 
 TEST///
@@ -304,9 +304,10 @@ eagon(Ring, ZZ) := HashTable => (R,n) ->(
 	       (Eagon#{0,i,j-1})_[0]*(ebasis_j)*(Eagon#{0,i,j})^[1]; -- map from the first component of F^i_j.
 	 Eagon#{verticaldiff, i, j} = Eagon#{north,i,j}+Eagon#{northwest,i,j}
 	 );
-    V = chainComplex 
     Eagon
     )
+)
+
 vert = method()
 vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
     --the "vertical" complex F^i
@@ -320,7 +321,7 @@ vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
 ///
 restart
 needsPackage "DGAlgebras"
-loadPackage("ShamashResolutiona", Reload =>true)
+loadPackage("ShamashResolution", Reload =>true)
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 E = eagon(R,5)
@@ -352,12 +353,12 @@ beginDocumentation()
 
 -*
 restart
-loadPackage "ShamashResolutiona"
+loadPackage "ShamashResolution"
 *-
 
 doc ///
 Key
-  ShamashResolutiona
+  ShamashResolution
 Headline
  Construct the Shamash resolution of the residue field
 Description
@@ -454,7 +455,7 @@ doc ///
      R = S/I
      shamashResolution(5,R)
    SeeAlso
-     ShamashResolutiona
+     ShamashResolution
 ///
 
 doc ///
@@ -714,8 +715,7 @@ doc ///
      assert(isGolodByShamash R == false)
    SeeAlso
     shamashResolution
-    ShamashResolutiona
-///
+    ///
 
 doc ///
    Key
@@ -778,7 +778,7 @@ doc ///
 TEST ///
 -*
 restart
-loadPackage("ShamashResolutiona", Reload => true)
+loadPackage("ShamashResolution", Reload => true)
 *-
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
@@ -796,9 +796,9 @@ loadPackage("ShamashResolutiona", Reload => true)
 end--
 
 restart
-uninstallPackage "ShamashResolutiona"
+uninstallPackage "ShamashResolution"
 restart
-installPackage "ShamashResolutiona"
-viewHelp ShamashResolutiona
-check ShamashResolutiona
+installPackage "ShamashResolution"
+viewHelp ShamashResolution
+check ShamashResolution
 
