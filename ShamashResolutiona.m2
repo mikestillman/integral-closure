@@ -250,11 +250,33 @@ isIsomorphic(Module,Module) := (A,B) -> (
 eagon = method()
 eagon(Ring, ZZ) := HashTable => (R,n) ->(
     --compute the Eagon configuration up to level n
+    --Let X_i be the free module R**H_i(K), where K is the Koszul complex on the variables of R.
+    --The module Y^i_j = Eagon#{0,i,j} is described in Gulliksen-Negord as:
+    --Y_(i+1)^0 = Y_i^1; and 
+    --for j>0, Y_(i+1)^j = Y_i^(j+1) ++ Y_i^j**X_j.
+
+    --We count X_j as having degree j+1. With this convention, there is no component of the same degree
+    --but weight exactly i+j+1 other than those in Y_i^(j+1), so, by induction,
+    --Y_i^j is the sum of the components of K**(\bigotimes(\direct sum_j X_j))
+    --having degree i+j and weight <= i+1. 
+    
+    --Each Y_i is a complex whose j-th homology is Y_i^0**X_i = H_j(Y_i^0**K) (proved in Gulliksen-Negord).
+
+    --To construct the differential of Y_(i+1) and the map Y_(i+1) \to Y_i, this isomorphism must be made explicit.
+    --Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? Yes (trivially) for i=0.
+    
+    --To construct the "Eagon Resolution" to stage n is 
+    --Y_n^0 \to...\to Y_2^0 \to Y_1^0 \to Y_0^0. 
+    --To construct it we must construct the first n-i+1 steps of Y_i.
+    --
+
     D := shamashData R;
-    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m);
+    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
     pd := length D#HKBasis - 1;
     multiplier := j -> if j<=pd then source D#HKBasis_j else R^0;
+    --The maps Y_(i+1) \to Y_i will be eagon#{"W",i+1,j}
     west := "W";
+    --The differential of Y_i is the sum of maps eagon#{"N",i,j} and eagon#{"NW",i,j}.
     north := "N";
     northwest :="NW";
     verticaldiff := "d";
