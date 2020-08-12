@@ -319,9 +319,14 @@ vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
     V
 	)
 ///
+--use mu = exteriorMultiplication n to get mu#{p,q}:wedge^pk^n ** wedge^q k^n -> wedge^(p+q) k^n,
+--with bases sorted in lex. use trueKoszul vars R to get the Koszul complex with bases sorted in lex.
+--these are functions in HigherCIOperators.
+
 restart
 needsPackage "DGAlgebras"
 loadPackage("ShamashResolution", Reload =>true)
+
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 E = eagon(R,5)

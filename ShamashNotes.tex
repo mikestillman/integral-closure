@@ -60,7 +60,7 @@ For $kx\in KE$
 $$
 d(kx) = (dk)x+(-1)^k k(dx) \in BE+K^2.
 $$
-and thus we may take $\g(kx) = (-1)^{k}dx$, as in Shamash' Remark 2.
+and thus we may take $\g(kx) = (-1)^{k}kdx$, as in Shamash' Remark 2.
 
 Note that the weight does not decrease unless $k\in K_1$ or $k \in Z$. But also note that the formula
 $d(kx) = (dk)x+ \g(kx)$ forces $\g(kx) = (-1)^{k}kT$, whence $\g(x) = T = dx$
@@ -71,26 +71,39 @@ d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2+\gamma(x_1x_2)
 $$
 so 
 $$
-d\gamma(x_1,x_2) = -d((dx_1)x_2) = -T_1T_2 =- T_{1,2}+B  \in K;
+d\gamma(x_1,x_2) = -d((dx_1)x_2) = -(-1^{T_1})T_1T_2 =-(-1^{T_1})(T_{1,2}+d(z_{1,2})) \in K;
 $$
-This lifts to $\g(x_1,x_2)=-x_{1,2}-z_{1,2} \in E+K$, 
-and we see that $d:E^2\to HE+ E+K$. 
+This lifts to $\g(x_1,x_2)=-(-1^{T_1})(x_{1,2}+z_{1,2}) \in E+K$, 
+where 
+$$
+T_1T_2 - T_{1,2} = d(z_{1,2}),
+$$
+ and we see that $d:E^2\to HE+ E+K$:
+ $$
+d(x_1x_2)= (dx_1)x_2 +\g(x_1,x_2) = T_1x_2-(-1^{T_1})(x_{1,2}+z_{1,2})
+$$
+
 
 \subsection{Shamash's induction for weight 2}
 However, the induction proposed in the ``construction'' on p. 4 starts with 
 \begin{align*}
-d((dx_{1})x_{2})  &= \gamma((dx_{1})x_{2}) \hbox{ by item~(\ref{(3)}) }\\
-&=\gamma(T_{1}x_{2})+\g(x_{1})\\
-&=T_{1}\g(x_{2})+\g(x_{1})
+-d\g(x_1x_2) = d((dx_{1})x_{2})  &= \gamma((dx_{1})x_{2}) \hbox{ by item~(\ref{(3)}) }\\
+&=\gamma(T_{1}x_{2})\\
+&=(-1)^{T_1}T_{1}T_2
 \end{align*}
-which would lead to $d(T_{1}x_{2}) = aT_{1}+b$, with $a,b$ scalars.
-This is incompatible with item~(\ref{(2)}), which gives
+where we define the value of $\g$ on a weight 2 $K$-basic element by the formula at the beginning of Section 3,
+NOT by Shamash' formula.
+So we can take
 $$
-d(T_{1}x_{2}) = \pm T_{1}dx_{2} = \pm T_{1}T_{2}.
+\gamma(x_1x_2) = -(-1)^{T_1}(x_{1,2} +z_{1,2})
 $$
---unless, of course,  the cycle product is 0 (which is stronger than the homology product being 0).
-Thus: the induction can be made to work for weight 2, but not using induction from the weight 1 base case.
-Thus we start the induction for $\g$ with weight 2.
+$$
+d(x_1x_2) = T_1x_2 -(-1)^{T_1}(x_{1,2} +z_{1,2})
+$$
+
+Thus: the induction can be made to work for weight 2, but not using induction from the weight 1 base case
+with Shamash' formula.
+
 
 \section{weight 3}
 For $kx_1x_2\in KE^2$,
@@ -103,17 +116,33 @@ For $x = x_1x_2x_3\in E^3$,
 $$
 dx = d(x_1x_2)x_3+\g(x) = T_1x_2x_3+\g(x_1x_2)x_3+\g(x), \hbox{ where $T_1 = dx_1$ }
 $$
+and $d(T_1x_2x_3) = (-1)^{T_1}T_1d(x_2x_3)$,
 so
 $$
-d\g(x) = -[d(T_1x_2x_3)  + d(\g(x_1x_2)x_3)].
+d\g(x) = -[d(T_1x_2x_3)  + d(\g(x_1x_2)x_3)] = -(-1)^{T_1}T_1d(x_2x_3) - d(\g(x_1x_2)x_3).
 $$
-and $d(T_1x_2x_3) = (-1)^{T_1}T_1d(x_2x_3)$.
 
-Now $d(\g(x_1x_2)x_3)$ is a boundary by definition, and $\g(x_{1}x_{2})x_{3}$ has weight $2<3$. So
+
+Now $d(\g(x_1x_2)x_3)$ is a boundary by definition, and $\g(x_{1}x_{2})x_{3}$ has weight $\leq 2<3$. So
+we may take
  $\g(x_1x_2x_3) = - (-1)^{T_{1}}G-\g(x_1x_2)x_3$, for some $G$  of weight $<3$ such that
-$$
-dG = d(T_1x_2x_3).
-$$
+\begin{align*}
+ dG &= T_1d(x_2x_3) \\
+ &= T_1T_2x_3+T_1\g(x_2x_3)\\
+ &= T_{1,2}x_3+k_{1,2}x_3+ (-1^{1+T_1})T_1(x_{2,3}+z_{2,3})
+\end{align*}
+
+{\bf REVISED TO HERE}
+Let's check that this is a cycle: {\bf wrong second line -- fix!}
+\begin{align*}
+d&\bigl[T_{1,2} x_3 +k_{1,2}x_3+(-1^{1+T_1})T_1(x_{2,3}+k_{2,3})\bigr]\\
+&=(-1)^{T_{1,2}}T_{1,2}T_3 + d(k_{1,2})x_3 + (-1)^{1+T_{1,2}} dk_{1,2}T_3 -T_1(T_{2,3}+dz_{2,3}).
+\end{align*}
+
+
+
+
+
 Since $d(T_1x_2x_3)$ is a cycle, it would be enough to see that it had weight 1, or that it had weight 2 with
 all unit coefficients; then by Lemma 5 there is a $w$ of weight 
 $\leq 2$ such that $dw = d(T_1x_2x_3)$ and  $G := w$ has weight $<3$ with
@@ -138,15 +167,15 @@ $$
 
 \subsection{Shamash's induction} Shamash proceeds differently. As above, we must write 
 $$
-d(d(x_{1}x_{2})x_{3}) 
+-d\g(x_{1}x_{2}x_{3}) = d(d(x_{1}x_{2})x_{3}) 
 $$
 as $-d\g(x_{1}x_{2}x_{3})$ with $\w\; \g(x_{1}x_{2}x_{3})\leq 2.$ 
 Shamash writes
 \begin{align*}
 d(d(x_{1}x_{2})x_{3})  &= \gamma(d(x_{1}x_{2})x_{3})\\ 
-&= \gamma(T_{1}x_{2}x_{3})+\g(\g(x_{1}x_{2})x_{3})\\ 
-&= (-1)^{T_{1}} T_{1}\g(x_{2}x_{3})+\g(\g(x_{1}x_{2})x_{3})\\
-&=(-1)^{T_{1}} d(x_{1}\g(x_{2}x_{3})) + (-1)^{1+T_{1}}\g(x_{1}\gamma(x_{2}x_{3})+\g(x_{1}x_{2})x_{3}) 
+&\g(T_1x_2x_3) -(-1)^{T_1}\g(x_{1,2}x_3) +\g(z_{1,2}x_3)\\
+&(-1)^{T_1}T_1\g(x_2x_3) -(-1)^{T_1}\g(x_{1,2}x_3) +\g(z_{1,2}x_3)\\
+&(-1)^{T_1}T_1\g(x_2x_3) -(-1)^{T_1}\g(x_{1,2}x_3) +(-1)^{z_{1,2}}z_{1,2}T_3\\
 \end{align*}
 Thus 
 $$
