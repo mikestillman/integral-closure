@@ -37,7 +37,8 @@ export {
     "eagon", --a different approach
     "eBetti", -- total betti numbers from Eagon res
     "vert", --make a vertical strand of the Eagon complex
-    "isIsomorphic"
+    "isIsomorphic",
+    "eagonSymbol"
     }
 
 -- methods: dim.
@@ -251,14 +252,14 @@ eagon = method()
 eagon(Ring, ZZ) := HashTable => (R,n) ->(
     --compute the Eagon configuration up to level n
     --Let X_i be the free module R**H_i(K), where K is the Koszul complex on the variables of R.
-    --The module Y^i_j = Eagon#{0,i,j} is described in Gulliksen-Negord as:
-    --Y_(i+1)^0 = Y_i^1; and 
-    --for j>0, Y_(i+1)^j = Y_i^(j+1) ++ Y_i^j**X_j.
+    --The module Y^n_i = Eagon#{0,n,i} is described in Gulliksen-Negord as:
+    --Y^(n+1)_0 = Y^n_1; and 
+    --for i>0, Y^(n+1)_i = Y^n_(i+1) ++ Y^n_0**X_i
 
-    --We count X_j as having degree j+1. With this convention, there is no component of the same degree
-    --but weight exactly i+j+1 other than those in Y_i^(j+1), so, by induction,
-    --Y_i^j is the sum of the components of K**(\bigotimes(\direct sum_j X_j))
-    --having degree i+j and weight <= i+1. 
+    --We count X_i as having degree i+1. With this convention, there is no component of the same degree
+    --but weight exactly n+i+1 other than those in Y^n_(i+1), so, by induction,
+    --Y^n_i is the sum of the components of K**(\bigotimes(\direct sum_i X_i))
+    --having degree n+i and weight <= n+1. 
     
     --Each Y_i is a complex whose j-th homology is Y_i^0**X_i = H_j(Y_i^0**K) (proved in Gulliksen-Negord).
 
@@ -307,6 +308,32 @@ eagon(Ring, ZZ) := HashTable => (R,n) ->(
     Eagon
     )
 )
+eagonSymbol = method()
+eagonSymbol(ZZ,ZZ) := List => (n,i) ->(
+    --symbol of the module Y^n_i, as a list of pairs, defined inductively from n-1,i+1 and n-1,0
+    if n === 0 then return {(i,{})};
+    if i === 0 then return eagonSymbol(n-1,1);
+    
+    e' := eagonSymbol (n-1,0);
+    e'1 := apply (e', L ->prepend(i, L_1));
+    eagonSymbol(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
+   )
+
+///
+restart
+loadPackage("ShamashResolution", Reload=>true)
+netList apply(5, i-> flatten eagonSymbol(5,i))
+eagonSymbol(1,2)
+eagonSymbol(0,0)
+eagonSymbol(0,3)
+n = 1;
+i = 2;
+
+
+netList flatten apply(5, n-> apply(5, i-> eagonSymbol(n,i)))
+i = 1
+///
+    
 
 vert = method()
 vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
