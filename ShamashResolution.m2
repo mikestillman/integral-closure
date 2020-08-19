@@ -249,65 +249,85 @@ isIsomorphic(Module,Module) := (A,B) -> (
 
 
 eagon = method()
-eagon(Ring, ZZ) := HashTable => (R,n) ->(
-    --compute the Eagon configuration up to level n
+eagon(Ring, ZZ) := HashTable => (R,b) ->(
+    --compute the Eagon configuration up to bound b. 
     --Let X_i be the free module R**H_i(K), where K is the Koszul complex on the variables of R.
     --The module Y^n_i = Eagon#{0,n,i} is described in Gulliksen-Negord as:
     --Y^(n+1)_0 = Y^n_1; and 
     --for i>0, Y^(n+1)_i = Y^n_(i+1) ++ Y^n_0**X_i
 
-    --We count X_i as having degree i+1. With this convention, there is no component of the same degree
+    --We count X_i as having homological degree i+1. With this convention, 
+    --there is no component of the same degree
     --but weight exactly n+i+1 other than those in Y^n_(i+1), so, by induction,
     --Y^n_i is the sum of the components of K**(\bigotimes(\direct sum_i X_i))
     --having degree n+i and weight <= n+1. 
     
-    --Each Y_i is a complex whose j-th homology is Y_i^0**X_i = H_j(Y_i^0**K) (proved in Gulliksen-Negord).
-
-    --To construct the differential of Y_(i+1) and the map Y_(i+1) \to Y_i, this isomorphism must be made explicit.
-    --Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? Yes (trivially) for i=0.
+    --Each Y^n is a complex whose i-th homology is H_i(Y^n) = H_0(Y^n)^0**X_i (proved in Gulliksen-Negord).
+    --assuming that the differential of Y^n and the maps Y^n --> Y^(n-1) are known
     
-    --To construct the "Eagon Resolution" to stage n is 
-    --Y_n^0 \to...\to Y_2^0 \to Y_1^0 \to Y_0^0. 
-    --To construct it we must construct the first n-i+1 steps of Y_i.
+    
+    --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
+    --this isomorphism must be made explicit.
+    --??? Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
+    --Yes (trivially) for i=0.
+    
+    --To construct the "Eagon Resolution" to stage s, which is
+    --Y^s^0 \to...\to Y^1_0 \to Y^0_0. 
+    --To construct it we must construct the first s-n+1 steps of Y^n
 
     D := shamashData R;
     ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
     pd := length D#HKBasis - 1;
     multiplier := j -> if j<=pd then source D#HKBasis_j else R^0;
-    --The maps Y_(i+1) \to Y_i will be eagon#{"W",i+1,j}
+    --The maps Y^(n+1) \to Y^n will be eagon#{"W",n+1,j}
     west := "W";
-    --The differential of Y_i is the sum of maps eagon#{"N",i,j} and eagon#{"NW",i,j}.
+    --The differential verticaldiff of Y^n is the sum of maps eagon#{"N",n,i} and eagon#{"NW",n,i}.
     north := "N";
     northwest :="NW";
     verticaldiff := "d";
     Eagon := new MutableHashTable;
     
     Eagon#"D" = D;
-    --first make the free modules F^i_j = Eagon#{0,i,j}. 
-    for i from 0 to n do(
-    for j from -1 to n-i do(
-      if i == 0 then Eagon#{0,i,j} = D.koszul_j else
-       if j == 0 then Eagon#{0,i,j} = Eagon#{0,i-1,1}++R^0 else
-        Eagon#{0,i,j} = Eagon#{0,i-1,j+1}++Eagon#{0,i-1,0}**multiplier j
+    --first make the free modules Y^n_i = Eagon#{0,n,i}. 
+    for n from 0 to b do(
+    for i from -1 to b-n do(
+      if n == 0 then Eagon#{0,n,i} = D.koszul_i else
+       if i == 0 then Eagon#{0,n,i} = Eagon#{0,n-1,1}++R^0 else -- the R^0 is because we need a direct sum.
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**multiplier i
     ));
-
-    --Now make the northward maps; the maps of the complexes F^n = E#{0,i,*}
-    for i from 0 to n do 
-    for j from 1 to n-i do 
-      if i == 0 then Eagon#{north,i,j} = D.koszul.dd_j else
-        Eagon#{north,i,j} = (Eagon#{0,i,j-1})_[0]*(Eagon#{north,i-1,j+1})*(Eagon#{0,i,j})^[0]; -- map from the first component of F^i_j.
-
+    --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
+    for n from 0 to b do 
+    for i from 1 to b-n do 
+      if n == 0 then Eagon#{north,n,i} = D.koszul.dd_i else
+      -- map from the first component of Y^n_i
+      --now assuming that the Y^m have been defined for m = n-1:
+        Eagon#{north,n,i} = (Eagon#{0,n,i-1})_[0]*(Eagon#{north,n-1,i+1})*(Eagon#{0,n,i})^[0]; 
+      --next Create the maps Y^(n-1)_0 ** X_i --> Y^(n-1)_i
+    error();
     V:= null;
-    for i from 1 to n do (
-    for j from  1 to n-i do 
-      if i == 1 then (
-         Eagon#{northwest,i,j} = if j>pd then map(Eagon#{0,i,j-1}, Eagon#{0,i,j},0) else
-	       (Eagon#{0,i,j-1})_[0]*(ebasis_j)*(Eagon#{0,i,j})^[1]; -- map from the first component of F^i_j.
-	 Eagon#{verticaldiff, i, j} = Eagon#{north,i,j}+Eagon#{northwest,i,j}
+    for n from 1 to b do (
+    for i from  1 to b-n do 
+      if n == 1 then (
+         Eagon#{northwest,n,i} = if i>pd then map(Eagon#{0,n,i-1}, Eagon#{0,n,i},0) else
+	       (Eagon#{0,n,i-1})_[0]*(ebasis_i)*(Eagon#{0,n,i})^[1]; 
+	       -- map from the first component of Y^n_i.
+	 Eagon#{verticaldiff, n,i} = Eagon#{north,n,i}+Eagon#{northwest,n,i}
 	 );
     Eagon
     )
 )
+
+///
+restart
+needsPackage "DGAlgebras"
+loadPackage("ShamashResolution", Reload =>true)
+
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+E = eagon(R,5)
+V=vert(E,1)
+///
+
 eagonSymbol = method()
 eagonSymbol(ZZ,ZZ) := List => (n,i) ->(
     --symbol of the module Y^n_i, as a list of pairs, defined inductively from n-1,i+1 and n-1,0
@@ -325,7 +345,7 @@ loadPackage("ShamashResolution", Reload=>true)
 netList apply(5, i-> flatten eagonSymbol(5,i))
 eagonSymbol(1,2)
 eagonSymbol(0,0)
-eagonSymbol(0,3)
+eagonSymbol(3,2)
 n = 1;
 i = 2;
 
