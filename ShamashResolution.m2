@@ -33,7 +33,7 @@ export {
     "pd",
     "MaxDegree", --option for shamashFrees
     "MaxWeight", --option for shamashFrees
-    
+    "homologyCover",
     "eagon", --a different approach
     "eBetti", -- total betti numbers from Eagon res
     "vert", --make a vertical strand of the Eagon complex
@@ -247,6 +247,32 @@ isIsomorphic(Module,Module) := (A,B) -> (
     isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap)
     )
 
+homologyCover = method()
+homologyCover(ChainComplex,ZZ) := Matrix => (C,i) ->(
+    --map from a free module to C_i giving minimal generators of HH_i C.
+    B := basis HH_i C;
+    (gens target B)*matrix B)
+
+homologyCover(ZZ, ChainComplex) := List => (b,C) -> 
+    apply(b, i-> homologyCover(C,i))
+
+homologyCover(ChainComplex) := List => C -> homologyCover(1+length C, C)
+
+///
+restart
+needsPackage "DGAlgebras"
+loadPackage("ShamashResolution", Reload =>true)
+
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+K = koszul vars S
+KR = koszul vars R
+homologyCover K
+homologyCover KR
+homologyCover (5,KR)
+homologyCover(KR,1)
+///
+
 
 eagon = method()
 eagon(Ring, ZZ) := HashTable => (R,b) ->(
@@ -282,7 +308,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     X := i -> if i<=pd then source D#HKBasis_i else R^0; -- X(i) is the X_i of Gulliksen-Levin.
     --we made it a function so that it would be available for all integers i.
     K := i -> D.koszul_i;
---    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
+
     ebasis := i -> if D#HKBasis#?i then 
            map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
 
@@ -298,6 +324,8 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     northwest :="NW";
     verticaldiff := "d";
     alpha := "alpha";
+    H := "Homology";
+    
 
     --first make the free modules Eagon#{0,n,i}. 
     Eagon#"D" = D;    
@@ -309,26 +337,32 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     ));
     
     --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
+    --Note that the highest term in Y^n is in place b-n, so the top interesting homology is H_(b-n-1)
     --initialize:
-    for i from 1 to b+1 do (
+    for i from 0 to b do (
 	Eagon#{north,0,i} = D.koszul.dd_i;
-	Eagon#{west,1,i} = ebasis(i)
-	);
+	Eagon#{west,1,i} = ebasis(i);
+		);
+    for i from 0 to b-1 do 	    
+	Eagon#{H,0,i} = coker(Eagon#{north,0,i+1}//syz Eagon#{north,0,i});		    
 
 --Do the complexes and maps for n=1:
+    
     for i from 1 to b-1 do(
-	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*(Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0]+
+	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*(
+	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
 	                    ebasis(i)*(Eagon#{0,1,i})^[1]
-	);
-    error();       
-    --now the induction:
+			    ));
+    for i from 1 to b-2 do
+		Eagon#{H,1,i} = coker(Eagon#{north,1,i+1}//syz Eagon#{north,1,i});
+		
+    error();
+    --now the induction, assuming that the Y^m have been defined for m<n:
     for n from 1 to b do(
         for i from 1 to b-n do(  -- more efficient, once it's working, will be:
-    --for i from 1 to b-n do 
-
-    --now assuming that the Y^m have been defined for m<n:
 
         Eagon#{north,n,i} = (Eagon#{0,n,i-1})_[0]*(Eagon#{north,n-1,i+1})*(Eagon#{0,n,i})^[0]; 
+
       --next Create the maps Y^(n-1)_0 ** X_i = Y^(n-2)_1 --> Y^(n-1)_i = Y^(n-2)_(i+1)++Y^(n-2)_0**X(i)
       --this map should have as second component Eagon#(verticaldiff, n-2,1)**id_(X(i)).
 
@@ -358,7 +392,8 @@ R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 b = 4
 E = eagon(R,b)
 netList keys Eagon
-apply(2, i-> Eagon#{west,1,i+1})
+Y1 = chainComplex apply(3, i-> Eagon#{north,1,i+1})
+Y1.dd^2
 Eagon#{west,1,4}
 ///
 
