@@ -271,15 +271,23 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --??? Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
     --Yes (trivially) for i=0.
     
-    --To construct the "Eagon Resolution" to stage s, which is
-    --Y^s^0 \to...\to Y^1_0 \to Y^0_0. 
-    --To construct it we must construct the first s-n+1 steps of Y^n
-
+    --To construct the "Eagon Resolution" to stage b, which is
+    --Y^b^0 \to...\to Y^1_0 \to Y^0_0. 
+    --To construct it we must construct the first b-n+1 steps of Y^n. 
+    
+    --For testing purposes, we instead construct the first b steps of each Y^n
     D := shamashData R;
-    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
     pd := length D#HKBasis - 1;
-    X := j -> if j<=pd then source D#HKBasis_j else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+        
+    X := i -> if i<=pd then source D#HKBasis_i else R^0; -- X(i) is the X_i of Gulliksen-Levin.
     --we made it a function so that it would be available for all integers i.
+    K := i -> D.koszul_i;
+--    ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
+    ebasis := i -> if D#HKBasis#?i then 
+           map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
+
+    --apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j    
+
 
     Eagon := new MutableHashTable;    
     --first make the free modules Y^n_i = Eagon#{0,n,i}. 
@@ -289,6 +297,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     north := "N";
     northwest :="NW";
     verticaldiff := "d";
+    alpha := "alpha";
 
     --first make the free modules Eagon#{0,n,i}. 
     Eagon#"D" = D;    
@@ -300,16 +309,32 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     ));
     
     --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
-    for n from 0 to b do 
-    for i from 1 to b do  -- more efficient, once it's working: 
-    --for i from 1 to b-n do 
-      if n == 0 then Eagon#{north,n,i} = D.koszul.dd_i else
+    --initialize:
+    for i from 1 to b+1 do (
+	Eagon#{north,0,i} = D.koszul.dd_i;
+	Eagon#{west,1,i} = ebasis(i)
+	);
 
-      --now assuming that the Y^m have been defined for m = n-1:
+--Do the complexes and maps for n=1:
+    for i from 1 to b-1 do(
+	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*(Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0]+
+	                    ebasis(i)*(Eagon#{0,1,i})^[1]
+	);
+    error();       
+    --now the induction:
+    for n from 1 to b do(
+        for i from 1 to b-n do(  -- more efficient, once it's working, will be:
+    --for i from 1 to b-n do 
+
+    --now assuming that the Y^m have been defined for m<n:
+
         Eagon#{north,n,i} = (Eagon#{0,n,i-1})_[0]*(Eagon#{north,n-1,i+1})*(Eagon#{0,n,i})^[0]; 
       --next Create the maps Y^(n-1)_0 ** X_i = Y^(n-2)_1 --> Y^(n-1)_i = Y^(n-2)_(i+1)++Y^(n-2)_0**X(i)
       --this map should have as second component Eagon#(verticaldiff, n-2,1)**id_(X(i)).
-    error();
+
+      Eagon#{northwest,n,i} = Eagon#{alpha,n,i}||Eagon#(verticaldiff, n-2,1)**id_(X(i)));
+      );
+
     V:= null;
     for n from 1 to b do (
     for i from  1 to b-n do 
@@ -330,8 +355,11 @@ loadPackage("ShamashResolution", Reload =>true)
 
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-E = eagon(R,5)
-V=vert(E,1)
+b = 4
+E = eagon(R,b)
+netList keys Eagon
+apply(2, i-> Eagon#{west,1,i+1})
+Eagon#{west,1,4}
 ///
 
 eagonSymbol = method()
