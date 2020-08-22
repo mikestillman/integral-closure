@@ -33,11 +33,13 @@ export {
     "pd",
     "MaxDegree", --option for shamashFrees
     "MaxWeight", --option for shamashFrees
+    "Verbose", -- option for isDegreeZeroSurjection
     "homologyCover",
     "eagon", --a different approach
     "eBetti", -- total betti numbers from Eagon res
     "vert", --make a vertical strand of the Eagon complex
     "isIsomorphic",
+    "isDegreeZeroSurjection",
     "eagonSymbol"
     }
 
@@ -225,13 +227,16 @@ eBetti HashTable := List => E ->(
     apply(K00, k-> rank E#k)
 )
 
-isDegreeZeroSurjection := method()
-isDegreeZeroSurjection(Module,Module) := (A,B)->(
-    --tests a random degree 0 map to see whether its a surjection
+isDegreeZeroSurjection := method(Options => {Verbose => false})
+isDegreeZeroSurjection(Module,Module) := o -> (A,B)->(
+    --tests a random degree 0 map f:A --> B to see whether its a surjection, 
+    --and returns the answer. If "true" and  o.Verbose == true then returns f.
     H := Hom(A,B);
     B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
     f := homomorphism(B0*random(source B0, (ring B0)^1));
-    coker f == 0)
+    b := (coker f == 0);
+    if b and o.Verbose then f else b
+)
 
 isIsomorphic = method()
 isIsomorphic(Module,Module) := (A,B) -> (
@@ -244,12 +249,13 @@ isIsomorphic(Module,Module) := (A,B) -> (
     dA := set flatten degrees source gens Ap;
     dB := set flatten degrees source gens Bp;
     if dA =!= dB then false else    
-    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap)
+    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap);
     )
 
 homologyCover = method()
 homologyCover(ChainComplex,ZZ) := Matrix => (C,i) ->(
-    --map from a free module to C_i giving minimal generators of HH_i C.
+    --map from a free module to C_i giving a basis of HH_i C.
+    --Note that HH_i C must be of finite length, or there's an error.
     B := basis HH_i C;
     (gens target B)*matrix B)
 
@@ -258,6 +264,18 @@ homologyCover(ZZ, ChainComplex) := List => (b,C) ->
 
 homologyCover(ChainComplex) := List => C -> homologyCover(1+length C, C)
 
+
+homologyIsomorphism = method()
+homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
+    --If M is isomorphic to HH_i C then the matrix returned is a map
+    --from target presentation M to C_i inducing the isomorphism.
+    --else the function throws and error.
+    H := prune HH_i C;
+    p := H.cache.pruningMap; -- iso from H to HH_i C
+    f := isDegreeZeroSurjection(M, H, Verbose => true);
+    g := isDegreeZeroSurjection(H, M, Verbose => true);
+    (f,g)
+)
 ///
 restart
 needsPackage "DGAlgebras"
@@ -271,6 +289,7 @@ homologyCover K
 homologyCover KR
 homologyCover (5,KR)
 homologyCover(KR,1)
+HH_1 KR
 ///
 
 
@@ -304,13 +323,17 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --For testing purposes, we instead construct the first b steps of each Y^n
     D := shamashData R;
     pd := length D#HKBasis - 1;
-        
-    X := i -> if i<=pd then source D#HKBasis_i else R^0; -- X(i) is the X_i of Gulliksen-Levin.
-    --we made it a function so that it would be available for all integers i.
-    K := i -> D.koszul_i;
+    K := koszul vars R;
+    hc := homologyCover K;
+    pd := max apply(1+length K, i-> if hc_i != 0 then i else 0);
+    ebasis := i-> hc_i;
 
-    ebasis := i -> if D#HKBasis#?i then 
-           map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
+    X := i -> if i<=pd then source hc_i else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    --we made it a function so that it would be available for all integers i.
+--    K := i -> D.koszul_i;
+
+--    ebasis := i -> if D#HKBasis#?i then 
+--           map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
 
     --apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j    
 
@@ -325,13 +348,13 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     verticaldiff := "d";
     alpha := "alpha";
     H := "Homology";
-    
+    Y := symbol Y;    
 
     --first make the free modules Eagon#{0,n,i}. 
-    Eagon#"D" = D;    
+--    Eagon#"D" = D;    
     for n from 0 to b do(
     for i from -1 to b-n do(
-      if n == 0 then Eagon#{0,n,i} = D.koszul_i else
+      if n == 0 then Eagon#{0,n,i} = K_i else
        if i == 0 then Eagon#{0,n,i} = Eagon#{0,n-1,1}++R^0 else -- the R^0 is because we need a direct sum.
         Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i)
     ));
@@ -339,22 +362,23 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
     --Note that the highest term in Y^n is in place b-n, so the top interesting homology is H_(b-n-1)
     --initialize:
+    Eagon#{Y,0} = K;
     for i from 0 to b do (
-	Eagon#{north,0,i} = D.koszul.dd_i;
-	Eagon#{west,1,i} = ebasis(i);
+	Eagon#{north,0,i} = K.dd_i;
+--	Eagon#{west,1,i} = ebasis(i);
 		);
-    for i from 0 to b-1 do 	    
-	Eagon#{H,0,i} = coker(Eagon#{north,0,i+1}//syz Eagon#{north,0,i});		    
+--    for i from 0 to b-1 do 	    
+--	Eagon#{H,0,i} = coker(Eagon#{north,0,i+1}//syz Eagon#{north,0,i});		    
 
 --Do the complexes and maps for n=1:
     
     for i from 1 to b-1 do(
 	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*(
 	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
-	                    ebasis(i)*(Eagon#{0,1,i})^[1]
+	                    hc_i*(Eagon#{0,1,i})^[1]
 			    ));
-    for i from 1 to b-2 do
-		Eagon#{H,1,i} = coker(Eagon#{north,1,i+1}//syz Eagon#{north,1,i});
+--    for i from 0 to b-2 do
+--		Eagon#{H,1,i} = coker(Eagon#{north,1,i+1}//syz Eagon#{north,1,i});
 		
     error();
     --now the induction, assuming that the Y^m have been defined for m<n:
@@ -374,7 +398,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     for i from  1 to b-n do 
       if n == 1 then (
          Eagon#{northwest,n,i} = if i>pd then map(Eagon#{0,n,i-1}, Eagon#{0,n,i},0) else
-	       (Eagon#{0,n,i-1})_[0]*(ebasis_i)*(Eagon#{0,n,i})^[1]; 
+	       (Eagon#{0,n,i-1})_[0]*(hc_i)*(Eagon#{0,n,i})^[1]; 
 	       -- map from the first component of Y^n_i.
 	 Eagon#{verticaldiff, n,i} = Eagon#{north,n,i}+Eagon#{northwest,n,i}
 	 );
@@ -391,10 +415,13 @@ S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 b = 4
 E = eagon(R,b)
-netList keys Eagon
 Y1 = chainComplex apply(3, i-> Eagon#{north,1,i+1})
 Y1.dd^2
+HH_0 Y1
+X(1)
+isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
 Eagon#{west,1,4}
+
 ///
 
 eagonSymbol = method()
