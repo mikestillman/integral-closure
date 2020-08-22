@@ -278,31 +278,37 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     D := shamashData R;
     ebasis := apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j
     pd := length D#HKBasis - 1;
-    multiplier := j -> if j<=pd then source D#HKBasis_j else R^0;
-    --The maps Y^(n+1) \to Y^n will be eagon#{"W",n+1,j}
+    X := j -> if j<=pd then source D#HKBasis_j else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    --we made it a function so that it would be available for all integers i.
+
+    Eagon := new MutableHashTable;    
+    --first make the free modules Y^n_i = Eagon#{0,n,i}. 
+    --The maps Y^(n+1)_j \to Y^n_j will be Eagon#{"W",n+1,j}
     west := "W";
     --The differential verticaldiff of Y^n is the sum of maps eagon#{"N",n,i} and eagon#{"NW",n,i}.
     north := "N";
     northwest :="NW";
     verticaldiff := "d";
-    Eagon := new MutableHashTable;
-    
-    Eagon#"D" = D;
-    --first make the free modules Y^n_i = Eagon#{0,n,i}. 
+
+    --first make the free modules Eagon#{0,n,i}. 
+    Eagon#"D" = D;    
     for n from 0 to b do(
     for i from -1 to b-n do(
       if n == 0 then Eagon#{0,n,i} = D.koszul_i else
        if i == 0 then Eagon#{0,n,i} = Eagon#{0,n-1,1}++R^0 else -- the R^0 is because we need a direct sum.
-        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**multiplier i
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i)
     ));
+    
     --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
     for n from 0 to b do 
-    for i from 1 to b-n do 
+    for i from 1 to b do  -- more efficient, once it's working: 
+    --for i from 1 to b-n do 
       if n == 0 then Eagon#{north,n,i} = D.koszul.dd_i else
-      -- map from the first component of Y^n_i
+
       --now assuming that the Y^m have been defined for m = n-1:
         Eagon#{north,n,i} = (Eagon#{0,n,i-1})_[0]*(Eagon#{north,n-1,i+1})*(Eagon#{0,n,i})^[0]; 
-      --next Create the maps Y^(n-1)_0 ** X_i --> Y^(n-1)_i
+      --next Create the maps Y^(n-1)_0 ** X_i = Y^(n-2)_1 --> Y^(n-1)_i = Y^(n-2)_(i+1)++Y^(n-2)_0**X(i)
+      --this map should have as second component Eagon#(verticaldiff, n-2,1)**id_(X(i)).
     error();
     V:= null;
     for n from 1 to b do (
