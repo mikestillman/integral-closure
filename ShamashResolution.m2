@@ -294,36 +294,6 @@ M = (HH_0 Y1)**X(1);
 homologyIsomorphism(M , Y1 , 1)
 isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
 ///
-///
-restart
-needsPackage "DGAlgebras"
-loadPackage("ShamashResolution", Reload =>true)
-
-
-
-
-S = ZZ/101[a,b,c]
-R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-K = koszul vars S
-KR = koszul vars R
-homologyCover K
-homologyCover KR
-homologyCover (5,KR)
-homologyCover(KR,1)
-HH_1 KR
-
-
-
-Eagon := new MutableHashTable;    
-R = ZZ/101[a,b,c];
-g = 4;
-K = koszul vars R;
-for i from -1 to g+1 do Eagon#{0,0,i} = K_i++R^0;
-print(Eagon#{0,0,1}.cache.components)
-
-
-///
-
 
 
 eagon = method()
@@ -342,21 +312,17 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --assuming that the differential of Y^n and the maps Y^n --> Y^(n-1) are known
     --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
     --this isomorphism must be made explicit.
-    --??? Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
+    
+    --Question: Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
     --Yes (trivially) for i=0.
     
-    --To construct the "Eagon Resolution" to stage b, which is
-    --Y^b^0 \to...\to Y^1_0 \to Y^0_0. 
-    --To construct it we must construct the first b-n+1 steps of Y^n. 
-
-    D := shamashData R;
-    pd := length D#HKBasis - 1;
+    --We construct the "Eagon Resolution" to stage b, which is
+    --Y^b_0 \to...\to Y^1_0 \to Y^0_0. 
+    
     g := numgens R;
     K := koszul vars R;
     ebasis := memoize homologyCover;
---    ebasis := i -> if D#HKBasis#?i then 
---           map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
-    X := i -> if i<=pd then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    X := i -> if i<=g then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
     --we made it a function so that it would be available for all integers i.
 
     Eagon := new MutableHashTable;    
@@ -454,11 +420,12 @@ R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 b = 8
 E = eagon(R,b)
 Y = apply(b, n-> chainComplex(apply(4, i-> E#{"N", n,i+1})));
-assert(apply(#Y, n->((Y_n).dd)^2 == 0))
+assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
-F = resolutionFromEagon(R,b)
+time F = resolutionFromEagon(R,b)
+time F' = res(coker vars R,LengthLimit => b)
 assert isHomogeneous F
-asssert all(b-1,i-> prune HH_(i+1) F == 0)
+assert all(b-1,i-> prune HH_(i+1) F == 0)
 assert(betti res(coker vars R,LengthLimit => b) == betti F)
 ///
 
@@ -488,17 +455,6 @@ netList flatten apply(5, n-> apply(5, i-> eagonSymbol(n,i)))
 i = 1
 ///
     
-
-vert = method()
-vert(HashTable,ZZ) := ChainComplex => (E,i) ->(
-    --the "vertical" complex F^i
-    len := #select(keys E, k->k_0 === "d" and k_1 ===1);
-    D:= E#"D";
-    V := chainComplex apply(len-1, j-> E#{"d",i,j+1});
-    X := apply(D#HKBasis, k -> source k);
-    <<apply(1+length V, i-> isIsomorphic(prune HH_(i) V,  prune( X_i**HH_0 V)))<<endl;
-    V
-	)
 ///
 --use mu = exteriorMultiplication n to get mu#{p,q}:wedge^pk^n ** wedge^q k^n -> wedge^(p+q) k^n,
 --with bases sorted in lex. use trueKoszul vars R to get the Koszul complex with bases sorted in lex.
