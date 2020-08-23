@@ -35,6 +35,8 @@ export {
     "MaxWeight", --option for shamashFrees
     "Verbose", -- option for isDegreeZeroSurjection
     "homologyCover",
+    "homologyIsomorphism",    
+    "resolutionFromEagon",
     "eagon", --a different approach
     "eBetti", -- total betti numbers from Eagon res
     "vert", --make a vertical strand of the Eagon complex
@@ -235,7 +237,7 @@ isDegreeZeroSurjection(Module,Module) := o -> (A,B)->(
     B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
     f := homomorphism(B0*random(source B0, (ring B0)^1));
     b := (coker f == 0);
-    if b and o.Verbose then f else b
+    if b and o.Verbose then f else error "There is no degree 0 surjection arg1 --> arg2"
 )
 
 isIsomorphic = method()
@@ -268,144 +270,16 @@ homologyCover(ChainComplex) := List => C -> homologyCover(1+length C, C)
 homologyIsomorphism = method()
 homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
     --If M is isomorphic to HH_i C then the matrix returned is a map
-    --from target presentation M to C_i inducing the isomorphism.
+    -- target presentation M --> C_i 
+    --inducing the isomorphism.
     --else the function throws and error.
-    H := prune HH_i C;
+    Hi := HH_i C;
+    H := prune Hi;
     p := H.cache.pruningMap; -- iso from H to HH_i C
     f := isDegreeZeroSurjection(M, H, Verbose => true);
-    g := isDegreeZeroSurjection(H, M, Verbose => true);
-    (f,g)
+    g := isDegreeZeroSurjection(H, M, Verbose => true); -- this is just a check; get rid of it eventually
+    map(C_i,HH_i C, gens Hi)*p*f
 )
-///
-restart
-needsPackage "DGAlgebras"
-loadPackage("ShamashResolution", Reload =>true)
-
-S = ZZ/101[a,b,c]
-R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-K = koszul vars S
-KR = koszul vars R
-homologyCover K
-homologyCover KR
-homologyCover (5,KR)
-homologyCover(KR,1)
-HH_1 KR
-///
-
-
-eagon = method()
-eagon(Ring, ZZ) := HashTable => (R,b) ->(
-    --compute the Eagon configuration up to bound b. 
-    --Let X_i be the free module R**H_i(K), where K is the Koszul complex on the variables of R.
-    --The module Y^n_i = Eagon#{0,n,i} is described in Gulliksen-Negord as:
-    --Y^(n+1)_0 = Y^n_1; and 
-    --for i>0, Y^(n+1)_i = Y^n_(i+1) ++ Y^n_0**X_i
-
-    --We count X_i as having homological degree i+1. With this convention, 
-    --there is no component of the same degree
-    --but weight exactly n+i+1 other than those in Y^n_(i+1), so, by induction,
-    --Y^n_i is the sum of the components of K**(\bigotimes(\direct sum_i X_i))
-    --having degree n+i and weight <= n+1. 
-    
-    --Each Y^n is a complex whose i-th homology is H_i(Y^n) = H_0(Y^n)^0**X_i (proved in Gulliksen-Negord).
-    --assuming that the differential of Y^n and the maps Y^n --> Y^(n-1) are known
-    
-    
-    --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
-    --this isomorphism must be made explicit.
-    --??? Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
-    --Yes (trivially) for i=0.
-    
-    --To construct the "Eagon Resolution" to stage b, which is
-    --Y^b^0 \to...\to Y^1_0 \to Y^0_0. 
-    --To construct it we must construct the first b-n+1 steps of Y^n. 
-    
-    --For testing purposes, we instead construct the first b steps of each Y^n
-    D := shamashData R;
-    pd := length D#HKBasis - 1;
-    K := koszul vars R;
-    hc := homologyCover K;
-    pd := max apply(1+length K, i-> if hc_i != 0 then i else 0);
-    ebasis := i-> hc_i;
-
-    X := i -> if i<=pd then source hc_i else R^0; -- X(i) is the X_i of Gulliksen-Levin.
-    --we made it a function so that it would be available for all integers i.
---    K := i -> D.koszul_i;
-
---    ebasis := i -> if D#HKBasis#?i then 
---           map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
-
-    --apply(D#HKBasis, m -> (gens target m)*matrix m); -- this makes maps ebasis_j: X_j \to K_j    
-
-
-    Eagon := new MutableHashTable;    
-    --first make the free modules Y^n_i = Eagon#{0,n,i}. 
-    --The maps Y^(n+1)_j \to Y^n_j will be Eagon#{"W",n+1,j}
-    west := "W";
-    --The differential verticaldiff of Y^n is the sum of maps eagon#{"N",n,i} and eagon#{"NW",n,i}.
-    north := "N";
-    northwest :="NW";
-    verticaldiff := "d";
-    alpha := "alpha";
-    H := "Homology";
-    Y := symbol Y;    
-
-    --first make the free modules Eagon#{0,n,i}. 
---    Eagon#"D" = D;    
-    for n from 0 to b do(
-    for i from -1 to b-n do(
-      if n == 0 then Eagon#{0,n,i} = K_i else
-       if i == 0 then Eagon#{0,n,i} = Eagon#{0,n-1,1}++R^0 else -- the R^0 is because we need a direct sum.
-        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i)
-    ));
-    
-    --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
-    --Note that the highest term in Y^n is in place b-n, so the top interesting homology is H_(b-n-1)
-    --initialize:
-    Eagon#{Y,0} = K;
-    for i from 0 to b do (
-	Eagon#{north,0,i} = K.dd_i;
---	Eagon#{west,1,i} = ebasis(i);
-		);
---    for i from 0 to b-1 do 	    
---	Eagon#{H,0,i} = coker(Eagon#{north,0,i+1}//syz Eagon#{north,0,i});		    
-
---Do the complexes and maps for n=1:
-    
-    for i from 1 to b-1 do(
-	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*(
-	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
-	                    hc_i*(Eagon#{0,1,i})^[1]
-			    ));
---    for i from 0 to b-2 do
---		Eagon#{H,1,i} = coker(Eagon#{north,1,i+1}//syz Eagon#{north,1,i});
-		
-    error();
-    --now the induction, assuming that the Y^m have been defined for m<n:
-    for n from 1 to b do(
-        for i from 1 to b-n do(  -- more efficient, once it's working, will be:
-
-        Eagon#{north,n,i} = (Eagon#{0,n,i-1})_[0]*(Eagon#{north,n-1,i+1})*(Eagon#{0,n,i})^[0]; 
-
-      --next Create the maps Y^(n-1)_0 ** X_i = Y^(n-2)_1 --> Y^(n-1)_i = Y^(n-2)_(i+1)++Y^(n-2)_0**X(i)
-      --this map should have as second component Eagon#(verticaldiff, n-2,1)**id_(X(i)).
-
-      Eagon#{northwest,n,i} = Eagon#{alpha,n,i}||Eagon#(verticaldiff, n-2,1)**id_(X(i)));
-      );
-
-    V:= null;
-    for n from 1 to b do (
-    for i from  1 to b-n do 
-      if n == 1 then (
-         Eagon#{northwest,n,i} = if i>pd then map(Eagon#{0,n,i-1}, Eagon#{0,n,i},0) else
-	       (Eagon#{0,n,i-1})_[0]*(hc_i)*(Eagon#{0,n,i})^[1]; 
-	       -- map from the first component of Y^n_i.
-	 Eagon#{verticaldiff, n,i} = Eagon#{north,n,i}+Eagon#{northwest,n,i}
-	 );
-    Eagon
-    )
-)
-
 ///
 restart
 needsPackage "DGAlgebras"
@@ -416,12 +290,176 @@ R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 b = 4
 E = eagon(R,b)
 Y1 = chainComplex apply(3, i-> Eagon#{north,1,i+1})
-Y1.dd^2
-HH_0 Y1
-X(1)
+M = (HH_0 Y1)**X(1);
+homologyIsomorphism(M , Y1 , 1)
 isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
-Eagon#{west,1,4}
+///
+///
+restart
+needsPackage "DGAlgebras"
+loadPackage("ShamashResolution", Reload =>true)
 
+
+
+
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+K = koszul vars S
+KR = koszul vars R
+homologyCover K
+homologyCover KR
+homologyCover (5,KR)
+homologyCover(KR,1)
+HH_1 KR
+
+
+
+Eagon := new MutableHashTable;    
+R = ZZ/101[a,b,c];
+g = 4;
+K = koszul vars R;
+for i from -1 to g+1 do Eagon#{0,0,i} = K_i++R^0;
+print(Eagon#{0,0,1}.cache.components)
+
+
+///
+
+
+
+eagon = method()
+eagon(Ring, ZZ) := HashTable => (R,b) ->(
+    --compute the Eagon configuration
+    --Let X_i be the free module R**H_i(K), where K is the Koszul complex on the variables of R.
+        --We count X_i as having homological degree i+1.
+    --The module Y^n_i = Eagon#{0,n,i} is described in Gulliksen-Negord as:
+    --Y^0 = koszul vars R
+    --Y^(n+1)_0 = Y^n_1; and 
+    --for i>0, Y^(n+1)_i = Y^n_(i+1) ++ Y^n_0**X_i
+
+    --Note that Y^n_i == 0 for i>1+length koszul vars R, so we will carry computations out to that length.
+
+    --Each Y^n is a complex whose i-th homology is H_i(Y^n) = H_0(Y^n)^0**X_i (proved in Gulliksen-Negord).
+    --assuming that the differential of Y^n and the maps Y^n --> Y^(n-1) are known
+    --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
+    --this isomorphism must be made explicit.
+    --??? Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
+    --Yes (trivially) for i=0.
+    
+    --To construct the "Eagon Resolution" to stage b, which is
+    --Y^b^0 \to...\to Y^1_0 \to Y^0_0. 
+    --To construct it we must construct the first b-n+1 steps of Y^n. 
+
+    D := shamashData R;
+    pd := length D#HKBasis - 1;
+    g := numgens R;
+    K := koszul vars R;
+    ebasis := memoize homologyCover;
+--    ebasis := i -> if D#HKBasis#?i then 
+--           map(K(i), X(i) ,(gens target D#HKBasis#i)*matrix(D#HKBasis#i)) else map(K i, X i,0);
+    X := i -> if i<=pd then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    --we made it a function so that it would be available for all integers i.
+
+    Eagon := new MutableHashTable;    
+    --first make the free modules Y^n_i = Eagon#{0,n,i}. 
+    --The maps Y^(n+1)_j \to Y^n_j will be Eagon#{"W",n+1,j}
+    west := "W";
+    --The differential verticaldiff of Y^n is the sum of maps eagon#{"N",n,i} and eagon#{"NW",n,i}.
+    north := "N";
+    northwest :="NW";
+    verticaldiff := "d";
+    beta := symbol beta;
+    
+    --Make the free modules Eagon#{0,n,i}:
+    --two special cases:
+    for i from -1 to g+1 do Eagon#{0,0,i} = K_i++R^0;-- print Eagon#{0,0,i}.cache.components);
+    for n from 0 to b do Eagon#{0,n,g+2} = R^0++R^0; 
+    -- cases:
+    for n from 1 to b do (
+    for i from -1 to g+1 do(
+       if i == 0 then Eagon#{0,n,i} = Eagon#{0,n-1,1} else -- the R^0 is because we need a direct sum.
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i)
+    ));
+
+    --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
+    --Note that the highest term in Y^n is in place b-n, so the top interesting homology is H_(b-n-1)
+    --initialize:
+    for i from 0 to g+2 do Eagon#{north,0,i} = K.dd_i;
+	       
+--Make the maps for n=1:
+    --two special cases:
+    Eagon#{north, 1, g+2} = map(Eagon#{0,1,g+1}, Eagon#{0,1,g+2},0);
+    Eagon#{west,1,0} = Eagon#{north, 0,1};
+    
+    for i from 1 to g+1 do(
+	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
+	                    (
+	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
+	                    ebasis(K,i)*(Eagon#{0,1,i})^[1]
+			    );
+        Eagon#{beta,1,i} = ebasis(K,i);			    
+	Eagon#{west,1,i} = K.dd_(i+1) | ebasis(K,i);
+			);
+    		
+--now the induction, assuming that the Y^m have been defined for m<n:
+    for n from 2 to b do(
+       Eagon#{north, n, g+2} = map(Eagon#{0,n,g+1}, Eagon#{0,n,g+2},0);
+       Eagon#{west,n,0} = Eagon#{north, n-1,1};
+    	    	    
+    for i from 1 to g+1 do(
+    	Eagon#{beta,n,i} = -(Eagon#{0,n-2,i}_[0]*
+                             Eagon#{beta,n-1,i}*
+                              (Eagon#{north, n-2,1}**X(i)) --*Eagon#{0,n,i}^[1]
+		                   )//
+			       Eagon#{north,n-2,i+1};
+			               
+	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
+	                   Eagon#{0,n-1,i}_[1]* (Eagon#{west,n-1,0}**X(i))  *(Eagon#{0,n,i})^[1]+
+	                   (if Eagon#?{west,n-1,i+1} then 
+			            Eagon#{0,n-1,i}_[0]*Eagon#{west,n-1,i+1}*Eagon#{0,n,i}^[0] 
+				                     else 0);
+
+	if i == 1 then Eagon#{north,n,i} = -- special case because Y^n_0 is not 
+	                    (
+	                    (Eagon#{north,n-1,i+1})*((Eagon#{0,n,i})^[0])+
+	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
+			    Eagon#{0,n-1,i}_[1]*(Eagon#{north, n-2,1}**X(i))*(Eagon#{0,n,i}^[1])
+			    )
+		  else
+	Eagon#{north,n,i} =
+	    Eagon#{0,n,i-1}_[0]*
+	                    (
+	                    (Eagon#{north,n-1,i+1})*((Eagon#{0,n,i})^[0])+
+	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
+			    Eagon#{0,n-1,i}_[1]*(Eagon#{north, n-2,1}**X(i))*(Eagon#{0,n,i}^[1])
+			    );
+			));
+Eagon
+)
+
+resolutionFromEagon = method()
+resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
+    E := eagon(R,b);
+    chainComplex(apply(b,n->E#{"W",n+1,0}))
+    )
+
+///
+restart
+needsPackage "DGAlgebras"
+loadPackage("ShamashResolution", Reload =>true)
+///
+
+TEST/// -- test of eagon
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+b = 8
+E = eagon(R,b)
+Y = apply(b, n-> chainComplex(apply(4, i-> E#{"N", n,i+1})));
+assert(apply(#Y, n->((Y_n).dd)^2 == 0))
+assert all(#Y, n->isHomogeneous Y_n)
+F = resolutionFromEagon(R,b)
+assert isHomogeneous F
+asssert all(b-1,i-> prune HH_(i+1) F == 0)
+assert(betti res(coker vars R,LengthLimit => b) == betti F)
 ///
 
 eagonSymbol = method()
@@ -439,7 +477,7 @@ eagonSymbol(ZZ,ZZ) := List => (n,i) ->(
 restart
 loadPackage("ShamashResolution", Reload=>true)
 netList apply(5, i-> flatten eagonSymbol(5,i))
-eagonSymbol(1,2)
+eagonSymbol(2,0)
 eagonSymbol(0,0)
 eagonSymbol(3,2)
 n = 1;
@@ -495,7 +533,7 @@ netList{(Eagon#{0,i,j-1})_[0], (D#HKBasis_j), (Eagon#{0,i,j})^[1]}
 netList {(Eagon#{0,i,j-1})_[0],(gens target D#HKBasis_j),(D#HKBasis_j),(Eagon#{0,i,j})^[1]}
 D#HKBasis
 ///
-end-- temporary end!
+end--
 
 beginDocumentation()
 
@@ -950,3 +988,4 @@ installPackage "ShamashResolution"
 viewHelp ShamashResolution
 check ShamashResolution
 
+restart
