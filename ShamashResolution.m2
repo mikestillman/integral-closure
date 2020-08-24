@@ -313,7 +313,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
     --this isomorphism must be made explicit.
     
-    --Question: Is the isomorphism given by a map of complexes from Y_i^0**K to Y_i ? 
+    --The isomorphism is NOT given by a map of complexes from Y_i^0**K to Y_i --
     --Yes (trivially) for i=0.
     
     --We construct the "Eagon Resolution" to stage b, which is
@@ -414,19 +414,62 @@ needsPackage "DGAlgebras"
 loadPackage("ShamashResolution", Reload =>true)
 ///
 
+///
+load"~/gitRepos/SocleInSyzygy/DaoSocle.m2"
+S = ZZ/101[a,b]
+ML = matrix"a,b2,0;
+            0,b2,a"
+isHomogeneous ML
+MNL = matrix"a2,b2,0;0,a2,b2"
+IL = minors(2, ML)
+INL = minors(2,MNL)
+isGolod(S/INL)
+isGolod(S/IL)
+
+kSS(S/IL, 5)
+kSS(S/INL,5)
+EL = eagon(S/IL,5);
+EL#{"W",3,0}
+ENL = eagon(S/INL,5);
+ENL#{"W",3,0}
+--E#{beta,2,1}
+F = res coker vars(S/INL)
+F.dd_3
+isIsomorphic(image F.dd_2, image ENL#{"W",2,0}) -- ENL#{"W",2,0} is wrong!
+G = resolutionFromEagon(S/IL, 5) ---NOT a resolution!! 
+G.dd^2
+apply(1+length G, i->prune HH_i G) --also IL doesn't work.
+///
+
 TEST/// -- test of eagon
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-b = 8
-E = eagon(R,b)
-Y = apply(b, n-> chainComplex(apply(4, i-> E#{"N", n,i+1})));
+assert(isGolod R)
+bound = 8
+E = eagon(R,bound)
+Y = apply(bound, n-> chainComplex(apply(4, i-> E#{"N", n,i+1})));
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
-time F = resolutionFromEagon(R,b)
-time F' = res(coker vars R,LengthLimit => b)
+time F = resolutionFromEagon(R,bound)
+time F' = res(coker vars R,LengthLimit => bound)
 assert isHomogeneous F
-assert all(b-1,i-> prune HH_(i+1) F == 0)
-assert(betti res(coker vars R,LengthLimit => b) == betti F)
+assert all(bound-1,i-> prune HH_(i+1) F == 0)
+assert(betti res(coker vars R,LengthLimit => bound) == betti F)
+
+S = ZZ/101[a,b,c,d,e]
+R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
+assert(not isGolod R)
+E = eagon(R,8)
+Y = apply(8, n-> chainComplex(apply(4, i-> E#{"N", n,i+1})));
+isHomogeneous Y_0 -- this should be the koszul complex!!
+assert(all(#Y, n->((Y_n).dd)^2 == 0))
+assert all(#Y, n->isHomogeneous Y_n)
+time F = resolutionFromEagon(R,8)
+time F' = res(coker vars R,LengthLimit => 8)
+assert isHomogeneous F
+assert all(7,i-> prune HH_(i+1) F == 0)
+betti F
+betti F'
 ///
 
 eagonSymbol = method()
