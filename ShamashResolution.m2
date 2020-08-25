@@ -237,7 +237,7 @@ isDegreeZeroSurjection(Module,Module) := o -> (A,B)->(
     B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
     f := homomorphism(B0*random(source B0, (ring B0)^1));
     b := (coker f == 0);
-    if b and o.Verbose then f else error "There is no degree 0 surjection arg1 --> arg2"
+    if (b and o.Verbose) then f else b
 )
 
 isIsomorphic = method()
@@ -250,8 +250,8 @@ isIsomorphic(Module,Module) := (A,B) -> (
     Bp := prune B;
     dA := set flatten degrees source gens Ap;
     dB := set flatten degrees source gens Bp;
-    if dA =!= dB then false else    
-    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap);
+    if dA =!= dB then false else
+    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap)
     )
 
 homologyCover = method()
@@ -429,16 +429,27 @@ isGolod(S/IL)
 kSS(S/IL, 5)
 kSS(S/INL,5)
 EL = eagon(S/IL,5);
+ENL= eagon(S/INL,5);
+FL = res coker vars (S/IL)
 EL#{"W",3,0}
-ENL = eagon(S/INL,5);
-ENL#{"W",3,0}
---E#{beta,2,1}
-F = res coker vars(S/INL)
-F.dd_3
-isIsomorphic(image F.dd_2, image ENL#{"W",2,0}) -- ENL#{"W",2,0} is wrong!
-G = resolutionFromEagon(S/IL, 5) ---NOT a resolution!! 
+FL.dd_3
+CL = chainComplex apply (4,i->EL#{"W",i+1,0})
+prune HH_3 CL
+FEL = resolutionFromEagon(S/IL,10)
+apply(9, i-> prune HH_(i+1) FEL)
+
+FNL = res coker vars(S/INL)
+ENL#{"W",2,0}
+FNL.dd_2
+isIsomorphic(image FNL.dd_3, image ENL#{"W",3,0})
+isDegreeZeroSurjection(image FNL.dd_2, image ENL#{"W",2,0})
+--why isn't this being defined???: isDegreeZeroSurjection(image FNL.dd_2, image ENL#{"W",2,0},Verbose =>true)
+
+betti FNL == betti G
+G = resolutionFromEagon(S/INL, 6)
 G.dd^2
-apply(1+length G, i->prune HH_i G) --also IL doesn't work.
+apply(length G-1, i->prune HH_(i+1) G)
+
 ///
 
 TEST/// -- test of eagon
