@@ -43,7 +43,7 @@ export {
     "isIsomorphic",
     "isDegreeZeroSurjection",
     "eagonSymbol",
---    "flattenDirectSum",
+    "flattenDirectSum",
     "allComponents"
     }
 
@@ -270,7 +270,6 @@ homologyCover(ZZ, ChainComplex) := List => (b,C) ->
 
 homologyCover(ChainComplex) := List => C -> homologyCover(1+length C, C)
 
-
 homologyIsomorphism = method()
 homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
     --If M is isomorphic to HH_i C then the matrix returned is a map
@@ -324,9 +323,16 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --Y^b_0 \to...\to Y^1_0 \to Y^0_0. 
     
     g := numgens R;
-    K := koszul vars R;
+    K0 := koszul vars R;
+    labeler := (L,F) -> directSum(1:(L=>F));
+    
+    K := chainComplex(for i from 1 to length K0 list 
+	map(labeler((i-1,{}), K0_(i-1)),
+	    labeler((i,{}), K0_(i)),
+	    K0.dd_i));
+    
     ebasis := memoize homologyCover;
-    X := i -> if i<=g then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    X := i -> if i<=g then labeler((0,{i}),source ebasis(K,i)) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
     --we made it a function so that it would be available for all integers i.
 
     Eagon := new MutableHashTable;    
@@ -359,7 +365,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 	   Eagon#{0,n,i,isom} = Eagon#{0,n-1,1,isom} 
 	)
         else (
-        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i);
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++tensorWithComponents(Eagon#{0,n-1,0},X(i),(a,b)->(a#0+b#0,a#1|b#1));
 	Eagon#{0,n,i,isom} = Eagon#{0,n-1,i+1,isom}++
 	             directSum(apply(components source Eagon#{0,n-1,0,isom}, c -> id_c**X(i)))
 	     )
@@ -441,7 +447,7 @@ allComponents (HashTable,ZZ):= List => (E,n) -> flattenDirectSum(source E#{0,n,0
 ///
 restart
 needsPackage "DGAlgebras"
-loadPackage("ShamashResolution", Reload =>true)
+debug loadPackage("ShamashResolution", Reload =>true)
 ///
 
 ///
