@@ -286,7 +286,7 @@ homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
 ///
 restart
 needsPackage "DGAlgebras"
-loadPackage("ShamashResolution", Reload =>true)
+debug loadPackage("ShamashResolution", Reload =>true)
 
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
@@ -663,10 +663,11 @@ flattenBlocks Module := (F) -> (
     if not isFreeModule F then error "expected a free module";
     (comps, inds) := componentsAndIndices F;
     compsLabelled := for i from 0 to #comps-1 list (
-        if inds#i === null then (
+-*        if inds#i === null then (
             if rank comps#i > 0 then error "expected zero module";
             continue;
             );
+*-
         inds#i => comps#i
         );
     directSum compsLabelled
@@ -681,8 +682,8 @@ flattenBlocks Matrix := (M) -> (
 displayBlocks = method()
 displayBlocks Matrix := (M1) -> (
     M := flattenBlocks M1;
-    src := indices source M;
-    tar := indices target M;
+    src := select(indices source M, i-> i =!= null);
+    tar := select(indices target M, i-> i =!= null);
     netList (prepend(
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
@@ -708,20 +709,23 @@ picture Matrix := (M1) -> (
 
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
-    if F == 0 or G == 0 then return F;
+    if F == 0 or G == 0 then return (ring F)^0;
     (compsF, indicesF) := componentsAndIndices F;
     (compsG, indicesG) := componentsAndIndices G;
     comps := flatten for f from 0 to #compsF-1 list (
-        if indicesF#f === null then (
+-*        if indicesF#f === null then (
             if rank compsF#f =!= 0 then error "expected zero module";
             continue;
             );
+*-
         for g from 0 to #compsG-1 list (
-            if indicesG#g === null then (
+-*            if indicesG#g === null then (
                 if rank compsG#g =!= 0 then error "expected zero module";
                 continue;
                 );
-            newindex := combineIndices(indicesF#f, indicesG#g);
+*-
+            newindex := if indicesF#f === null or indicesG#g === null
+	       then null else combineIndices(indicesF#f, indicesG#g);
             newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
             )
         );
