@@ -388,13 +388,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     Eagon#{west,1,0} = Eagon#{north, 0,1};
     
     for i from 1 to g+1 do(
-        if ebasis(K,i) == 0 then 
-  	  Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
-	                    (
-	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0]
-			    )
-        else 
-	  Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
+	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
 	                    (
 	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
 	                    ebasis(K,i)*(Eagon#{0,1,i})^[1]
