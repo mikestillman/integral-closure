@@ -42,7 +42,9 @@ export {
     "vert", --make a vertical strand of the Eagon complex
     "isIsomorphic",
     "isDegreeZeroSurjection",
-    "eagonSymbol"
+    "eagonSymbol",
+--    "flattenDirectSum",
+    "allComponents"
     }
 
 -- methods: dim.
@@ -169,7 +171,9 @@ I = ideal(a,b)*ideal(a,b,c)
 I = (ideal(a^2,b^3))^2
 R = S/I
 D = shamashData R
-netList apply(5, n->shamashFree(R,n))
+netList (L = apply(5, n->shamashFree(R,n)))
+module(D,L_3_1)
+D.HKBasis_1
 --netList apply(5, n->shamashFree(D,n))
 time betti res (coker vars R, LengthLimit => 4)
 time apply(5, n->module(R,shamashFree(R,n)))
@@ -333,17 +337,32 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     north := "N";
     northwest :="NW";
     verticaldiff := "d";
-    beta := symbol beta;
+    beta := "beta";
+    isom := "isom";
     
-    --Make the free modules Eagon#{0,n,i}:
+    --Make the free modules Eagon#{0,n,i}. For each one, add a key whose value is an isomorphism
+    --from the direct sum of all its components.
     --two special cases:
-    for i from -1 to g+1 do Eagon#{0,0,i} = K_i++R^0;-- print Eagon#{0,0,i}.cache.components);
-    for n from 0 to b do Eagon#{0,n,g+2} = R^0++R^0; 
+    for i from -1 to g+2 do (
+	Eagon#{0,0,i} = K_i++R^0;-- print Eagon#{0,0,i}.cache.components);
+	Eagon#{0,0,i,isom} = map(Eagon#{0,0,i},K_i++R^0,id_(Eagon#{0,0,i}));
+      for n from 0 to b do(
+           Eagon#{0,n,g+2} = R^0++R^0; 
+    	   Eagon#{0,n,g+2,isom} = map(Eagon#{0,n,g+2},R^0++R^0,id_(Eagon#{0,n,g+2}))
+       	                 ));
+
     -- cases:
     for n from 1 to b do (
     for i from -1 to g+1 do(
-       if i == 0 then Eagon#{0,n,i} = Eagon#{0,n-1,1} else -- the R^0 is because we need a direct sum.
-        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i)
+       if i == 0 then (
+	   Eagon#{0,n,i} = Eagon#{0,n-1,1} ;
+	   Eagon#{0,n,i,isom} = Eagon#{0,n-1,1,isom} 
+	)
+        else (
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++Eagon#{0,n-1,0}**X(i);
+	Eagon#{0,n,i,isom} = Eagon#{0,n-1,i+1,isom}++
+	             directSum(apply(components source Eagon#{0,n-1,0,isom}, c -> id_c**X(i)))
+	     )
     ));
 
     --Now make the northward maps; the maps of the complexes Y^n = E#{0,n,*}
@@ -370,6 +389,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     for n from 2 to b do(
        Eagon#{north, n, g+2} = map(Eagon#{0,n,g+1}, Eagon#{0,n,g+2},0);
        Eagon#{west,n,0} = Eagon#{north, n-1,1};
+       Eagon#{beta,n,0} = Eagon#{beta, n-1,1};       
     	    	    
     for i from 1 to g+1 do(
     	Eagon#{beta,n,i} = -(Eagon#{0,n-2,i}_[0]*
@@ -408,6 +428,16 @@ resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
     chainComplex(apply(b,n->E#{"W",n+1,0}))
     )
 
+flattenDirectSum = method()
+flattenDirectSum Module := List => M ->(
+    if #components M === 1 then return M else
+    L := flatten apply(components M, N->flattenDirectSum N);
+    select(L, M -> M != 0)
+    )
+
+allComponents = method()
+allComponents (HashTable,ZZ):= List => (E,n) -> flattenDirectSum(source E#{0,n,0,"isom"})
+
 ///
 restart
 needsPackage "DGAlgebras"
@@ -428,8 +458,18 @@ isGolod(S/IL)
 
 kSS(S/IL, 5)
 kSS(S/INL,5)
-EL = eagon(S/IL,5);
+EL = eagon(RL=S/IL,6);
+netList apply(6, i->allComponents(EL,i))
+eagonSymbol(6,0)
+EL#{0,5,0};
+netList pairs EL
 ENL= eagon(S/INL,5);
+flattenDirectSum source ENL#{0,5,0,"isom"}
+
+
+EL#{0,1,3}
+F6 = EL#{0,5,1}
+(components F6)/components
 FL = res coker vars (S/IL)
 EL#{"W",3,0}
 FL.dd_3
@@ -449,6 +489,32 @@ betti FNL == betti G
 G = resolutionFromEagon(S/INL, 6)
 G.dd^2
 apply(length G-1, i->prune HH_(i+1) G)
+
+kk= ZZ/101
+S = kk[x_0..x_3]
+I = monomialCurveIdeal(S,{2,3,4})
+R = S/I
+E = eagon(R,6)
+F = resolutionFromEagon(R,12)
+betti (G = res(coker vars R, LengthLimit => 6))
+F.dd_4
+E#{"beta",4,0}
+components source E#{"beta",3,1}
+keys E
+betti F
+isGolod R
+X1= R^1
+X2 = R^2
+X3 = R^3
+X4= R^4
+
+F = ("X1"=>X1)++("X2"=>X2)
+G = ("X3"=>X3)++(C=>X4)
+(components (F++F++G))/indices
+
+indices oo
+components oo
+A = R^1++R^2, B= R^3++R^4
 
 ///
 
@@ -470,7 +536,7 @@ assert(betti res(coker vars R,LengthLimit => bound) == betti F)
 S = ZZ/101[a,b,c,d,e]
 R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
 assert(not isGolod R)
-E = eagon(R,8)
+E = eagon(R,10)
 Y = apply(8, n-> chainComplex(apply(4, i-> E#{"N", n,i+1})));
 isHomogeneous Y_0 -- this should be the koszul complex!!
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
@@ -479,6 +545,7 @@ time F = resolutionFromEagon(R,8)
 time F' = res(coker vars R,LengthLimit => 8)
 assert isHomogeneous F
 assert all(7,i-> prune HH_(i+1) F == 0)
+netList apply(3,n->E#{"beta",n,2})
 betti F
 betti F'
 ///
@@ -494,9 +561,27 @@ eagonSymbol(ZZ,ZZ) := List => (n,i) ->(
     eagonSymbol(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
    )
 
+--the following is almost right -- The indices of the X_i are not quite ok.
+eagonSymbols = method()
+eagonSymbols(ZZ,ZZ,ZZ) := List => (numv,pd,m) -> (
+    --compute the list of all symbols of summands of the Y^n_i up to n = m, assuming a ring with numv variables
+    --and projective dimension pd.
+    maxK := numv;
+    maxX := pd;
+    result := flatten for i from 0 to maxK list (
+        flatten for j from 1 to (m-i)//2 list (
+            c := compositions(j, m-i-2*j, maxX-2);
+            for c1 in c list prepend(i, (for a in c1 list a+2))
+            )
+        );
+    if m <= maxK then result = append(result, {m});
+    result)
+
+
 ///
 restart
-loadPackage("ShamashResolution", Reload=>true)
+debug loadPackage("ShamashResolution", Reload=>true)
+netList apply(5,n->eagonSymbols(3,2,n))
 netList apply(5, i-> flatten eagonSymbol(5,i))
 eagonSymbol(2,0)
 eagonSymbol(0,0)
@@ -505,7 +590,8 @@ n = 1;
 i = 2;
 
 
-netList flatten apply(5, n-> apply(5, i-> eagonSymbol(n,i)))
+netList flatten apply(6, n-> apply(6, i-> eagonSymbol(n,i)))
+netList apply(7, n-> eagonSymbol(n,0))
 i = 1
 ///
     
