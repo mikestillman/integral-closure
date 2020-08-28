@@ -331,8 +331,14 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 	    labeler((i,{}), K0_(i)),
 	    K0.dd_i));
     
-    ebasis := memoize homologyCover;
-    X := i -> if i<=g then labeler((0,{i}),source ebasis(K,i)) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    homologyCover' := (K,i) -> (
+        phi := homologyCover(K,i); 
+        Xi := labeler((0,{i}),source phi); 
+        map(K_i, Xi, phi)
+        );
+    ebasis := memoize homologyCover';
+    --X := i -> if i<=g then labeler((0,{i}),source ebasis(K,i)) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    X := i -> if i<=g then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
     --we made it a function so that it would be available for all integers i.
 
     Eagon := new MutableHashTable;    
@@ -382,7 +388,13 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     Eagon#{west,1,0} = Eagon#{north, 0,1};
     
     for i from 1 to g+1 do(
-	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
+        if ebasis(K,i) == 0 then 
+  	  Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
+	                    (
+	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0]
+			    )
+        else 
+	  Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
 	                    (
 	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
 	                    ebasis(K,i)*(Eagon#{0,1,i})^[1]
@@ -656,7 +668,14 @@ flattenBlocks = method()
 flattenBlocks Module := (F) -> (
     if not isFreeModule F then error "expected a free module";
     (comps, inds) := componentsAndIndices F;
-    directSum for i from 0 to #comps-1 list (inds#i => comps#i)
+    compsLabelled := for i from 0 to #comps-1 list (
+        if inds#i === null then (
+            if rank comps#i > 0 then error "expected zero module";
+            continue;
+            );
+        inds#i => comps#i
+        );
+    directSum compsLabelled
     )
 
 flattenBlocks Matrix := (M) -> (
@@ -674,7 +693,7 @@ displayBlocks Matrix := (M1) -> (
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
-                h := if mts == 0 then "." else if mts == 1 then "1" else net mts
+                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "1" else net mts
                 ))
         ), Alignment=>Center)
     )
@@ -688,19 +707,31 @@ picture Matrix := (M1) -> (
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
-                h := if mts == 0 then "." else if mts == 1 then "1" else "*"
+                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "1" else "*"
                 ))
         ), Alignment=>Center)
     )
 
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
+    if F == 0 or G == 0 then return F;
     (compsF, indicesF) := componentsAndIndices F;
     (compsG, indicesG) := componentsAndIndices G;
-    directSum flatten for f from 0 to #compsF-1 list for g from 0 to #compsG-1 list (
-        newindex := combineIndices(indicesF#f, indicesG#g);
-        newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
-        )
+    comps := flatten for f from 0 to #compsF-1 list (
+        if indicesF#f === null then (
+            if rank compsF#f =!= 0 then error "expected zero module";
+            continue;
+            );
+        for g from 0 to #compsG-1 list (
+            if indicesG#g === null then (
+                if rank compsG#g =!= 0 then error "expected zero module";
+                continue;
+                );
+            newindex := combineIndices(indicesF#f, indicesG#g);
+            newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
+            )
+        );
+    if #comps == 0 then (ring F)^0 else directSum comps
     )
 tensorWithComponents(Module, Module) := (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
 
