@@ -629,6 +629,75 @@ netList{(Eagon#{0,i,j-1})_[0], (D#HKBasis_j), (Eagon#{0,i,j})^[1]}
 netList {(Eagon#{0,i,j-1})_[0],(gens target D#HKBasis_j),(D#HKBasis_j),(Eagon#{0,i,j})^[1]}
 D#HKBasis
 ///
+
+
+componentsAndIndices = (F) -> (
+    if not F.cache.?components then (
+        -- F has no components
+        ({F}, {null})
+        )
+    else if #F.cache.components == 1 then (
+        if F.cache.?indices then ({F}, F.cache.indices)
+        else (F, {null})
+        )
+    else (
+        a := for f in F.cache.components list componentsAndIndices f;
+        (flatten(a/first), flatten(a/last))
+        )
+    )
+
+flattenBlocks = method()
+flattenBlocks Module := (F) -> (
+    if not isFreeModule F then error "expected a free module";
+    (comps, inds) := componentsAndIndices F;
+    directSum for i from 0 to #comps-1 list (inds#i => comps#i)
+    )
+
+flattenBlocks Matrix := (M) -> (
+    F := flattenBlocks target M;
+    G := flattenBlocks source M;
+    map(F,G,matrix M)
+    )
+
+displayBlocks = method()
+displayBlocks Matrix := (M1) -> (
+    M := flattenBlocks M1;
+    src := indices source M;
+    tar := indices target M;
+    netList (prepend(
+        prepend("", src),
+        for t in tar list prepend(t, for s in src list (
+                mts := M^[t]_[s];
+                h := if mts == 0 then "." else if mts == 1 then "1" else net mts
+                ))
+        ), Alignment=>Center)
+    )
+
+picture = method()
+picture Matrix := (M1) -> (
+    M := flattenBlocks M1;
+    src := indices source M;
+    tar := indices target M;
+    netList (prepend(
+        prepend("", src),
+        for t in tar list prepend(t, for s in src list (
+                mts := M^[t]_[s];
+                h := if mts == 0 then "." else if mts == 1 then "1" else "*"
+                ))
+        ), Alignment=>Center)
+    )
+
+tensorWithComponents = method()
+tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
+    (compsF, indicesF) := componentsAndIndices F;
+    (compsG, indicesG) := componentsAndIndices G;
+    directSum flatten for f from 0 to #compsF-1 list for g from 0 to #compsG-1 list (
+        newindex := combineIndices(indicesF#f, indicesG#g);
+        newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
+        )
+    )
+tensorWithComponents(Module, Module) := (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+
 end--
 
 beginDocumentation()
@@ -1077,6 +1146,7 @@ loadPackage("ShamashResolution", Reload => true)
 
 end--
 
+
 restart
 uninstallPackage "ShamashResolution"
 restart
@@ -1085,3 +1155,91 @@ viewHelp ShamashResolution
 check ShamashResolution
 
 restart
+
+
+---- Mike ------------------------
+-- labels are of the form
+(2, {1,2,3}) -- refers to K_2 ** X_1 ** X_2 ** X_3
+
+restart
+debug needsPackage "ShamashResolution"
+R = QQ[a..d]
+K0 = directSum(1:((0,{}) => R^1))
+K1 = directSum(1:((1,{}) => R^{2,3,4,5}))
+K2 = directSum(1:((2,{}) => R^{10,11,12,13,14,15}))
+K3 = directSum(1:((3,{}) => R^{20,21,22,23}))
+K4 = directSum(1:((4,{}) => R^{30}))
+
+X1 = directSum(1:((0,{1}) => R^{100,101,102,103,104,105,106,107}))
+X2 = directSum(1:((0,{2}) => R^{200,300,400,500,600}))
+X3 = directSum(1:((0,{3}) => R^{300,301,302}))
+X4 = directSum(1:((0,{4}) => R^{400,401}))
+
+-- Consider one summand
+assert(indices X1 == {(0, {1})})
+assert(last componentsAndIndices X1 == indices X1)
+assert(first componentsAndIndices X1 == components X1)
+X1' = flattenBlocks X1
+assert(componentsAndIndices X1' == componentsAndIndices X1)
+assert(X1' == X1)
+
+-- Consider 2 summands
+F = X1 ++ X2
+assert(indices F == {0,1})
+assert(components F == {X1, X2})
+assert(last componentsAndIndices F == {(0, {1}), (0, {2})})
+assert(first componentsAndIndices F == {X1, X2})
+
+F1 = flattenBlocks F
+components F1
+indices F1
+
+F2 = flattenBlocks F1
+assert(components F2 == components F1)
+assert(indices F2 == indices F1)
+assert((components F1)/indices == {{(0, {1})}, {(0, {2})}})
+
+assert(components flattenBlocks F == {X1,X2})
+assert(indices flattenBlocks F == {(0, {1}), (0, {2})})
+
+-- Consider 3 summands
+F = X1 ++ X2 ++ X3
+assert(indices F == {0,1})
+assert(components F == {X1++X2, X3})
+assert(last componentsAndIndices F == {(0, {1}), (0, {2}), (0, {3})})
+assert(first componentsAndIndices F == {X1, X2, X3})
+F1 = flattenBlocks F
+assert(last componentsAndIndices F1 == {X1,X2,X3}/indices//flatten)
+assert(first componentsAndIndices F1 == {X1,X2,X3})
+assert((first componentsAndIndices F1)/indices == {X1,X2,X3}/indices)
+
+F2 = flattenBlocks F1
+assert(componentsAndIndices F2 == componentsAndIndices F1)
+indices F2
+(components F2)/indices
+
+-- Consider tensor products
+G = tensorWithComponents(X1, X2, (a,b) -> (a#0+b#0, a#1|b#1))
+assert(indices G == {(0, {1, 2})})
+assert(components G == {G})
+assert(indices first components G == indices G)
+(components G)/indices
+
+-- Matrices
+m11 = map(X2, X3, 0)
+m12 = map(X2, X4, 0) 
+m21 = map(K2, X3, 0)    
+m22 = map(K2, X4, 0)
+m = matrix{{m11,m12},{m21,m22}}
+m1 =flattenBlocks m
+indices source m1
+picture m
+displayBlocks m
+
+G = flattenBlocks(X3 ++ K2 ++ K3)
+H = tensorWithComponents(G,X2, (a,b) -> (a#0+b#0, a#1|b#1))
+indices H
+componentsAndIndices X3
+componentsAndIndices (X3 ++ K2)
+
+(components F)/indices
