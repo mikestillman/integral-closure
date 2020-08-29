@@ -22,10 +22,8 @@ export {
     "shamashFreeSummand",
     "ShamashFreeModule",
     "shamashFreeModule",
-    
     "shamashFree", 
     "shamashMatrix",
-    "picture",
     "shamashResolution",
     "isGolodByShamash",
     "weight",
@@ -38,6 +36,7 @@ export {
     "homologyIsomorphism",    
     "resolutionFromEagon",
     "eagon", --a different approach
+    "trimEagon", -- extract the nonzero part of an Eagon Hashtable
     "eBetti", -- total betti numbers from Eagon res
     "vert", --make a vertical strand of the Eagon complex
     "isIsomorphic",
@@ -45,7 +44,7 @@ export {
     "eagonSymbol",
     "flattenDirectSum",
     "allComponents",
---    "picture",
+    "picture",
     "displayBlocks"
     }
 
@@ -306,7 +305,8 @@ homologyIsomorphism(M , Y1 , 1)
 isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
 ///
 
-
+labeler = (L,F) -> directSum(1:(L=>F));
+    
 eagon = method()
 eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --compute the Eagon configuration
@@ -329,13 +329,13 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     
     --We construct the "Eagon Resolution" to stage b, which is
     --Y^b_0 \to...\to Y^1_0 \to Y^0_0. 
-    
+    Eagon := new MutableHashTable;        
+
     g := numgens R;
     K0 := koszul vars R;
-    
-    labeler := (L,F) -> directSum(1:(L=>F));
+    Eagon#"numgens" = g;
 
-    
+
     
     K := chainComplex(for i from 1 to length K0 list 
 	map(labeler((i-1,{}), K0_(i-1)),
@@ -351,11 +351,10 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     ebasis := memoize homologyCover';
     X := i -> if i<=g and (s := source ebasis(K,i))!=0 then  
              labeler((0,{i}),s) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
---    X := i -> if i<=pd then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
-    pd := 0; while X(pd)!=0 do pd = pd+1; pd = pd-1; -- max i such that X(i)!=0
---    X := i -> if i<=g then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.    
     --we made it a function so that it would be available for all integers i.
-    Eagon := new MutableHashTable;    
+        pd := 0; while X(pd)!=0 do pd = pd+1; pd = pd-1; -- max i such that X(i)!=0
+    	Eagon#"pd" = pd;
+    
     --first make the free modules Y^n_i = Eagon#{0,n,i}. 
     --The maps Y^(n+1)_j \to Y^n_j will be Eagon#{"W",n+1,j}
     west := "W";
@@ -373,8 +372,9 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 	Eagon#{0,0,i} = K_i;-- print Eagon#{0,0,i}.cache.components);
 	Eagon#{0,0,i,isom} = map(Eagon#{0,0,i},K_i,id_(Eagon#{0,0,i}));
       for n from 0 to b do(
-           Eagon#{0,n,g+2} = R^0++R^0; 
-    	   Eagon#{0,n,g+2,isom} = map(Eagon#{0,n,g+2},R^0++R^0,id_(Eagon#{0,n,g+2}))
+           Eagon#{0,n,g+2} = directSum(1:R^0);-- R^0++R^0; 
+--    	   Eagon#{0,n,g+2,isom} = map(Eagon#{0,n,g+2},R^0++R^0,id_(Eagon#{0,n,g+2}))
+    	   Eagon#{0,n,g+2,isom} = map(Eagon#{0,n,g+2},R^0,id_(Eagon#{0,n,g+2}))	   
        	                 ));
     -- cases:
     for n from 1 to b do (
@@ -450,13 +450,67 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 			    Eagon#{0,n-1,i}_[1]*(Eagon#{north, n-2,1}**X(i))*(Eagon#{0,n,i}^[1])
 			    );
 			));
-Eagon
+trimWithLabel hashTable pairs Eagon
 )
 
+///
+restart
+debug loadPackage("ShamashResolution", Reload=>true)
+S = ZZ/101[a,b,c]/ideal(b^2,c^2)
+B = 6
+E = eagon(S,B);
+F = resolutionFromEagon(S,B)
+F = resolutionFromEagon E
+netList apply(B,i-> picture(F.dd_(i+1)))
+netList apply(B,i-> displayBlocks(F.dd_(i+1)))
+apply(B-1, n-> E#{"beta",n+2,0})
+///
+
+trimWithLabel = method()
+
+trimWithLabel ZZ := ZZ => n -> n
+
+trimWithLabel Module := Module => M ->(
+if M == 0 then return (ring M)^0;
+ci := componentsAndIndices M;
+pci := positions(ci_0,M -> M!=0);
+if #pci ===0 then return (ring M)^0;
+if #pci === 1 then labeler(ci_1_pci_0, ci_0_pci_0) else
+            directSum apply(pci, i->labeler(ci_1_i,ci_0_i))
+)
+
+trimWithLabel Matrix := Matrix => f ->(
+    S := source f;
+    T := target f;
+    S':= trimWithLabel S;
+    T':= trimWithLabel T;
+    map(T',T,id_T')*f*map(S,S',id_S)
+    )
+
+trimWithLabel HashTable := HashTable => E -> hashTable apply(keys E, k-> (k,trimWithLabel E#k))
+
+trimWithLabel ChainComplex := ChainComplex => F -> chainComplex apply(
+                              length F, i-> trimWithLabel(F.dd_(i+1))
+			      )
+
+listAllComponents = method()
+listAllComponents Module := List => M ->(
+    if #components M === 1 then return M else
+    flatten apply(components M, N->listAllComponents N)
+    )
+
 resolutionFromEagon = method()
-resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
-    E := eagon(R,b);
+resolutionFromEagon(HashTable, ZZ) := ChainComplex => (E,b) ->(
     chainComplex(apply(b,n->E#{"W",n+1,0}))
+    )
+
+resolutionFromEagon HashTable := ChainComplex => E ->(
+    b := max apply( select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
+    resolutionFromEagon(E,b)
+    )    
+
+resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
+    resolutionFromEagon (eagon(R,b),b)
     )
 
 flattenDirectSum = method()
