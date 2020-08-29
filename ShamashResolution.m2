@@ -455,7 +455,7 @@ trimWithLabel hashTable pairs Eagon
 
 ///
 restart
-debug loadPackage("ShamashResolution", Reload=>true)
+loadPackage("ShamashResolution", Reload=>true)
 S = ZZ/101[a,b,c]/ideal(b^2,c^2)
 B = 6
 E = eagon(S,B);
