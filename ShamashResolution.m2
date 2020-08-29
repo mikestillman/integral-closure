@@ -44,7 +44,9 @@ export {
     "isDegreeZeroSurjection",
     "eagonSymbol",
     "flattenDirectSum",
-    "allComponents"
+    "allComponents",
+--    "picture",
+    "displayBlocks"
     }
 
 -- methods: dim.
@@ -290,9 +292,15 @@ debug loadPackage("ShamashResolution", Reload =>true)
 
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-b = 4
+b = 6
 E = eagon(R,b)
-Y1 = chainComplex apply(3, i-> Eagon#{north,1,i+1})
+F = resolutionFromEagon(R,b)
+picture F.dd_4
+--How can we get rid of the null entries in F_4? 
+--They don't seem to show in displayBlocks, but they do in picture.
+netList apply(b-1,i->displayBlocks(F.dd_(i+1)))
+netList apply(b-1,i->picture(F.dd_(i+1)))
+Y1 = chainComplex apply(3, i-> E#{north,1,i+1})
 M = (HH_0 Y1)**X(1);
 homologyIsomorphism(M , Y1 , 1)
 isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
@@ -324,7 +332,10 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     
     g := numgens R;
     K0 := koszul vars R;
+    
     labeler := (L,F) -> directSum(1:(L=>F));
+
+    
     
     K := chainComplex(for i from 1 to length K0 list 
 	map(labeler((i-1,{}), K0_(i-1)),
@@ -336,11 +347,14 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
         Xi := labeler((0,{i}),source phi); 
         map(K_i, Xi, phi)
         );
+    
     ebasis := memoize homologyCover';
-    --X := i -> if i<=g then labeler((0,{i}),source ebasis(K,i)) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
-    X := i -> if i<=g then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    X := i -> if i<=g and (s := source ebasis(K,i))!=0 then  
+             labeler((0,{i}),s) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+--    X := i -> if i<=pd then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
+    pd := 0; while X(pd)!=0 do pd = pd+1; pd = pd-1; -- max i such that X(i)!=0
+--    X := i -> if i<=g then source ebasis(K,i) else R^0; -- X(i) is the X_i of Gulliksen-Levin.    
     --we made it a function so that it would be available for all integers i.
-
     Eagon := new MutableHashTable;    
     --first make the free modules Y^n_i = Eagon#{0,n,i}. 
     --The maps Y^(n+1)_j \to Y^n_j will be Eagon#{"W",n+1,j}
@@ -355,17 +369,16 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     --Make the free modules Eagon#{0,n,i}. For each one, add a key whose value is an isomorphism
     --from the direct sum of all its components.
     --two special cases:
-    for i from -1 to g+2 do (
-	Eagon#{0,0,i} = K_i++R^0;-- print Eagon#{0,0,i}.cache.components);
-	Eagon#{0,0,i,isom} = map(Eagon#{0,0,i},K_i++R^0,id_(Eagon#{0,0,i}));
+    for i from 0 to g+1 do (
+	Eagon#{0,0,i} = K_i;-- print Eagon#{0,0,i}.cache.components);
+	Eagon#{0,0,i,isom} = map(Eagon#{0,0,i},K_i,id_(Eagon#{0,0,i}));
       for n from 0 to b do(
            Eagon#{0,n,g+2} = R^0++R^0; 
     	   Eagon#{0,n,g+2,isom} = map(Eagon#{0,n,g+2},R^0++R^0,id_(Eagon#{0,n,g+2}))
        	                 ));
-
     -- cases:
     for n from 1 to b do (
-    for i from -1 to g+1 do(
+    for i from 0 to g+1 do(	
        if i == 0 then (
 	   Eagon#{0,n,i} = Eagon#{0,n-1,1} ;
 	   Eagon#{0,n,i,isom} = Eagon#{0,n-1,1,isom} 
@@ -383,11 +396,16 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     for i from 0 to g+2 do Eagon#{north,0,i} = K.dd_i;
 	       
 --Make the maps for n=1:
-    --two special cases:
+    --three special cases:
     Eagon#{north, 1, g+2} = map(Eagon#{0,1,g+1}, Eagon#{0,1,g+2},0);
     Eagon#{west,1,0} = Eagon#{north, 0,1};
+
+    Eagon#{north,1,1} = (Eagon#{north,0,2})*(Eagon#{0,1,1})^[0] +
+	                    ebasis(K,1)*(Eagon#{0,1,1})^[1];
+    Eagon#{beta,1,1} = ebasis(K,1);			    
+    Eagon#{west,1,1} = K.dd_2 | ebasis(K,1);
     
-    for i from 1 to g+1 do(
+    for i from 2 to g+1 do(
 	Eagon#{north,1,i} = (Eagon#{0,1,i-1})_[0]*
 	                    (
 	                    (Eagon#{north,0,i+1})*(Eagon#{0,1,i})^[0] +
@@ -404,7 +422,8 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
        Eagon#{beta,n,0} = Eagon#{beta, n-1,1};       
     	    	    
     for i from 1 to g+1 do(
-    	Eagon#{beta,n,i} = -(Eagon#{0,n-2,i}_[0]*
+    	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then id_(Eagon#{0,n-2,i}) else
+		                                                          Eagon#{0,n-2,i}_[0])*
                              Eagon#{beta,n-1,i}*
                               (Eagon#{north, n-2,1}**X(i)) --*Eagon#{0,n,i}^[1]
 		                   )//
@@ -530,7 +549,13 @@ A = R^1++R^2, B= R^3++R^4
 
 ///
 
+///
+restart
+loadPackage("ShamashResolution", Reload=>true)
+///
+
 TEST/// -- test of eagon
+needsPackage "DGAlgebras"
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 assert(isGolod R)
@@ -557,9 +582,13 @@ time F = resolutionFromEagon(R,8)
 time F' = res(coker vars R,LengthLimit => 8)
 assert isHomogeneous F
 assert all(7,i-> prune HH_(i+1) F == 0)
-netList apply(3,n->E#{"beta",n,2})
 betti F
 betti F'
+
+--the following lines don't quite do sensible things
+apply(3, n->picture E#{"beta",n+1,2})
+apply(3, n->displayBlocks E#{"beta",n+1,2})
+
 ///
 
 eagonSymbol = method()
