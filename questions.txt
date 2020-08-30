@@ -1,0 +1,14 @@
+1) Shamash/Eagon resolution for modules?
+
+2) Start with the case of a complete intersection -- where is the minimization happening?
+
+3) the ACI cases are also simple.
+
+4) codim 3: interaction with the different types of Tor algebras? Avramov's formula for the poincare series in terms of invariants of the tor multiplication suggests yes. The multiplicative structures were discovered by Jerzy on the basis
+of representation theory; alternate description via linkage.
+
+5) Can beta be chosen equivariant for the Kac-Moody structure? In the Dynkin cases? 
+
+6) How do these things change with linkage?
+
+7) "compression" of beta: filtration by X(i) i<= p?
