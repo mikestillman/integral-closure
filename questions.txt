@@ -12,3 +12,6 @@ of representation theory; alternate description via linkage.
 6) How do these things change with linkage?
 
 7) "compression" of beta: filtration by X(i) i<= p?
+
+8) Irena: what's the minimal free res of m generic forms (eg quadrics) in n<m variables?
+What's the koszul homology/Massey structure?

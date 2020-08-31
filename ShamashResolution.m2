@@ -816,35 +816,41 @@ tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
     )
 tensorWithComponents(Module, Module) := (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
 
-end--
+
 
 beginDocumentation()
 
 -*
 restart
 loadPackage "ShamashResolution"
+uninstallPackage "ShamashResolution"
+installPackage "ShamashResolution"
 *-
 
 doc ///
 Key
   ShamashResolution
 Headline
- Construct the Shamash resolution of the residue field
+ Construct the Golod-Shamash-Eagon resolution of the residue field
 Description
   Text
    Produces the components that make up a not-necessarily minimal resolution of
    the residue field of a ring R = S/I where S is a polynomial ring and I is an ideal.
    The resolution constructed is minimal if and only if R is Golod. The resolution
-   constructed is called the Shamash resolution, and the description given here
-   is the one from Shamash *****. 
+   constructed is called the Golod or Shamash or Eagon resolution, and the description given here
+   is the one from Eagon. 
    
    The resolution could, perhaps more properly, be called the Golod-Eagon-Shamash
    resolution. It was described, in the special case where it is minimal, by
-   Golod ****. A general construction was discovered independently by Jack Eagon,
-   perhaps around the same time as the paper of Shamash was written (1967),
-   but not published by him. Eagon's construction, superficially different than
-   the one given here, ,is described in Ch. 4 of the notes
-   by Gulliksen and Levin ****.    
+   E.S. Golod: Homology of some local rings, Uspekhi Mat. Nauk 33 (1978), no. 5(203), 177–178.
+   A general construction was described by Jack Shamash:
+   The Poincaré series of a local ring II, J. Algebra 17 (1971), 1–18
+   and, perhaps around the same time, by Jack Eagon.
+   Eagon's construction, superficially different than Shamash'
+   was not published by him, but is described in Ch. 4 of the notes
+   by Gulliksen and Levin: Homology of local rings,
+   Queen's Paper in Pure and Applied Mathematics, No. 20 Queen's University, Kingston, Ont. 1969.  
+   Our construction follows the method of Eagon.
    
    To get a glimpse of the construction, consider the first steps. Let 
    K be the Koszul complex of S, which is the minimal S-free resolution
@@ -874,39 +880,55 @@ Description
    3) There is a map F_1 -> K_1 that must be introduced and that does not
       come from either the complex F nor the complex K.
       
-   Shamash showed that this complex can be continued to a resolution, the
-   Shamash resolution. 
+   Eagon showed how this complex can be continued to a resolution.
    The underlying graded
    module of the complex is K ** T(F'), where F' is the complex F, shifted by
    1 in homological degree so that F_i is in homological degree i+1, and truncated
    by dropping F_0; and T(F') denotes the tensor algebra on the graded module F'.
 
-   The maps in the complex come from multiplication in the Koszul
-   complex, the operation of writing a product of cycles Z_i(K)**Z_j(K) -> Z_{i+j}(K)
-   as a boundary and lifting this to K_{i+j+1} (these are also the ingredients of
+   The differentials of this complex come from the differentials in the Koszul
+   complex and various maps identifying the homology, at successive stages of the 
+   construction, with tensor products of modules already constructed with the F_i.
+   These are also the ingredients of
    the "Massey products" from topology, used by Golod to construct the complex
-   in a special case,
-   and the "zigzag maps" F_i -> K_i constructed from the double complex
-   F**K as in the usual proof that F**k and R**K have the same homology Tor^S(R,k).
+   in a special case.
+   The function @TO eagon @ produces a hashTable that contains all the data from
+   Eagon's construction of the resolution. resolutionFromEagon produces the 
+   (not necessarily minimal) resolution.  The functions picture and displayBlocks give
+   alternate ways of viewing the innards of the resolution.
   Example
    S = ZZ/101[a,b,c]
    I = ideal(a,b,c)*ideal(b,c)
    R = S/I
-   shamashResolution(5,R)
+   E = resolutionFromEagon(R,3)
+   netList apply(length E, i->E.dd_(i+1))
+  Text
+   As stated above, E = K\otimes T(F'), and one can see the maps between 
+   each pair of summands. We denote the summand 
+   K_i**F_{j_1}**..**F_{j_m} with the symbol (i,{j_1,..,j_m}), and we can write out
+   the differentials in block form with the function displayBlocks:
+  Example
+   netList apply(length E, i->displayBlocks E.dd_(i+1))
+  Text
+   Since the matrices can be very large, it is sometimes better to know just whether
+   a given block is zero or not, and this can be obtained with the function picture:
+  Example   
+   netList apply(length E, i->picture E.dd_(i+1))
 SeeAlso
- koszulMap
- shamashMatrix
- shamashFrees
+   eagon
+   resolutionFromEagon
+   displayBlocks
+   picture
 ///
 
 doc ///
    Key
-    shamashResolution
-    (shamashResolution, ZZ, Ring)
+    resolutionFromEagon
+    (resolutionFromEagon, Ring, ZZ)
    Headline
     computes a resolution of the residue field
    Usage
-    F = shamashResolution(n,R)
+    F = resolutionFromEagon(R,n)
    Inputs
     R:Ring
      factor ring of a polynomial ring
@@ -922,11 +944,14 @@ doc ///
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
      R = S/I
-     shamashResolution(5,R)
+     resolutionFromEagon(R,5)
    SeeAlso
      ShamashResolution
 ///
 
+
+end--
+-*
 doc ///
 Key
  koszulMap
@@ -961,8 +986,9 @@ Description
    K = koszul vars S
    koszulMap(2,K,F)
 ///
+*-
 
-
+-*
 doc ///
    Key
     shamashMatrix
@@ -1004,6 +1030,8 @@ doc ///
     picture
     matrix
       ///
+*-
+-*
 doc ///
    Key
     shamashFrees
@@ -1048,7 +1076,8 @@ doc ///
     shamashMatrix
     dim
 ///
-
+*-
+-*
 doc ///
    Key
     (dim, List, ShamashData)
@@ -1079,7 +1108,7 @@ doc ///
     shamashData
     shamashFrees
 ///
-
+*-
 doc ///
    Key
     picture
@@ -1161,7 +1190,7 @@ doc ///
      true if ring is Golod
    Description
     Text
-     Tests whether shamashResolution(1+numgens R,R)
+     Tests whether resolutionFromEagon(R,1+numgens R)
      is minimal or not. It is a result of Avramov that it
      is enough to test this much of the resolution (Reason: all the Massey operations
      are already used in the first 1+numgens R maps.)
@@ -1171,7 +1200,7 @@ doc ///
      S = ZZ/101[a,b,c]
      R = S/(ideal vars S)^2
      res(coker vars R)
-     shamashResolution(4,R)
+     resolutionFromEagon(R,4)
      assert(isGolodByShamash R == true)
     Text
      On the other hand, complete intersections are never Golod
@@ -1179,11 +1208,11 @@ doc ///
      use S
      R = S/ideal"a3,b3,c3"
      res coker vars R
-     F = shamashResolution(4,R)
+     F = resolutionFromEagon(R,4)
      F.dd_4
      assert(isGolodByShamash R == false)
    SeeAlso
-    shamashResolution
+    resolutionFromEagon
     ///
 
 doc ///
@@ -1244,22 +1273,31 @@ doc ///
 ///
 
 
-TEST ///
 -*
 restart
 loadPackage("ShamashResolution", Reload => true)
 *-
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b,c)*ideal(b,c)
-     F = shamashResolution(6,S/I)
+TEST/// -- test of eagon
+needsPackage "DGAlgebras"
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+assert(isGolod R)
+bound = 6
+time F = resolutionFromEagon(R,bound)
+assert(F.dd^2 == 0)
+assert isHomogeneous F
+time F = resolutionFromEagon(R,bound)
+time F' = res(coker vars R,LengthLimit => bound)
+assert all(bound-1,i-> prune HH_(i+1) F == 0)
+assert(betti res(coker vars R,LengthLimit => bound) == betti F)
 
-     S = ZZ/101[a]
-     I = ideal(a^3)
-     F = shamashResolution(6,S/I)
---test exactness, composition 0, compare with DGAlgebras code.
--- test code and assertions here
---
--- may have as many TEST sections as needed
+S = ZZ/101[a,b,c,d,e]
+R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
+assert(not isGolod R)
+time F = resolutionFromEagon(R,8)
+assert isHomogeneous F
+assert (F.dd^2 == 0)
+assert all(7,i-> prune HH_(i+1) F == 0)
 ///
 
 end--
