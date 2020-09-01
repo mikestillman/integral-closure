@@ -14,7 +14,7 @@ newPackage(
 
 
 export {
-    "ShamashData",
+    "ShamashData", 
     "shamashData",
     "koszulMap",
 
