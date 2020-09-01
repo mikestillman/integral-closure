@@ -45,7 +45,9 @@ export {
     "flattenDirectSum",
     "allComponents",
     "picture",
-    "displayBlocks"
+    "displayBlocks",
+    "componentsAndIndices",
+    "mapComponent"
     }
 
 -- methods: dim.
@@ -435,7 +437,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 			            Eagon#{0,n-1,i}_[0]*Eagon#{west,n-1,i+1}*Eagon#{0,n,i}^[0] 
 				                     else 0);
 
-	if i == 1 then Eagon#{north,n,i} = -- special case because Y^n_0 is not 
+	if i == 1 then Eagon#{north,n,i} = -- special case because Y^n_0 is not a tensor product with Y^(n-1)_0
 	                    (
 	                    (Eagon#{north,n-1,i+1})*((Eagon#{0,n,i})^[0])+
 	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
@@ -785,11 +787,23 @@ picture Matrix := (M1) -> (
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
-                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "1" else "*"
+		cont := ideal M^[t]_[s];
+                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "id" else 
+		if cont == ideal(1_(ring mts)) then "u" else "*"
                 ))
         ), Alignment=>Center)
     )
 
+mapComponent = method()
+mapComponent(Matrix, Sequence, Sequence) := Matrix => (M1,tar,src) -> (
+    --Matrix should be one with labeled components, such as produced by
+    --E = eagon(R,n)
+    --M = E#{"N",4,1}
+    --or
+    --M = (resolutionFromEagon(R,n)).dd_4
+    M := flattenBlocks M1;
+    M^[tar]_[src])
+    
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
@@ -825,6 +839,7 @@ restart
 loadPackage "ShamashResolution"
 uninstallPackage "ShamashResolution"
 installPackage "ShamashResolution"
+viewHelp ShamashResolution
 *-
 
 doc ///
@@ -1399,3 +1414,32 @@ componentsAndIndices X3
 componentsAndIndices (X3 ++ K2)
 
 (components F)/indices
+
+--Irena's examples: m generic forms of degree d in n variables
+restart
+loadPackage("ShamashResolution", Reload=> true)
+--
+(m,n,d) = (4,3,2)
+S = ZZ/101[x_1..x_n]
+I = ideal random(S^1,S^{m:-d})
+R = S/I
+E' = eagon(R,4);
+E = resolutionFromEagon(R,n+1)
+componentsAndIndices E'#{0,4,1}
+componentsAndIndices E_4
+F = res (coker vars R, LengthLimit =>n+1)
+displayBlocks (E.dd_4)
+picture(M = E.dd_4)
+mapComponent(M, (0,{2}), (0,{1,1}))
+
+
+==================bug
+picture E'#{"beta",3,0}-- bug! source has lost its tag.
+displayBlocks (E'#{"beta",3,0}) --bug
+
+--but these are ok:
+displayBlocks E'#{"W",4,0}
+picture E'#{"W",4,0}
+picture E'#{"N",3,1}
+mapComponent(M, (0,{2}), (0,{1,1}))
+
