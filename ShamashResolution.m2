@@ -307,6 +307,8 @@ homologyIsomorphism(M , Y1 , 1)
 isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
 ///
 
+
+
 labeler = (L,F) -> directSum(1:(L=>F));
     
 eagon = method()
@@ -386,7 +388,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 	   Eagon#{0,n,i,isom} = Eagon#{0,n-1,1,isom} 
 	)
         else (
-        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++tensorWithComponents(Eagon#{0,n-1,0},X(i),(a,b)->(a#0+b#0,a#1|b#1));
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++eTensor(Eagon#{0,n-1,0},X(i));
 	Eagon#{0,n,i,isom} = Eagon#{0,n-1,i+1,isom}++
 	             directSum(apply(components source Eagon#{0,n-1,0,isom}, c -> id_c**X(i)))
 	     )
@@ -427,7 +429,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then id_(Eagon#{0,n-2,i}) else
 		                                                          Eagon#{0,n-2,i}_[0])*
                              Eagon#{beta,n-1,i}*
-                              (Eagon#{north, n-2,1}**X(i)) --*Eagon#{0,n,i}^[1]
+                               eTensor(Eagon#{north, n-2,1},X(i)) --,(a,b)->(a#0+b#0,a#1|b#1)) --*Eagon#{0,n,i}^[1]
 		                   )//
 			       Eagon#{north,n-2,i+1};
 			               
@@ -805,7 +807,7 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M1,tar,src) -> (
     M^[tar]_[src])
     
 tensorWithComponents = method()
-tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
+tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
     (compsF, indicesF) := componentsAndIndices F;
     (compsG, indicesG) := componentsAndIndices G;
@@ -828,9 +830,16 @@ tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
         );
     if #comps == 0 then (ring F)^0 else directSum comps
     )
-tensorWithComponents(Module, Module) := (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
+                          src :=  tensorWithComponents(source phi, G, combineIndices);
+                          tar :=  tensorWithComponents(target phi, G, combineIndices);			  
+			  map(tar,src,phi**G))
+			  
 
-
+eTensor = method()
+eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
+eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
 
 beginDocumentation()
 
@@ -1419,7 +1428,7 @@ componentsAndIndices (X3 ++ K2)
 restart
 loadPackage("ShamashResolution", Reload=> true)
 --
-(m,n,d) = (4,3,2)
+(m,n,d) = (3,3,2)
 S = ZZ/101[x_1..x_n]
 I = ideal random(S^1,S^{m:-d})
 R = S/I
@@ -1435,11 +1444,15 @@ mapComponent(M, (0,{2}), (0,{1,1}))
 
 ==================bug
 picture E'#{"beta",3,0}-- bug! source has lost its tag.
-displayBlocks (E'#{"beta",3,0}) --bug
-
+picture (M = E'#{"W",2,1})
+displayBlocks (M = E'#{"beta",3,0}) --bug
+indices source M
+indices target M
+M
 --but these are ok:
 displayBlocks E'#{"W",4,0}
 picture E'#{"W",4,0}
 picture E'#{"N",3,1}
 mapComponent(M, (0,{2}), (0,{1,1}))
-
+mapComponent(M, (2,{}), (1,{1}))
+picture M
