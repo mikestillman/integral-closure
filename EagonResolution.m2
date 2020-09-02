@@ -145,16 +145,18 @@ homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
 )
 ///
 restart
-needsPackage "DGAlgebras"
-debug loadPackage("EagonResolution", Reload =>true)
-
+loadPackage("EagonResolution", Reload =>true)
+///
+TEST///
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 b = 6
 E = eagon(R,b);
 F = resolutionFromEagon E
-picture F.dd_4
-isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
+G = res (coker vars R, LengthLimit => b)
+assert(betti F == betti G)
+assert(F.dd^2== 0)
+assert(all(b-1, i-> prune (HH_(i+1) F) == 0))
 ///
 
 labeler = (L,F) -> directSum(1:(L=>F));
@@ -329,7 +331,8 @@ B = 6
 E = eagon(S,B);
 F = resolutionFromEagon(S,B)
 F1 = resolutionFromEagon E
-F2 = res (coker vars S, LengthLimit => 6)
+assert (F == F1)
+assert all(B-1,i -> prune HH_(i+1) F == 0)
 ///
 
 
@@ -347,130 +350,35 @@ resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
     resolutionFromEagon (eagon(R,b),b)
     )
 
-
-///
-restart
-needsPackage "DGAlgebras"
-debug loadPackage("EagonResolution", Reload =>true)
-///
-
-///
-load"~/gitRepos/SocleInSyzygy/DaoSocle.m2"
-S = ZZ/101[a,b]
-ML = matrix"a,b2,0;
-            0,b2,a"
-isHomogeneous ML
-MNL = matrix"a2,b2,0;0,a2,b2"
-IL = minors(2, ML)
-INL = minors(2,MNL)
-isGolod(S/INL)
-isGolod(S/IL)
-
-kSS(S/IL, 5)
-kSS(S/INL,5)
-EL = eagon(RL=S/IL,6);
-
-EL#{0,5,0};
-netList pairs EL
-ENL= eagon(S/INL,5);
-
-
-
-EL#{0,1,3}
-F6 = EL#{0,5,1}
-(components F6)/components
-FL = res coker vars (S/IL)
-EL#{"dHor",3,0}
-FL.dd_3
-CL = chainComplex apply (4,i->EL#{"dHor",i+1,0})
-prune HH_3 CL
-FEL = resolutionFromEagon(S/IL,10)
-apply(9, i-> prune HH_(i+1) FEL)
-
-FNL = res coker vars(S/INL)
-ENL#{"dHor",2,0}
-FNL.dd_2
-isIsomorphic(image FNL.dd_3, image ENL#{"dHor",3,0})
-isDegreeZeroSurjection(image FNL.dd_2, image ENL#{"dHor",2,0})
---why isn't this being defined???: isDegreeZeroSurjection(image FNL.dd_2, image ENL#{"dHor",2,0},Verbose =>true)
-
-betti FNL == betti G
-G = resolutionFromEagon(S/INL, 6)
-G.dd^2
-apply(length G-1, i->prune HH_(i+1) G)
-
-kk= ZZ/101
-S = kk[x_0..x_3]
-I = monomialCurveIdeal(S,{2,3,4})
-R = S/I
-E = eagon(R,6)
-F = resolutionFromEagon(R,12)
-betti (G = res(coker vars R, LengthLimit => 6))
-F.dd_4
-E#{"beta",4,0}
-components source E#{"beta",3,1}
-keys E
-betti F
-isGolod R
-X1= R^1
-X2 = R^2
-X3 = R^3
-X4= R^4
-
-F = ("X1"=>X1)++("X2"=>X2)
-G = ("X3"=>X3)++(C=>X4)
-(components (F++F++G))/indices
-
-indices oo
-components oo
-A = R^1++R^2, B= R^3++R^4
-
-///
-
-
 ///
 restart
 loadPackage("EagonResolution", Reload=>true)
 ///
 
 TEST/// -- test of eagon
-needsPackage "DGAlgebras"
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-assert(isGolod R)
 bound = 6
 E = eagon(R,bound);
-Y = apply(bound, n-> chainComplex(apply(4, i-> E#{"dVert", n,i+1})));
+Y = apply(bound, n-> verticalStrand(E,n))
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
-time F = resolutionFromEagon(R,bound)
-time F' = res(coker vars R,LengthLimit => bound)
+F = resolutionFromEagon(R,bound)
 assert isHomogeneous F
 assert all(bound-1,i-> prune HH_(i+1) F == 0)
 assert(betti res(coker vars R,LengthLimit => bound) == betti F)
 
 S = ZZ/101[a,b,c,d,e]
 R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
-assert(not isGolod R)
-E = eagon(R,10)
-Y = apply(8, n-> chainComplex(apply(4, i-> E#{"dVert", n,i+1})));
-isHomogeneous Y_0 -- this should be the koszul complex!!
+E = eagon(R,5);
+Y = apply(5, n -> verticalStrand(E,n));
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
-time F = resolutionFromEagon(R,8)
-time F' = res(coker vars R,LengthLimit => 8)
+F = resolutionFromEagon(R,5)
 assert isHomogeneous F
-assert all(7,i-> prune HH_(i+1) F == 0)
-betti F
-betti F'
-
---the following lines don't quite do sensible things
-apply(3, n->picture E#{"beta",n+1,2})
-apply(3, n->displayBlocks E#{"beta",n+1,2})
-
+assert all(4,i-> prune HH_(i+1) F == 0)
 ///
 
---the following is almost right -- The indices of the X_i are not quite ok.
 eagonSymbols = method()
 eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
     --symbol of the module Y^n_i, as a list of pairs, defined inductively from n-1,i+1 and n-1,0
@@ -511,30 +419,6 @@ assert(eagonSymbols(2,0) == {(2, {}), (0, {1})})
 assert(eagonSymbols(3,1) == {(4, {}), (0, {3}), (1, {2}), (2, {1}), (0, {1, 1})})
 ///
     
-///
-restart
-needsPackage "DGAlgebras"
-loadPackage("EagonResolution", Reload =>true)
-
-S = ZZ/101[a,b,c]
-R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-E = eagon(R,5)
-V=vert(E,1)
-coker V.dd_1
-V_0
-F = res coker vars R
-F.dd_2
-prune (HH_0 V)
-
-HH_2 V
-ideal R
-pairs E
-K = keys E
-isGolod R
-keys E
-///
-
-
 componentsAndIndices = (F) -> (
     if not F.cache.?components then (
         -- F has no components
@@ -555,11 +439,6 @@ flattenBlocks Module := (F) -> (
     if not isFreeModule F then error "expected a free module";
     (comps, inds) := componentsAndIndices F;
     compsLabelled := for i from 0 to #comps-1 list (
--*        if inds#i === null then (
-            if rank comps#i > 0 then error "expected zero module";
-            continue;
-            );
-*-
         inds#i => comps#i
         );
     directSum compsLabelled
@@ -618,23 +497,7 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     (<<endl<<"*** bad source or target symbol; use `picture M1' to check ***"<<endl<<endl; error())
     )
 
-///
-restart
-loadPackage("EagonResolution", Reload => true)
-S = ZZ/101[a,b,c,d,e]
-R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
-E = eagon (R,6);
-time F = resolutionFromEagon E
-netList picture F
-netList for n from 2 to 6 list picture E#{"beta",n,1}
-mapComponent(E#{"dHor",3,0}, (0,{1}),(1,{1}))
-picture E#{"dVert",3,1}
-mapComponent(E#{"dVert",3,1}, (0,{2}),(0,{1,1})) 
-picture E#{"beta",3,1}
-mapComponent(E#{"beta",3,1}, (0,{2}),(0,{1,1})) 
-mapComponent(E#{"beta",3,1}, (0,{3}),(0,{1,1})) 
 
-///
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
@@ -773,351 +636,78 @@ doc ///
    Key
     resolutionFromEagon
     (resolutionFromEagon, Ring, ZZ)
+    (resolutionFromEagon, HashTable)
    Headline
     computes a resolution of the residue field
    Usage
     F = resolutionFromEagon(R,n)
+    F = resolutionFromEagon E
    Inputs
     R:Ring
      factor ring of a polynomial ring
     n:ZZ
      number of maps to compute
+    E:HashTable
+     computed by eagon(R,n)
    Outputs
     F:ChainComplex
-     possibly non-minimal resolution of R/(ideal vars R)    
+     possibly non-minimal R-free resolution of R/(ideal vars R)    
    Description
     Text
-     computes the Shamash resolution
+     computes the Eagon resolution
     Example
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
      R = S/I
      resolutionFromEagon(R,5)
    SeeAlso
-     EagonResolution
+     eagon
 ///
 
+--end--
 
-end--
--*
-doc ///
-Key
- koszulMap
- (koszulMap, ZZ, ChainComplex, ChainComplex)
-Headline
- Lift of the homology isomorphism minimal free resolution to Koszul complex
-Usage
- fi = koszulMap(i,K,F)
-Inputs
- K:ChainComplex
-   Koszul Complex of the ambient polynomial ring S
- F:ChainComplex
-   minimal free resolution of S/I
- i:ZZ
-  index in the complex F
-Outputs
- fi:Matrix
-  map from F_i to K_i
-Description
-  Text
-   Let K be the koszul complex of a polynomial ring S,
-   and let F be a resolution of R := S/I. The complexes
-   F ** k and R**K both compute {Tor_i}^S(R,k) = F_i**k = H_i(R**K).
-   Since F_i is free, we may lift the last isomorphism to a map
-   fibar: F_i -> Z_i(R**K) \subset R**K_i and then to a map
-   fi: F_i -> K_i, which is computed by this function. This is the "zigzag map"
-   in the double complex F**K.
-  Example
-   S = ZZ/101[a,b,c]
-   I = ideal(a,b,c)*ideal(b,c)
-   F = res I
-   K = koszul vars S
-   koszulMap(2,K,F)
 ///
-*-
+--use for doc of mapComponent
+S = ZZ/101[a,b,c,d,e]
+R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
+E = eagon (R,5);
+picture E#{"dHor",3,0}
+mapComponent(E#{"dHor",3,0}, (0,{1}),(1,{1}))
+picture E#{"dVert",3,1}
+mapComponent(E#{"dVert",3,1}, (0,{2}),(0,{1,1})) 
+picture E#{"beta",3,1}
+mapComponent(E#{"beta",3,1}, (0,{2}),(0,{1,1})) 
+///
 
--*
 doc ///
    Key
-    shamashMatrix
-    (shamashMatrix, List, List, ShamashData)
-   Headline
-    Compute the components of a map in the Shamash resolution
-   Usage
-    Fs = shamashMatrix(L0,L1,D)    
-   Inputs
-    L0 : List
-     of lists, each of which specifies the components of the (i-1)st term of a Shamash resolution
-    L1 : List
-     of lists, each of which specifies the components of the i-th term of a Shamash resolution    
-    D : ShamashData
-     parts from which the Shamash resolution is built
-   Outputs
-    Fs : ShamashMatrix
-     hashTable with keys {source,map,ring,target}
-   Description
-    Text
-     Fs prints as a display containing the matrices that are components of the 
-     i-th map in the Shamash resolution.      
-    Example
-     S = ZZ/101[a,b,c];
-     I = ideal(a,b)*ideal(a,b,c)
-     R = S/I;
-     D = shamashData R
-     Ls = for i from 0 to 8 list shamashFrees(D,i,2)
-     Fs = for i from 1 to 8 list shamashMatrix(Ls#(i-1), Ls#i, D);
-     netList for i from 0 to #Fs-2 list compose(Fs#i, Fs#(i+1))
-     picture Fs#2
-     matrix Fs#2
-    Text
-     The dots indicate that the compositions of the components are all 0, as they 
-     should be in a complex.
-   SeeAlso
-    shamashFrees
-    shamashData
     picture
-    matrix
-      ///
-*-
--*
-doc ///
-   Key
-    shamashFrees
-    (shamashFrees, ZZ,ZZ,ZZ)
-    (shamashFrees, ShamashData, ZZ, ZZ)
-    (shamashFrees, ShamashData, ZZ, InfiniteNumber)
-    (shamashFrees, ShamashData, ZZ)
+    (picture, Matrix)
    Headline
-    Compute the symbols representing free modules in a term of the Shamash Resolution
+    information about components of a labeled Matrix or ChainComplex
    Usage
-    Fr = shamashFrees(r,maxK,maxF)
-    Fr = shamashFrees(D,r,maxLength)
-    Fr = shamashFrees(D,r,InfiniteNumber)
-    Fr = shamashFrees(D,r)    
+    N = picture M
    Inputs
-    r : ZZ
-     index in the resolution
-    D : ShamashData
-     result of shamashData I
-    maxK : ZZ
-     length of Koszul complex
-    maxF : ZZ
-     length of resolution of S/I
-    maxLength : ZZ
-     max of maxK, maxF (or InfiniteNumber)
+    M:Matrix
    Outputs
-    Fr : List
-     elements are lists representing free summands of the r-th term of the Shamash Resolution
+    N:Net
+     prints a "picture" -- a net -- showing information about the blocks
    Description
     Text
-     Compute the components of a term in the Shamash Resolution.
+     picture M prints a net showing which blocks of the matrix are 0 (represented by .) or nonzero,
+     in the maximal ideal, represented by * or contain a unit entry, represented by u; or are
+     identity blocks, represented by id.
     Example
      S = ZZ/101[a,b,c]
      I = ideal(a,b)*ideal(a,b,c)
      R = S/I
-     F = res coker vars R
-     D = shamashData I
-     L = shamashFrees(D,3)
-     sum dim(L,D) == rank F_3
+     E = eagon(R,4);
+     picture E#{"beta",3,1}
+     netList picture resolutionFromEagon E
    SeeAlso
-    shamashData
-    shamashMatrix
-    dim
-///
-*-
--*
-doc ///
-   Key
-    (dim, List, ShamashData)
-   Headline
-    computes the dimensions of the components of a free module
-   Usage
-    d = dim(L,D)
-   Inputs
-    L:List
-     list of lists specifying summands of a free module
-    D:ShamashData
-     contains the Koszul complex and free resolution, from which the dimensions can be determined
-   Outputs
-    d:List
-     of ZZ, the dimensions of the components
-   Description
-    Text
-     L is a list of list; the element {p,q1,q2...} representing K_p**F_q1**F_q2**...
-     The output is a list of the dimensions of these tensor products
-    Example
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b)*ideal(a,b,c)
-     D = shamashData I
-     L = shamashFrees(D,3)
-     dim(L,D)
-   SeeAlso
-    ShamashData
-    shamashData
-    shamashFrees
-///
-*-
-doc ///
-   Key
-    picture
-    (picture, ShamashMatrix)
-   Headline
-    exhibits the nonzero parts of the Shamash matrix
-   Usage
-    N = picture M
-   Inputs
-    M:ShamashMatrix
-   Outputs
-    N:Net
-     prints a "picture" -- a net -- showing the where the nonzero blocks are
-   Description
-    Text
-     A ShamashMatrix M is a HashTable with keys {source, map, ring, target}. Source and target are
-     lists of lists representing free summands. picture M prints a net showing which source summands 
-     have nonzero maps to which target summands.
-    Example
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b)*ideal(a,b,c)
-     D = shamashData I
-     L1 = shamashFrees(D,3)
-     L0 = shamashFrees(D,2)
-     M = shamashMatrix(L0, L1, D)
-     picture M
-     matrix M
-   SeeAlso
-    shamashMatrix
-    shamashFrees
-    shamashData
-    matrix
-///
- 
-doc ///
-   Key
-    (matrix, ShamashMatrix)
-   Headline
-    turns the HashTable respresentation into an ordinary matrix
-   Usage
-    M1 = matrix M
-   Inputs
-    M:ShamashMatrix
-   Outputs
-    M':Matrix
-   Description
-    Text
-     A ShamashMatrix M is a HashTable with keys {source, map, ring, target}. Source and target are
-     lists of lists representing free summands. matrix M assembles the blocks into an ordinary matrix.
-    Example
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b)*ideal(a,b,c)
-     D = shamashData I
-     L1 = shamashFrees(D,3)
-     L0 = shamashFrees(D,2)
-     M = shamashMatrix(L0, L1, D)
-     picture M
-     matrix M
-   SeeAlso
-    shamashMatrix
-    shamashFrees
-    shamashData
-    matrix
-///
-
-doc ///
-   Key
-    isEagonByShamash
-    (isEagonByShamash,Ring)
-   Headline
-    determines whether a ring is Golod
-   Usage
-    b = isGolodByShamash R
-   Inputs
-    R: Ring
-     graded ring
-   Outputs
-    b:Boolean
-     true if ring is Golod
-   Description
-    Text
-     Tests whether resolutionFromEagon(R,1+numgens R)
-     is minimal or not. It is a result of Avramov that it
-     is enough to test this much of the resolution (Reason: all the Massey operations
-     are already used in the first 1+numgens R maps.)
- 
-     It is known (Huneke- ***) that powers of ideals are Golod
-    Example
-     S = ZZ/101[a,b,c]
-     R = S/(ideal vars S)^2
-     res(coker vars R)
-     resolutionFromEagon(R,4)
-     assert(isGolodByShamash R == true)
-    Text
-     On the other hand, complete intersections are never Golod
-    Example
-     use S
-     R = S/ideal"a3,b3,c3"
-     res coker vars R
-     F = resolutionFromEagon(R,4)
-     F.dd_4
-     assert(isGolodByShamash R == false)
-   SeeAlso
+    eagon
+    "beta"
     resolutionFromEagon
-    ///
-
-doc ///
-   Key
-    shamashData
-    (shamashData, Ideal)
-   Headline
-    items in the construction of the Shamash resolution
-   Usage
-    D = shamashData I
-   Inputs
-    I : Ideal
-     of a polynomial ring S
-   Outputs
-    D : ShamashData
-     hashTable
-   Description
-    Text
-     The i-th term in the Shamash resolution of the residue field over R = S/I
-     is R ** a direct sum of components K_p**F_(q_1)**..**F_(q_k)
-     where i = p+k = sum q_r . The maps are made from the differentials of
-     K and F together with the zigzag maps f_i: F_i -> K_i constructed by 
-     f_i =  koszulMap(i,K,F).
-     
-     The function D = shamashData I collects, in the HashTable D:
-     
-     I = D.Ideal
-     
-     R = D.ring = S/I
-     
-     F = D.resolution, the minimal free resolution of R
-     
-     F**R = D.ResolutionR
-     
-     K = D.koszul, the koszul complex of S
-     
-     K**R = D.KoszulR
-     
-     f_1...f_{(numgens S)} = D#"Alpha", the functions constructed by koszulMap(i,K,F).
-
-    Example
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b,c)*ideal(b,c)
-     D = shamashData I
-     keys D
-     F = D.resolution
-     K = D.koszul
-     D#"Alpha"
-   SeeAlso
-    koszulMap
-///
-
-doc ///
-   Key
-    ShamashData
-   Headline
-    holds intermediate computations for shamashResolution
 ///
 
 
@@ -1125,42 +715,6 @@ doc ///
 restart
 debug loadPackage("EagonResolution", Reload => true)
 *-
-TEST/// -- test of eagon
-needsPackage "DGAlgebras"
-S = ZZ/101[a,b,c]
-R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-assert(isGolod R)
-bound = 6
-time F = resolutionFromEagon(R,bound)
-netList picture F
-E = eagon(R,bound);
-
-
-netList picture F
-netList for n from 2 to 6 list picture E#{"beta",n,1}
-assert(F.dd^2 == 0)
-assert isHomogeneous F
-time F = resolutionFromEagon(R,bound)
-time F' = res(coker vars R,LengthLimit => bound)
-assert all(bound-1,i-> prune HH_(i+1) F == 0)
-assert(betti res(coker vars R,LengthLimit => bound) == betti F)
-
-
-S = ZZ/101[a,b,c,d,e]
-R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
-assert(not isGolod R)
-E = eagon (R,6)
-E = eagon(R,8); -- without the ; it times out in conversion of output to net!
-time F = resolutionFromEagon E
-netList picture F
-netList for n from 2 to 6 list picture E#{"beta",n,1}
-M = flattenBlocks E#{"dHor",3,0}
-mapComponent(M, (0,{2}),(0,{1,1})) -- bug  in mapComponent.
-
-assert isHomogeneous F
-assert (F.dd^2 == 0)
-assert all(7,i-> prune HH_(i+1) F == 0)
-///
 
 end--
 
