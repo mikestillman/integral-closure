@@ -14,7 +14,7 @@ newPackage(
 
 
 export {
-    "ShamashData",
+    "ShamashData", 
     "shamashData",
     "koszulMap",
 
@@ -45,7 +45,9 @@ export {
     "flattenDirectSum",
     "allComponents",
     "picture",
-    "displayBlocks"
+    "displayBlocks",
+    "componentsAndIndices",
+    "mapComponent"
     }
 
 -- methods: dim.
@@ -305,6 +307,8 @@ homologyIsomorphism(M , Y1 , 1)
 isIsomorphic(X(1)**HH_0 Y1, HH_1 Y1)
 ///
 
+
+
 labeler = (L,F) -> directSum(1:(L=>F));
     
 eagon = method()
@@ -384,7 +388,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 	   Eagon#{0,n,i,isom} = Eagon#{0,n-1,1,isom} 
 	)
         else (
-        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++tensorWithComponents(Eagon#{0,n-1,0},X(i),(a,b)->(a#0+b#0,a#1|b#1));
+        Eagon#{0,n,i} = Eagon#{0,n-1,i+1}++eTensor(Eagon#{0,n-1,0},X(i));
 	Eagon#{0,n,i,isom} = Eagon#{0,n-1,i+1,isom}++
 	             directSum(apply(components source Eagon#{0,n-1,0,isom}, c -> id_c**X(i)))
 	     )
@@ -425,7 +429,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
     	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then id_(Eagon#{0,n-2,i}) else
 		                                                          Eagon#{0,n-2,i}_[0])*
                              Eagon#{beta,n-1,i}*
-                              (Eagon#{north, n-2,1}**X(i)) --*Eagon#{0,n,i}^[1]
+                               eTensor(Eagon#{north, n-2,1},X(i)) --,(a,b)->(a#0+b#0,a#1|b#1)) --*Eagon#{0,n,i}^[1]
 		                   )//
 			       Eagon#{north,n-2,i+1};
 			               
@@ -435,7 +439,7 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 			            Eagon#{0,n-1,i}_[0]*Eagon#{west,n-1,i+1}*Eagon#{0,n,i}^[0] 
 				                     else 0);
 
-	if i == 1 then Eagon#{north,n,i} = -- special case because Y^n_0 is not 
+	if i == 1 then Eagon#{north,n,i} = -- special case because Y^n_0 is not a tensor product with Y^(n-1)_0
 	                    (
 	                    (Eagon#{north,n-1,i+1})*((Eagon#{0,n,i})^[0])+
 	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
@@ -785,13 +789,25 @@ picture Matrix := (M1) -> (
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
-                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "1" else "*"
+		cont := ideal M^[t]_[s];
+                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "id" else 
+		if cont == ideal(1_(ring mts)) then "u" else "*"
                 ))
         ), Alignment=>Center)
     )
 
+mapComponent = method()
+mapComponent(Matrix, Sequence, Sequence) := Matrix => (M1,tar,src) -> (
+    --Matrix should be one with labeled components, such as produced by
+    --E = eagon(R,n)
+    --M = E#{"N",4,1}
+    --or
+    --M = (resolutionFromEagon(R,n)).dd_4
+    M := flattenBlocks M1;
+    M^[tar]_[src])
+    
 tensorWithComponents = method()
-tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
+tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
     (compsF, indicesF) := componentsAndIndices F;
     (compsG, indicesG) := componentsAndIndices G;
@@ -814,37 +830,51 @@ tensorWithComponents(Module, Module, Function) := (F, G, combineIndices) -> (
         );
     if #comps == 0 then (ring F)^0 else directSum comps
     )
-tensorWithComponents(Module, Module) := (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
+                          src :=  tensorWithComponents(source phi, G, combineIndices);
+                          tar :=  tensorWithComponents(target phi, G, combineIndices);			  
+			  map(tar,src,phi**G))
+			  
 
-end--
+eTensor = method()
+eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
+eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
 
 beginDocumentation()
 
 -*
 restart
 loadPackage "ShamashResolution"
+uninstallPackage "ShamashResolution"
+installPackage "ShamashResolution"
+viewHelp ShamashResolution
 *-
 
 doc ///
 Key
   ShamashResolution
 Headline
- Construct the Shamash resolution of the residue field
+ Construct the Golod-Shamash-Eagon resolution of the residue field
 Description
   Text
    Produces the components that make up a not-necessarily minimal resolution of
    the residue field of a ring R = S/I where S is a polynomial ring and I is an ideal.
    The resolution constructed is minimal if and only if R is Golod. The resolution
-   constructed is called the Shamash resolution, and the description given here
-   is the one from Shamash *****. 
+   constructed is called the Golod or Shamash or Eagon resolution, and the description given here
+   is the one from Eagon. 
    
    The resolution could, perhaps more properly, be called the Golod-Eagon-Shamash
    resolution. It was described, in the special case where it is minimal, by
-   Golod ****. A general construction was discovered independently by Jack Eagon,
-   perhaps around the same time as the paper of Shamash was written (1967),
-   but not published by him. Eagon's construction, superficially different than
-   the one given here, ,is described in Ch. 4 of the notes
-   by Gulliksen and Levin ****.    
+   E.S. Golod: Homology of some local rings, Uspekhi Mat. Nauk 33 (1978), no. 5(203), 177–178.
+   A general construction was described by Jack Shamash:
+   The Poincaré series of a local ring II, J. Algebra 17 (1971), 1–18
+   and, perhaps around the same time, by Jack Eagon.
+   Eagon's construction, superficially different than Shamash'
+   was not published by him, but is described in Ch. 4 of the notes
+   by Gulliksen and Levin: Homology of local rings,
+   Queen's Paper in Pure and Applied Mathematics, No. 20 Queen's University, Kingston, Ont. 1969.  
+   Our construction follows the method of Eagon.
    
    To get a glimpse of the construction, consider the first steps. Let 
    K be the Koszul complex of S, which is the minimal S-free resolution
@@ -874,39 +904,55 @@ Description
    3) There is a map F_1 -> K_1 that must be introduced and that does not
       come from either the complex F nor the complex K.
       
-   Shamash showed that this complex can be continued to a resolution, the
-   Shamash resolution. 
+   Eagon showed how this complex can be continued to a resolution.
    The underlying graded
    module of the complex is K ** T(F'), where F' is the complex F, shifted by
    1 in homological degree so that F_i is in homological degree i+1, and truncated
    by dropping F_0; and T(F') denotes the tensor algebra on the graded module F'.
 
-   The maps in the complex come from multiplication in the Koszul
-   complex, the operation of writing a product of cycles Z_i(K)**Z_j(K) -> Z_{i+j}(K)
-   as a boundary and lifting this to K_{i+j+1} (these are also the ingredients of
+   The differentials of this complex come from the differentials in the Koszul
+   complex and various maps identifying the homology, at successive stages of the 
+   construction, with tensor products of modules already constructed with the F_i.
+   These are also the ingredients of
    the "Massey products" from topology, used by Golod to construct the complex
-   in a special case,
-   and the "zigzag maps" F_i -> K_i constructed from the double complex
-   F**K as in the usual proof that F**k and R**K have the same homology Tor^S(R,k).
+   in a special case.
+   The function @TO eagon @ produces a hashTable that contains all the data from
+   Eagon's construction of the resolution. resolutionFromEagon produces the 
+   (not necessarily minimal) resolution.  The functions picture and displayBlocks give
+   alternate ways of viewing the innards of the resolution.
   Example
    S = ZZ/101[a,b,c]
    I = ideal(a,b,c)*ideal(b,c)
    R = S/I
-   shamashResolution(5,R)
+   E = resolutionFromEagon(R,3)
+   netList apply(length E, i->E.dd_(i+1))
+  Text
+   As stated above, E = K\otimes T(F'), and one can see the maps between 
+   each pair of summands. We denote the summand 
+   K_i**F_{j_1}**..**F_{j_m} with the symbol (i,{j_1,..,j_m}), and we can write out
+   the differentials in block form with the function displayBlocks:
+  Example
+   netList apply(length E, i->displayBlocks E.dd_(i+1))
+  Text
+   Since the matrices can be very large, it is sometimes better to know just whether
+   a given block is zero or not, and this can be obtained with the function picture:
+  Example   
+   netList apply(length E, i->picture E.dd_(i+1))
 SeeAlso
- koszulMap
- shamashMatrix
- shamashFrees
+   eagon
+   resolutionFromEagon
+   displayBlocks
+   picture
 ///
 
 doc ///
    Key
-    shamashResolution
-    (shamashResolution, ZZ, Ring)
+    resolutionFromEagon
+    (resolutionFromEagon, Ring, ZZ)
    Headline
     computes a resolution of the residue field
    Usage
-    F = shamashResolution(n,R)
+    F = resolutionFromEagon(R,n)
    Inputs
     R:Ring
      factor ring of a polynomial ring
@@ -922,11 +968,14 @@ doc ///
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
      R = S/I
-     shamashResolution(5,R)
+     resolutionFromEagon(R,5)
    SeeAlso
      ShamashResolution
 ///
 
+
+end--
+-*
 doc ///
 Key
  koszulMap
@@ -961,8 +1010,9 @@ Description
    K = koszul vars S
    koszulMap(2,K,F)
 ///
+*-
 
-
+-*
 doc ///
    Key
     shamashMatrix
@@ -1004,6 +1054,8 @@ doc ///
     picture
     matrix
       ///
+*-
+-*
 doc ///
    Key
     shamashFrees
@@ -1048,7 +1100,8 @@ doc ///
     shamashMatrix
     dim
 ///
-
+*-
+-*
 doc ///
    Key
     (dim, List, ShamashData)
@@ -1079,7 +1132,7 @@ doc ///
     shamashData
     shamashFrees
 ///
-
+*-
 doc ///
    Key
     picture
@@ -1161,7 +1214,7 @@ doc ///
      true if ring is Golod
    Description
     Text
-     Tests whether shamashResolution(1+numgens R,R)
+     Tests whether resolutionFromEagon(R,1+numgens R)
      is minimal or not. It is a result of Avramov that it
      is enough to test this much of the resolution (Reason: all the Massey operations
      are already used in the first 1+numgens R maps.)
@@ -1171,7 +1224,7 @@ doc ///
      S = ZZ/101[a,b,c]
      R = S/(ideal vars S)^2
      res(coker vars R)
-     shamashResolution(4,R)
+     resolutionFromEagon(R,4)
      assert(isGolodByShamash R == true)
     Text
      On the other hand, complete intersections are never Golod
@@ -1179,11 +1232,11 @@ doc ///
      use S
      R = S/ideal"a3,b3,c3"
      res coker vars R
-     F = shamashResolution(4,R)
+     F = resolutionFromEagon(R,4)
      F.dd_4
      assert(isGolodByShamash R == false)
    SeeAlso
-    shamashResolution
+    resolutionFromEagon
     ///
 
 doc ///
@@ -1244,22 +1297,31 @@ doc ///
 ///
 
 
-TEST ///
 -*
 restart
 loadPackage("ShamashResolution", Reload => true)
 *-
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b,c)*ideal(b,c)
-     F = shamashResolution(6,S/I)
+TEST/// -- test of eagon
+needsPackage "DGAlgebras"
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+assert(isGolod R)
+bound = 6
+time F = resolutionFromEagon(R,bound)
+assert(F.dd^2 == 0)
+assert isHomogeneous F
+time F = resolutionFromEagon(R,bound)
+time F' = res(coker vars R,LengthLimit => bound)
+assert all(bound-1,i-> prune HH_(i+1) F == 0)
+assert(betti res(coker vars R,LengthLimit => bound) == betti F)
 
-     S = ZZ/101[a]
-     I = ideal(a^3)
-     F = shamashResolution(6,S/I)
---test exactness, composition 0, compare with DGAlgebras code.
--- test code and assertions here
---
--- may have as many TEST sections as needed
+S = ZZ/101[a,b,c,d,e]
+R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
+assert(not isGolod R)
+time F = resolutionFromEagon(R,8)
+assert isHomogeneous F
+assert (F.dd^2 == 0)
+assert all(7,i-> prune HH_(i+1) F == 0)
 ///
 
 end--
@@ -1361,3 +1423,36 @@ componentsAndIndices X3
 componentsAndIndices (X3 ++ K2)
 
 (components F)/indices
+
+--Irena's examples: m generic forms of degree d in n variables
+restart
+loadPackage("ShamashResolution", Reload=> true)
+--
+(m,n,d) = (3,3,2)
+S = ZZ/101[x_1..x_n]
+I = ideal random(S^1,S^{m:-d})
+R = S/I
+E' = eagon(R,4);
+E = resolutionFromEagon(R,n+1)
+componentsAndIndices E'#{0,4,1}
+componentsAndIndices E_4
+F = res (coker vars R, LengthLimit =>n+1)
+displayBlocks (E.dd_4)
+picture(M = E.dd_4)
+mapComponent(M, (0,{2}), (0,{1,1}))
+
+
+==================bug
+picture E'#{"beta",3,0}-- bug! source has lost its tag.
+picture (M = E'#{"W",2,1})
+displayBlocks (M = E'#{"beta",3,0}) --bug
+indices source M
+indices target M
+M
+--but these are ok:
+displayBlocks E'#{"W",4,0}
+picture E'#{"W",4,0}
+picture E'#{"N",3,1}
+mapComponent(M, (0,{2}), (0,{1,1}))
+mapComponent(M, (2,{}), (1,{1}))
+picture M
