@@ -671,7 +671,7 @@ doc ///
      The module Y^n_i = Eagon#{0,n,i} is described in Gulliksen-Levin as:
      Y^0 = koszul vars R
      Y^{n+1}_0 = Y^n_1; and 
-     for i>0, Y^{n+1}_i = Y^n_(i+1) ++ Y^n_0**X_i
+     for i>0, Y^{n+1}_i = Y^n_{i+1} ++ Y^n_0**X_i
 
      Note that Y^n_i == 0 for i>1+length koszul vars R - n, 
      
@@ -687,11 +687,11 @@ doc ///
      
      The remaining horizontal differentials dHor^{n+1}_i: Y^{n+1} \to Y^n have source and target as follows:
      
-     Y^{n+1}_i = Y^n_(i+1) ++ Y^n_0**X_i -> Y^n_i = Y^{n-1}_(i+1) ++ Y^{n-1}_0**X(i).
+     Y^{n+1}_i = Y^n_{i+1} ++ Y^n_0**X_i -> Y^n_i = Y^{n-1}_{i+1} ++ Y^{n-1}_0**X_i.
      
      We take dHor^{n+1}_i to be the sum of two maps: 
      
-     dVert^n_(i+1)  Y^n_(i+1) -> Y^n_i ++ Y^{n-1}_0**X(i).
+     dVert^n_{i+1}  Y^n_{i+1} -> Y^n_i ++ Y^{n-1}_0**X_i.
      
      and alpha^{n+1}_i = beta^{n+1}_i + dHor^n_0**1:  Y^n_0**X_i \to  Y^n_i ++ Y^{n-1}_0**X(i).
      
@@ -857,6 +857,72 @@ doc ///
     mapComponent
     horizontalStrand
     verticalStrand
+///
+
+doc///
+   Key
+    horizontalStrand
+    (horizontalStrand, HashTable, ZZ)
+   Headline
+    extracts one horizontal strand from an Eagon double complex
+   Usage
+    F = horizontalStrand(E,i)
+   Inputs
+    E:HashTable
+     produced by eagon(R,b)
+    i:ZZ
+     which strand
+   Outputs
+    F:ChainComplex
+     beginning of the free resolution of the i-th boundary module of the Koszul complex
+   Description
+    Text
+     The 0-th strand is a possibly non-minimal resolution of the residuce field;
+     the other strands resolve the boundary modules in the Koszul complex. They are
+     all minimal iff the 0 strand is minimal iff R is Golod.
+    Example
+     S = ZZ/101[x,y,z]
+     R = S/((ideal(x,y))^2+ideal(z^3))
+     E = eagon(R,5);
+     F = horizontalStrand(E,3)
+     netList picture F
+   SeeAlso
+    verticalStrand
+    eagon
+    picture
+///
+
+doc ///
+   Key
+    verticalStrand
+    (verticalStrand, HashTable, ZZ)
+   Headline
+    extracts one vertical strand from an Eagon double complex
+   Usage
+    F = verticalStrand(E,i)
+   Inputs
+    E:HashTable
+     produced by eagon(R,b)
+    i:ZZ
+     which strand
+   Outputs
+    F:ChainComplex
+     beginning of the free resolution of the i-th boundary module of the Koszul complex
+   Description
+    Text
+     The 0-th strand is a possibly non-minimal resolution of the residuce field;
+     the other strands resolve the boundary modules in the Koszul complex. They are
+     all minimal iff the 0 strand is minimal iff R is Golod.
+    Example
+     S = ZZ/101[x,y,z]
+     R = S/((ideal(x,y))^2+ideal(z^3))
+     E = eagon(R,5);
+     F = verticalStrand(E,3)
+     netList picture F
+   SeeAlso
+    horizontalStrand
+    eagon
+    picture
 ///
 
 ///
