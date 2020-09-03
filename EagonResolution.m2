@@ -15,7 +15,6 @@ newPackage(
 
 export {
     "eagon", 
---    "weight", currently not used
     "resolutionFromEagon", 
     "eBetti", -- total betti numbers from Eagon res
     "verticalStrand", --make a vertical strand of the Eagon complex
@@ -29,6 +28,7 @@ export {
 --SOME USEFUL INTERNAL FUNCTIONS
 --    "isIsomorphic",
 --    "isDegreeZeroSurjection",
+--    "weight", currently not used
 
 -- place this into M2 core.
 compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
@@ -74,16 +74,6 @@ restart
 loadPackage("EagonResolution", Reload => true)
 ///
 
-TEST///
-S = ZZ/101[a,b,c]
-I = ideal(a,b)*ideal(a,b,c)
-I = (ideal(a^2,b^3))^2
-R = S/I
-E = eagon(R,5);
-assert(eBetti E == {1, 3, 6, 12, 24, 48})
-V = verticalStrand(E,3)
-V = horizontalStrand(E,2)
-///
 
 eBetti = method()
 eBetti HashTable := List => E ->(
@@ -146,17 +136,6 @@ homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
 restart
 loadPackage("EagonResolution", Reload =>true)
 ///
-TEST///
-S = ZZ/101[a,b,c]
-R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-b = 6
-E = eagon(R,b);
-F = resolutionFromEagon E
-G = res (coker vars R, LengthLimit => b)
-assert(betti F == betti G)
-assert(F.dd^2== 0)
-assert(all(b-1, i-> prune (HH_(i+1) F) == 0))
-///
 
 labeler = (L,F) -> directSum(1:(L=>F));
 
@@ -184,33 +163,6 @@ eTensor = method()
 eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
 eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
 
-///
-restart
-debug loadPackage("EagonResolution", Reload=> true)
-
-S = ZZ/101[a,b,c,d,e]
-A = S^1
-B = S^2
-A' = labeler((0,{1}),A)
-indices A'
-B' = labeler((0,{2}),B)
-indices eTensor(A',B')
-indices (T = eTensor(B',A')) --this is right
-indices trimWithLabel T--this is right too.
---bug
-     S = ZZ/101[a,b]
-     R = S/(ideal vars S)^2 --a Golod ring
-     E = eagon(R,4);
-     eagonSymbols(3,2)
-     V = verticalStrand(E,3)
-     H = horizontalStrand(E,2)
-     picture H.dd_3
-     H.dd^2
-     apply(1+length H-1, i-> prune HH_i H)
-     picture V.dd_2 --BUG -- the last col header should be (0,{2,1}) --bug --
-     picture resolutionFromEagon(R,5)
-     displayBlocks H.dd_3
-///
 
 trimWithLabel = method()
 trimWithLabel ZZ := ZZ => n -> n
@@ -401,30 +353,6 @@ restart
 loadPackage("EagonResolution", Reload=>true)
 ///
 
-TEST/// -- test of eagon
-S = ZZ/101[a,b,c]
-R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
-bound = 6
-E = eagon(R,bound);
-Y = apply(bound, n-> verticalStrand(E,n))
-assert(all(#Y, n->((Y_n).dd)^2 == 0))
-assert all(#Y, n->isHomogeneous Y_n)
-F = resolutionFromEagon(R,bound)
-F = resolutionFromEagon E
-assert isHomogeneous F
-assert all(bound-1,i-> prune HH_(i+1) F == 0)
-assert(betti res(coker vars R,LengthLimit => bound) == betti F)
-
-S = ZZ/101[a,b,c,d,e]
-R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
-E = eagon(R,5);
-Y = apply(5, n -> verticalStrand(E,n));
-assert(all(#Y, n->((Y_n).dd)^2 == 0))
-assert all(#Y, n->isHomogeneous Y_n)
-F = resolutionFromEagon(R,5)
-assert isHomogeneous F
-assert all(4,i-> prune HH_(i+1) F == 0)
-///
 
 eagonSymbols = method()
 eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
@@ -433,7 +361,7 @@ eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
     if n === 0 then return {(i,{})};
     if i === 0 then return eagonSymbols(n-1,1);
     e' := eagonSymbols (n-1,0);
-    e'1 := apply (e', L ->prepend(i, L_1));
+    e'1 := apply (e', L -> L_1|{i});
     eagonSymbols(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
    )
 
@@ -442,25 +370,6 @@ restart
 debug loadPackage("EagonResolution", Reload=>true)
 ///
 
-TEST///
-eagonSymbols(1,2) == {(3, {}), (0, {2})}
-assert (eagonSymbols(2,1) == eagonSymbols(3,0))
-assert(eagonSymbols(1,3) == {(4, {}), (0, {3})})
-assert(eagonSymbols(2,2) == {(4, {}), (0, {3}), (1, {2})})
-assert(eagonSymbols(2,0) == {(2, {}), (0, {1})})
-assert(eagonSymbols(3,1) == {(4, {}), (0, {3}), (1, {2}), (2, {1}), (0, {1, 1})})
-eagonSymbols(3,2)
-
-
-S = ZZ/101[a,b,c,d,e]
-A = S^1
-B = S^2
-directSum(1:(0,{1})=>A)
-labeler(A,(0,{1}))
-labeler(B,(0,{2}))
-
-
-///
     
 componentsAndIndices = (F) -> (
     if not F.cache.?components then (
@@ -1069,116 +978,102 @@ doc ///
      the 2-nd differential in the 3-rd vertical strand of the double complex.
     Example
      S = ZZ/101[a,b,c,d,e]
-     R = S/(ideal(a,b,c))^2 --a Golod ring
-     E = eagon(R,4);
-     V = verticalStrand(E,2)
+     R = S/(ideal vars S)^2 --a Golod ring
+     E = eagon(R,3);
+     V = verticalStrand(E,3)
      picture (V.dd_2)
+    Text
+     Compare the top row with
+    Example
+     L
    SeeAlso
     eagon
     picture
     displayBlocks
     mapComponent
 ///
+TEST///
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+b = 6
+E = eagon(R,b);
+F = resolutionFromEagon E
+G = res (coker vars R, LengthLimit => b)
+assert(betti F == betti G)
+assert(F.dd^2== 0)
+assert(all(b-1, i-> prune (HH_(i+1) F) == 0))
+///
+
+TEST///
+debug EagonResolution
+S = ZZ/101[a,b,c,d,e]
+A = S^1
+B = S^2
+A' = labeler((0,{1}),A)
+indices A'
+B' = labeler((0,{2}),B)
+assert(indices eTensor(A',B') == {(0, {1, 2})})
+assert(indices (T = eTensor(B',A')) == {(0, {2, 1})})
+assert(indices trimWithLabel T ==  {(0, {2, 1})})
+///
+
+TEST/// -- test of eagon
+S = ZZ/101[a,b,c]
+R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
+bound = 6
+E = eagon(R,bound);
+Y = apply(bound, n-> verticalStrand(E,n))
+assert(all(#Y, n->((Y_n).dd)^2 == 0))
+assert all(#Y, n->isHomogeneous Y_n)
+F = resolutionFromEagon(R,bound)
+F = resolutionFromEagon E
+assert isHomogeneous F
+assert all(bound-1,i-> prune HH_(i+1) F == 0)
+assert(betti res(coker vars R,LengthLimit => bound) == betti F)
+
+S = ZZ/101[a,b,c,d,e]
+R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
+E = eagon(R,5);
+Y = apply(5, n -> verticalStrand(E,n));
+assert(all(#Y, n->((Y_n).dd)^2 == 0))
+assert all(#Y, n->isHomogeneous Y_n)
+F = resolutionFromEagon(R,5)
+assert isHomogeneous F
+assert all(4,i-> prune HH_(i+1) F == 0)
+///
+
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal(a,b)*ideal(a,b,c)
+I = (ideal(a^2,b^3))^2
+R = S/I
+E = eagon(R,5);
+assert(eBetti E == {1, 3, 6, 12, 24, 48})
+V = verticalStrand(E,3)
+V = horizontalStrand(E,2)
+///
+TEST///
+assert(eagonSymbols(1,2) == {(3, {}), (0, {2})})
+assert (eagonSymbols(2,1) == eagonSymbols(3,0))
+assert(eagonSymbols(1,3) == {(4, {}), (0, {3})})
+assert(eagonSymbols(2,2) == {(4, {}), (0, {3}), (1, {2})})
+assert(eagonSymbols(2,0) == {(2, {}), (0, {1})})
+assert(eagonSymbols(3,1) == {(4, {}), (0, {3}), (1, {2}), (2, {1}), (0, {1, 1})})
+assert(eagonSymbols(3,2) == {(5, {}), (0, {4}), (1, {3}), (2, {2}), (0, {1, 2})})
+///
+
 
 end--
 
-
+------------------------------------
 restart
 uninstallPackage "EagonResolution"
 restart
 installPackage "EagonResolution"
-viewHelp EagonResolution
 check EagonResolution
 
-restart
-
-
----- Mike ------------------------
--- labels are of the form
-(2, {1,2,3}) -- refers to K_2 ** X_1 ** X_2 ** X_3
-
-restart
-debug needsPackage "EagonResolution"
-R = QQ[a..d]
-K0 = directSum(1:((0,{}) => R^1))
-K1 = directSum(1:((1,{}) => R^{2,3,4,5}))
-K2 = directSum(1:((2,{}) => R^{10,11,12,13,14,15}))
-K3 = directSum(1:((3,{}) => R^{20,21,22,23}))
-K4 = directSum(1:((4,{}) => R^{30}))
-
-X1 = directSum(1:((0,{1}) => R^{100,101,102,103,104,105,106,107}))
-X2 = directSum(1:((0,{2}) => R^{200,300,400,500,600}))
-X3 = directSum(1:((0,{3}) => R^{300,301,302}))
-X4 = directSum(1:((0,{4}) => R^{400,401}))
-
--- Consider one summand
-assert(indices X1 == {(0, {1})})
-assert(last componentsAndIndices X1 == indices X1)
-assert(first componentsAndIndices X1 == components X1)
-X1' = flattenBlocks X1
-assert(componentsAndIndices X1' == componentsAndIndices X1)
-assert(X1' == X1)
-
--- Consider 2 summands
-F = X1 ++ X2
-assert(indices F == {0,1})
-assert(components F == {X1, X2})
-assert(last componentsAndIndices F == {(0, {1}), (0, {2})})
-assert(first componentsAndIndices F == {X1, X2})
-
-F1 = flattenBlocks F
-components F1
-indices F1
-
-F2 = flattenBlocks F1
-assert(components F2 == components F1)
-assert(indices F2 == indices F1)
-assert((components F1)/indices == {{(0, {1})}, {(0, {2})}})
-
-assert(components flattenBlocks F == {X1,X2})
-assert(indices flattenBlocks F == {(0, {1}), (0, {2})})
-
--- Consider 3 summands
-F = X1 ++ X2 ++ X3
-assert(indices F == {0,1})
-assert(components F == {X1++X2, X3})
-assert(last componentsAndIndices F == {(0, {1}), (0, {2}), (0, {3})})
-assert(first componentsAndIndices F == {X1, X2, X3})
-F1 = flattenBlocks F
-assert(last componentsAndIndices F1 == {X1,X2,X3}/indices//flatten)
-assert(first componentsAndIndices F1 == {X1,X2,X3})
-assert((first componentsAndIndices F1)/indices == {X1,X2,X3}/indices)
-
-F2 = flattenBlocks F1
-assert(componentsAndIndices F2 == componentsAndIndices F1)
-indices F2
-(components F2)/indices
-
--- Consider tensor products
-G = tensorWithComponents(X1, X2, (a,b) -> (a#0+b#0, a#1|b#1))
-assert(indices G == {(0, {1, 2})})
-assert(components G == {G})
-assert(indices first components G == indices G)
-(components G)/indices
-
--- Matrices
-m11 = map(X2, X3, 0)
-m12 = map(X2, X4, 0) 
-m21 = map(K2, X3, 0)    
-m22 = map(K2, X4, 0)
-m = matrix{{m11,m12},{m21,m22}}
-m1 =flattenBlocks m
-indices source m1
-picture m
-displayBlocks m
-
-G = flattenBlocks(X3 ++ K2 ++ K3)
-H = tensorWithComponents(G,X2, (a,b) -> (a#0+b#0, a#1|b#1))
-indices H
-componentsAndIndices X3
-componentsAndIndices (X3 ++ K2)
-
-(components F)/indices
+viewHelp EagonResolution
+--------------------------------------
 
 --Irena's examples: m generic forms of degree d in n variables
 restart
