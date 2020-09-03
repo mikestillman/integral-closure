@@ -377,28 +377,13 @@ assert all(4,i-> prune HH_(i+1) F == 0)
 eagonSymbols = method()
 eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
     --symbol of the module Y^n_i, as a list of pairs, defined inductively from n-1,i+1 and n-1,0
+    --assumes large number of vars and pd.
     if n === 0 then return {(i,{})};
     if i === 0 then return eagonSymbols(n-1,1);
     e' := eagonSymbols (n-1,0);
     e'1 := apply (e', L ->prepend(i, L_1));
     eagonSymbols(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
    )
--*
---the following code does not do what is claimed; and I don't think it's useful anyway!
-eagonSymbols(ZZ,ZZ,ZZ) := List => (numv,pd,m) -> (
-    --compute the list of all symbols of summands of the Y^n_i up to n = m, assuming a ring with numv variables
-    --and projective dimension pd.
-    maxK := numv;
-    maxX := pd;
-    result := flatten for i from 0 to maxK list (
-        flatten for j from 1 to (m-i)//2 list (
-            c := compositions(j, m-i-2*j, maxX-2);
-            for c1 in c list prepend(i, (for a in c1 list a+2))
-            )
-        );
-    if m <= maxK then result = append(result, {m});
-    result)
-*-
 
 ///
 restart
@@ -412,6 +397,12 @@ assert(eagonSymbols(1,3) == {(4, {}), (0, {3})})
 assert(eagonSymbols(2,2) == {(4, {}), (0, {3}), (1, {2})})
 assert(eagonSymbols(2,0) == {(2, {}), (0, {1})})
 assert(eagonSymbols(3,1) == {(4, {}), (0, {3}), (1, {2}), (2, {1}), (0, {1, 1})})
+eagonSymbols(3,2)
+     S = ZZ/101[a,b,c,d,e]
+     R = S/(ideal(a,b,c,d,e))^2 --a Golod ring
+     E = eagon(R,3);
+     V = verticalStrand(E,3)
+     picture V.dd_2 --BUG -- the last col header should be (0,{2,1})
 ///
     
 componentsAndIndices = (F) -> (
@@ -924,18 +915,91 @@ doc ///
     eagon
     picture
 ///
+doc ///
+   Key
+    mapComponent
+    (mapComponent, Matrix, Sequence, Sequence)
+   Headline
+    extract a single component from a labeled map
+   Usage
+    N = mapComponent(M,tar,src)
+   Inputs
+    M:Matrix
+     labeled map from eagon(R,b)
+    tar:Sequence
+     symbol of a free module components of the Eagon resolution
+    src:Sequence
+     symbol of a free module components of the Eagon resolution
+   Outputs
+    N:Matrix
+   Description
+    Text
+     The source and target of a a map in the Eagon double complex such as
+     dVert, dHor, and beta, is a direct sum of tensor products of
+     a component of the Koszul complex and a list of modules X_i. Such
+     a tensor product is represented by a symbol that is a two element Sequence
+     of the form
+     
+     (i, {u_1..u_s})
+     
+     representing K_i ** X_{u_1} ** .. ** X_{u_s}. 
+     
 
+     The block structure of the matrix, together with the source and
+     target Sequences, can be seen from 
+     picture M or displayBlocks M.
+     
+     The function mapComponent returns a single block of such a matrix.     
+    Example
+     S = ZZ/101[a,b,c,d,e]
+     R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
+     E = eagon (R,5);
+     picture E#{"dHor",3,0}
+     mapComponent(E#{"dHor",3,0}, (0,{1}),(1,{1}))
+     picture E#{"dVert",3,1}
+     mapComponent(E#{"dVert",3,1}, (0,{2}),(0,{1,1})) 
+     picture E#{"beta",3,1}
+     mapComponent(E#{"beta",3,1}, (0,{2}),(0,{1,1})) 
+   SeeAlso
+    picture
+    displayBlocks
+    eagon
 ///
-S = ZZ/101[a,b,c,d,e]
-R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
-E = eagon (R,5);
-picture E#{"dHor",3,0}
-mapComponent(E#{"dHor",3,0}, (0,{1}),(1,{1}))
-picture E#{"dVert",3,1}
-mapComponent(E#{"dVert",3,1}, (0,{2}),(0,{1,1})) 
-picture E#{"beta",3,1}
-mapComponent(E#{"beta",3,1}, (0,{2}),(0,{1,1})) 
+end--
+doc ///
+   Key
+    eBetti
+    (eBetti HashTable)
+   Headline
+    list the ranks of the free modules in the Eagon resolution
+   Usage
+    L = eBetti E
+   Inputs
+    E:HashTable
+     produced by E = eagon(R,b)
+   Outputs
+    L:List
+     list of ranks in resolutionFromEagon E
+   Description
+    Text
+     These are the ranks of the free modules in K**T(F').
+    Example
+     S = ZZ/101[a,b,c,d,e]
+     R = S/(ideal(a,b,c))^2 --a Golod ring
+     E = eagon(R,6);
+     eBetti E
+     betti resolutionFromEagon E     
+     betti res coker vars R
+   Caveat
+    Things to fix:
+    
+    This should be done with only arithmetic computations from the 
+    finite resolution, but currently the Eagon double complex is computed.
 
+    Also, the display is not the true Betti display, as the name would imply.
+   SeeAlso
+    eagon
+    resolutionFromEagon
 ///
 -*
 restart
@@ -944,6 +1008,52 @@ installPackage "EagonResolution"
 viewHelp EagonResolution
 loadPackage("EagonResolution", Reload => true)
 *-
+doc ///
+   Key
+    eagonSymbols
+    (eagonSymbols ZZ, ZZ)
+   Headline
+    symbols of the components of a module in the Eagon double complex    
+   Usage
+    L = eagonSymbols(n,i)
+   Inputs
+    n:ZZ
+     column indix
+    i:ZZ
+     row index
+   Outputs
+    list of symbols
+   Description
+    Text
+     Each module in the Eagon double complex is a direct sum of tensor products of
+     a component of the Koszul complex and a list of modules X_i. Such
+     a tensor product is represented by a symbol that is a two element Sequence
+     of the form
+     
+     (i, {u_1..u_s})
+     
+     representing K_i ** X_{u_1} ** .. ** X_{u_s}. 
+     
+     The function eagonSymbols(n,i) produces the list of symbols of the summands
+     of the module Y^n_i in the n-th column, i-th row of the double complex.
+     This is done arithmetically, that is,  without computing the double complex.
+    Example
+     L = eagonSymbols(3,2)
+    Text
+     This is the list of symbols associated to the source of (for example)
+     the 2-nd differential in the 3-rd vertical strand of the double complex.
+    Example
+     S = ZZ/101[a,b,c,d,e]
+     R = S/(ideal(a,b,c))^2 --a Golod ring
+     E = eagon(R,4);
+     V = verticalStrand(E,2)
+     picture (V.dd_2)
+   SeeAlso
+    eagon
+    picture
+    displayBlocks
+    mapComponent
+///
 
 end--
 
