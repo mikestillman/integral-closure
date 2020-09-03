@@ -160,6 +160,58 @@ assert(all(b-1, i-> prune (HH_(i+1) F) == 0))
 
 labeler = (L,F) -> directSum(1:(L=>F));
 
+tensorWithComponents = method()
+tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
+    if F == 0 or G == 0 then return (ring F)^0;
+    (compsF, indicesF) := componentsAndIndices F;
+    (compsG, indicesG) := componentsAndIndices G;
+    comps := flatten for f from 0 to #compsF-1 list (
+        for g from 0 to #compsG-1 list (
+            newindex := if indicesF#f === null or indicesG#g === null
+	       then null else combineIndices(indicesF#f, indicesG#g);
+            newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
+            )
+        );
+    if #comps == 0 then (ring F)^0 else directSum comps
+    )
+tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
+                          src :=  tensorWithComponents(source phi, G, combineIndices);
+                          tar :=  tensorWithComponents(target phi, G, combineIndices);			  
+			  map(tar,src,phi**G))
+
+eTensor = method()
+eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
+eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
+
+///
+restart
+debug loadPackage("EagonResolution", Reload=> true)
+
+S = ZZ/101[a,b,c,d,e]
+A = S^1
+B = S^2
+A' = labeler((0,{1}),A)
+indices A'
+B' = labeler((0,{2}),B)
+indices eTensor(A',B')
+indices (T = eTensor(B',A')) --this is right
+indices trimWithLabel T--this is right too.
+--bug
+     S = ZZ/101[a,b]
+     R = S/(ideal vars S)^2 --a Golod ring
+     E = eagon(R,4);
+     eagonSymbols(3,2)
+     V = verticalStrand(E,3)
+     H = horizontalStrand(E,2)
+     picture H.dd_3
+     H.dd^2
+     apply(1+length H-1, i-> prune HH_i H)
+     picture V.dd_2 --BUG -- the last col header should be (0,{2,1}) --bug --
+     picture resolutionFromEagon(R,5)
+     displayBlocks H.dd_3
+///
+
 trimWithLabel = method()
 trimWithLabel ZZ := ZZ => n -> n
 
@@ -387,7 +439,7 @@ eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
 
 ///
 restart
-loadPackage("EagonResolution", Reload=>true)
+debug loadPackage("EagonResolution", Reload=>true)
 ///
 
 TEST///
@@ -398,11 +450,16 @@ assert(eagonSymbols(2,2) == {(4, {}), (0, {3}), (1, {2})})
 assert(eagonSymbols(2,0) == {(2, {}), (0, {1})})
 assert(eagonSymbols(3,1) == {(4, {}), (0, {3}), (1, {2}), (2, {1}), (0, {1, 1})})
 eagonSymbols(3,2)
-     S = ZZ/101[a,b,c,d,e]
-     R = S/(ideal(a,b,c,d,e))^2 --a Golod ring
-     E = eagon(R,3);
-     V = verticalStrand(E,3)
-     picture V.dd_2 --BUG -- the last col header should be (0,{2,1})
+
+
+S = ZZ/101[a,b,c,d,e]
+A = S^1
+B = S^2
+directSum(1:(0,{1})=>A)
+labeler(A,(0,{1}))
+labeler(B,(0,{2}))
+
+
 ///
     
 componentsAndIndices = (F) -> (
@@ -484,30 +541,6 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     )
 
 
-tensorWithComponents = method()
-tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
-    if F == 0 or G == 0 then return (ring F)^0;
-    (compsF, indicesF) := componentsAndIndices F;
-    (compsG, indicesG) := componentsAndIndices G;
-    comps := flatten for f from 0 to #compsF-1 list (
-        for g from 0 to #compsG-1 list (
-            newindex := if indicesF#f === null or indicesG#g === null
-	       then null else combineIndices(indicesF#f, indicesG#g);
-            newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
-            )
-        );
-    if #comps == 0 then (ring F)^0 else directSum comps
-    )
-tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
-tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
-                          src :=  tensorWithComponents(source phi, G, combineIndices);
-                          tar :=  tensorWithComponents(target phi, G, combineIndices);			  
-			  map(tar,src,phi**G))
-			  
-
-eTensor = method()
-eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
-eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
 
 beginDocumentation()
 
@@ -617,15 +650,6 @@ SeeAlso
    displayBlocks
    picture
 ///
--*
-    "eBetti", -- total betti numbers from Eagon res
-    "verticalStrand", --make a vertical strand of the Eagon complex
-    "horizontalStrand", --make a vertical strand of the Eagon complex    
-    "eagonSymbols",    
-    "picture",
-    "displayBlocks",
-    "mapComponent"
-*-
 
 doc ///
    Key 
@@ -965,11 +989,11 @@ doc ///
     displayBlocks
     eagon
 ///
-end--
+
 doc ///
    Key
     eBetti
-    (eBetti HashTable)
+    (eBetti, HashTable)
    Headline
     list the ranks of the free modules in the Eagon resolution
    Usage
@@ -1011,7 +1035,7 @@ loadPackage("EagonResolution", Reload => true)
 doc ///
    Key
     eagonSymbols
-    (eagonSymbols ZZ, ZZ)
+    (eagonSymbols, ZZ, ZZ)
    Headline
     symbols of the components of a module in the Eagon double complex    
    Usage
@@ -1022,7 +1046,8 @@ doc ///
     i:ZZ
      row index
    Outputs
-    list of symbols
+    L:List
+     list of symbols
    Description
     Text
      Each module in the Eagon double complex is a direct sum of tensor products of
