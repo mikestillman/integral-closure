@@ -20,7 +20,6 @@ export {
     "eBetti", -- total betti numbers from Eagon res
     "verticalStrand", --make a vertical strand of the Eagon complex
     "horizontalStrand", --make a vertical strand of the Eagon complex    
-    "eagonSymbol", 
     "eagonSymbols",    
     "picture",
     "displayBlocks",
@@ -335,19 +334,14 @@ assert (F == F1)
 assert all(B-1,i -> prune HH_(i+1) F == 0)
 ///
 
-
 resolutionFromEagon = method()
-resolutionFromEagon(HashTable, ZZ) := ChainComplex => (E,b) ->(
-    chainComplex(apply(b,n->E#{"dHor",n+1,0}))
-    )
-
 resolutionFromEagon HashTable := ChainComplex => E ->(
     b := max apply( select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
-    resolutionFromEagon(E,b)
+    chainComplex(apply(b,n->E#{"dHor",n+1,0}))
     )    
 
 resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
-    resolutionFromEagon (eagon(R,b),b)
+    resolutionFromEagon eagon(R,b)
     )
 
 ///
@@ -364,6 +358,7 @@ Y = apply(bound, n-> verticalStrand(E,n))
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
 F = resolutionFromEagon(R,bound)
+F = resolutionFromEagon E
 assert isHomogeneous F
 assert all(bound-1,i-> prune HH_(i+1) F == 0)
 assert(betti res(coker vars R,LengthLimit => bound) == betti F)
@@ -527,7 +522,7 @@ beginDocumentation()
 
 -*
 restart
-loadPackage "EagonResolution"
+loadPackage"EagonResolution"
 uninstallPackage "EagonResolution"
 installPackage "EagonResolution"
 viewHelp EagonResolution
@@ -631,6 +626,100 @@ SeeAlso
    displayBlocks
    picture
 ///
+-*
+    "eBetti", -- total betti numbers from Eagon res
+    "verticalStrand", --make a vertical strand of the Eagon complex
+    "horizontalStrand", --make a vertical strand of the Eagon complex    
+    "eagonSymbols",    
+    "picture",
+    "displayBlocks",
+    "mapComponent"
+*-
+
+doc ///
+   Key 
+    eagon
+    (eagon, Ring, ZZ)
+   Headline 
+    compute the Eagon double complex
+   Usage
+    E = eagon(R,b)
+   Inputs
+    R:Ring
+    b:ZZ
+     how far to carry the computation
+   Outputs
+    E:HashTable
+   Description
+    Text
+     eagon(R,b) computes the first b columns of the Eagon double complex Y^*_* of R. Folowing
+     Gulliksen-Levin we think of Y^n_* as the n-th column, and Y^*_i as the i-th row. The columns
+     Y^n are not resolutions. But
+     the i-th row is a resolution of the i-th module of boundaries in the Koszul complex K
+     of the variables of R; in particular, the
+     "Eagon Resolution" is the 0-th row,
+     
+     Y^b_0 \to...\to Y^1_0 \to Y^0_0. 
+     
+     Let X_i be the free module R**H_i(K), which is also the R**F_i, where F is a minimal free
+     resolution of R as a module over the polynomial ring on the same set of variables.
+     
+     We count X_i as having homological degree i+1.
+     With this convention, Y^*_0 has the form K\otimes T(F'), where T denotes the tensor algebra
+     and F' is the F_1++F_2++... .
+     
+     The module Y^n_i = Eagon#{0,n,i} is described in Gulliksen-Levin as:
+     Y^0 = koszul vars R
+     Y^{n+1}_0 = Y^n_1; and 
+     for i>0, Y^{n+1}_i = Y^n_(i+1) ++ Y^n_0**X_i
+
+     Note that Y^n_i == 0 for i>1+length koszul vars R - n, 
+     
+     The i-th homology of Y^n_* is H_i(Y^n) = H_0(Y^n_*)**X_i (proved in Gulliksen-Levin). Part of the
+     inductive construction will be a map inducing this isomorphism
+     
+     alpha^n_i = beta^n_i + dHor^n_0**1: Y^n_0**X_i \to Y^{n-1}_{i+1} ++ Y^{n-1}_0**X_i = Y^n
+     
+     
+     Assume that the differential of Y^n and the maps dVert^n and alpha^n are known. We take
+     
+     dHor^{n+1}_0: Y^{n+1}_0 = Y^n_1 -> Y^n_0 to be dVert^n_1. 
+     
+     The remaining horizontal differentials dHor^{n+1}_i: Y^{n+1} \to Y^n have source and target as follows:
+     
+     Y^{n+1}_i = Y^n_(i+1) ++ Y^n_0**X_i -> Y^n_i = Y^{n-1}_(i+1) ++ Y^{n-1}_0**X(i).
+     
+     We take dHor^{n+1}_i to be the sum of two maps: 
+     
+     dVert^n_(i+1)  Y^n_(i+1) -> Y^n_i ++ Y^{n-1}_0**X(i).
+     
+     and alpha^{n+1}_i = beta^{n+1}_i + dHor^n_0**1:  Y^n_0**X_i \to  Y^n_i ++ Y^{n-1}_0**X(i).
+     
+     It remains to define beta^{n+1}_i; we take this to be
+     the negative of
+     
+     a lifting to Y^{n+1}_{i-1} \subset Y^n_i of the composite
+     
+     dVert^{n+1}_{i-1} *  (dHor^n_0 ** X_i): Y^n_0**X_i -> Y^{n-1}_0
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b,c)*ideal(b,c)
+     R = S/I
+     E = eagon(R,5);
+    Text
+     We can see the vertical and horizontal strands:
+    Example
+     verticalStrand(E,3)
+     horizontalStrand(E,2)
+     resolutionFromEagon E
+     horizontalStrand (E,0)
+    Text
+     There are also ways to investigate the components of dVert, dHor, and beta; see 
+     @TO picture@, @TO displayBlocks@, and @TO mapComponent@.
+   SeeAlso
+    verticalStrand
+    horizontalStrand
+///
 
 doc ///
    Key
@@ -664,10 +753,113 @@ doc ///
      eagon
 ///
 
---end--
+
+doc ///
+   Key
+    picture
+    (picture, Matrix)
+    (picture, ChainComplex)    
+    (picture, HashTable)        
+   Headline
+    information about components of a labeled Matrix or ChainComplex
+   Usage
+    N = picture M
+    L = picture C
+    L = picture E
+   Inputs
+    M:Matrix
+    C:ChainComplex
+    E:HashTable
+     produced by eagon; picture E is equivalent to picture resolutionFromEagon E
+   Outputs
+    N:Net
+     prints a "picture" -- a net -- showing information about the blocks
+    L:List
+     List of Nets, one for each map in the complex
+   Description
+    Text
+     The free modules that are the sources and targets of the matrices defined in the HashTable eagon(R,b) 
+     generally have many components. These can be analyzed with the functions
+     picture, @TO displayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
+     a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
+     where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
+     Thus a block is identified by a pair of such symbols, representing source and target.
+
+     For any such matrix, picture M prints a net showing which blocks of the matrix are 
+     0 (represented by .); or nonzero,
+     in the maximal ideal, represented by *;
+     or contain a unit entry, represented by u; 
+     or are identity blocks, represented by id.
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal(a,b,c)
+     R = S/I
+     E = eagon(R,4);
+     picture E
+     picture E#{"beta",3,1}
+     netList picture resolutionFromEagon E
+   SeeAlso
+    eagon
+    "beta"
+    resolutionFromEagon
+    displayBlocks
+    mapComponent
+///
+
+doc ///
+   Key
+    displayBlocks
+    (displayBlocks,Matrix)
+    (displayBlocks,ChainComplex)
+    (displayBlocks,HashTable)    
+   Headline
+    displays the components of a labeled matrix or ChainComplex
+   Usage
+    N = displayBlocks M
+    L = displayBlocks C
+    
+   Inputs
+    M:Matrix
+    C:ChainComplex
+   Outputs
+    N:Net
+     prints a "picture" -- a net -- showing information about the blocks
+    L:List
+     List of Nets, one for each map in the complex
+   Description
+    Text
+     The free modules that are the sources and targets of the matrices defined in the HashTable eagon(R,b) 
+     generally have many components. These can be analyzed with the functions
+     @TO picture@, displayBlocks, and @TO mapComponent@. Each summand of one of these free modules has
+     a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
+     where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
+     Thus a block is identified by a pair of such symbols, representing source and target.
+
+     For any such matrix, picture M prints a net showing which blocks of the matrix are 
+     0 (represented by .); or nonzero,
+     in the maximal ideal, represented by *;
+     or contain a unit entry, represented by u; 
+     or are identity blocks, represented by id.
+    Example
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal(a,b,c)
+     R = S/I
+     E = eagon(R,4);
+     M = E#{"dVert",3,1}
+     C = horizontalStrand(E,0)
+     netList picture C
+     displayBlocks C.dd_2
+     netList picture resolutionFromEagon E
+   SeeAlso
+    eagon
+    resolutionFromEagon
+    picture
+    mapComponent
+    horizontalStrand
+    verticalStrand
+///
 
 ///
---use for doc of mapComponent
 S = ZZ/101[a,b,c,d,e]
 R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
 E = eagon (R,5);
@@ -677,43 +869,14 @@ picture E#{"dVert",3,1}
 mapComponent(E#{"dVert",3,1}, (0,{2}),(0,{1,1})) 
 picture E#{"beta",3,1}
 mapComponent(E#{"beta",3,1}, (0,{2}),(0,{1,1})) 
+
 ///
-
-doc ///
-   Key
-    picture
-    (picture, Matrix)
-   Headline
-    information about components of a labeled Matrix or ChainComplex
-   Usage
-    N = picture M
-   Inputs
-    M:Matrix
-   Outputs
-    N:Net
-     prints a "picture" -- a net -- showing information about the blocks
-   Description
-    Text
-     picture M prints a net showing which blocks of the matrix are 0 (represented by .) or nonzero,
-     in the maximal ideal, represented by * or contain a unit entry, represented by u; or are
-     identity blocks, represented by id.
-    Example
-     S = ZZ/101[a,b,c]
-     I = ideal(a,b)*ideal(a,b,c)
-     R = S/I
-     E = eagon(R,4);
-     picture E#{"beta",3,1}
-     netList picture resolutionFromEagon E
-   SeeAlso
-    eagon
-    "beta"
-    resolutionFromEagon
-///
-
-
 -*
 restart
-debug loadPackage("EagonResolution", Reload => true)
+uninstallPackage "EagonResolution"
+installPackage "EagonResolution"
+viewHelp EagonResolution
+loadPackage("EagonResolution", Reload => true)
 *-
 
 end--
