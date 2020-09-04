@@ -79,8 +79,10 @@ eBetti = method()
 eBetti HashTable := List => E ->(
     K := keys E;
     K00 := sort select(K, k-> k_0 === 0 and k_2 === 0 and #k === 3);
-    apply(K00, k-> rank E#k)
+    FF = apply(K00,k->E#k);
+    betti chainComplex apply(#FF-1, i-> map(FF_i,FF_(i+1),0))
 )
+
 
 isDegreeZeroSurjection := method(Options => {Verbose => false})
 isDegreeZeroSurjection(Module,Module) := o -> (A,B)->(
