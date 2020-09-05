@@ -1179,3 +1179,40 @@ picture E'#{"dVert",3,1}
 mapComponent(M, (0,{2}), (0,{1,1}))
 mapComponent(M, (2,{}), (1,{1}))
 picture M
+======================
+restart
+needsPackage "EagonResolution"
+needsPackage "DGAlgebras"
+kk = ZZ/101
+S = kk[x,y,z]
+I = ideal"x2,xy,y2,z3"
+R = S/I
+phi = map(R,S)
+N = coker random(R^2,R^{-1,-2,-3})
+res N
+M = coker (res N).dd_2
+
+
+
+testY1 = M ->(
+MS := prune pushForward(map(R,S), M);
+K := res MS;
+X'' := res I;
+eps := map( K_0, X''_1**K_0, gens I ** K_0);
+A1 := eps//K.dd_1;
+X' := chainComplex apply(length X'' -1 , i-> K_0**X''.dd_(i+2));
+X := chainComplex prepend(A1, apply(length X', i-> X'.dd_(i+1)))
+A := extend(K,X,K.dd_1, Verify => true);
+print (betti K, betti X);
+bool := (prune coker  ((K.dd_2 | A_1*syz X.dd_1)//syz K.dd_1))== 0;
+prepend(bool, apply(length X-1, i ->  prune coker HH_(i+2) phi A == 0))
+)
+
+testY1 M
+testY1 N
+
+
+L = prepend(A1, apply(length X', i-> X'.dd_(i+1)))
+L_0*L_1
+L_1*L_2
+chainComplex prepend(A1, apply(length X', i-> X'.dd_(i+1)))
