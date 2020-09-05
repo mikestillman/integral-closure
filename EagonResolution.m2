@@ -16,7 +16,7 @@ newPackage(
 export {
     "eagon", 
     "resolutionFromEagon", 
-    "eBetti", -- total betti numbers from Eagon res
+    "golodBetti",
     "verticalStrand", --make a vertical strand of the Eagon complex
     "horizontalStrand", --make a vertical strand of the Eagon complex    
     "eagonSymbols",    
@@ -74,15 +74,59 @@ restart
 loadPackage("EagonResolution", Reload => true)
 ///
 
-
+-*
 eBetti = method()
 eBetti HashTable := List => E ->(
     K := keys E;
     K00 := sort select(K, k-> k_0 === 0 and k_2 === 0 and #k === 3);
-    FF = apply(K00,k->E#k);
+    FF := apply(K00,k->E#k);
     betti chainComplex apply(#FF-1, i-> map(FF_i,FF_(i+1),0))
 )
+*-
 
+--tensoring a list of modules together:
+tensorL = (R,L) -> (if L === {} then return R^1;
+                              if #L === 1 then return L_0;
+			      L_0**tensorL(R,drop(L,1)))
+			  
+golodBetti = method()
+golodBetti (ChainComplex, ChainComplex, ZZ) := BettiTally => (F,G,b) ->(
+    --F,G finite free complexes (resolutions) over a ring S.
+    --Compute the Betti table of what should be the Eagon resolution of 
+    --the module resolved by G over the ring resolved by F
+    --up to step b.
+    symbs := apply(b+1, n->eagonSymbols(n,0));
+    mods := apply(symbs, s -> 
+	directSum apply(#s, 
+	    i-> G_(s_i_0)**tensorL(ring F, apply(s_i_1, j->F_(j)))));
+   betti chainComplex apply(b,i->map(mods_i,mods_(i+1),0))
+   )
+
+golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
+    --case where M is a module over a factor ring R = S/I,
+    --MS is the same module over S
+    --F = res I
+    --K = res MS
+    R := ring M;
+    p := presentation R;
+    S := ring p;
+    phi1 := substitute(presentation M, S);
+    phi := phi1 | target phi1 ** p;
+    MS := prune coker phi;
+    K := res MS;
+    F := res coker p;
+    golodBetti(F,K,b)
+    )
+
+    ///
+restart
+loadPackage("EagonResolution", Reload =>true)
+S = ZZ/101[x,y,z]
+R = S/ideal(x^2,y^3)
+M = coker random(R^2, R^{-2,-2,-3})
+b = 5
+golodBetti(M,5)
+///
 
 isDegreeZeroSurjection := method(Options => {Verbose => false})
 isDegreeZeroSurjection(Module,Module) := o -> (A,B)->(
@@ -903,35 +947,50 @@ doc ///
 
 doc ///
    Key
-    eBetti
-    (eBetti, HashTable)
+    golodBetti
+    (golodBetti, ChainComplex, ChainComplex, ZZ)
+    (golodBetti, Module, ZZ)    
    Headline
-    list the ranks of the free modules in the Eagon resolution
+    list the ranks of the free modules in the resolution of a Golod module
    Usage
-    L = eBetti E
+    B = golodBetti(F,K,b)
+    B = golodBetti(M,b)    
    Inputs
-    E:HashTable
-     produced by E = eagon(R,b)
+    F:ChainComplex
+     resolution, typcally of (R = S/I)^1 over S
+    K:ChainComplex
+     resolution, typically of an R-module M over S
+    M:Module
+     R-module
+    b:ZZ
+     homological degree to which to carry the computation
    Outputs
-    L:List
-     list of ranks in resolutionFromEagon E
+    B:BettiTally
+     This would be betti table of the free res of M over R, if M were a Golod module over R
    Description
     Text
-     These are the ranks of the free modules in K**T(F').
+     Let S be a standard graded polynomial ring. A module M over R = S/I is Golod if
+     the resolution H of M has maximal betti numbers given the
+     betti numbers of the S-free resolutions F of R and K of M. This resolution, H,
+     has underlying graded module H = R**K**T(F'), where F' is the truncated resolution
+     F_1 <- F_2... and T(F') is the tensor algebra.
+     
+     Since the component modules of H are given, we can compute the betti table without computing
+     the differentials in the resolution.
+     
+     In case M = coker vars R, this is the usual resolution of the residue field
+     of a Golod ring. 
+     
     Example
-     S = ZZ/101[a,b,c,d,e]
-     R = S/(ideal(a,b,c))^2 --a Golod ring
+     S = ZZ/101[a,b,c]
+     I = (ideal(a,b,c^2))^2
+     F = res(S^1/I)
+     K = res coker vars S
+     R = S/I
      E = eagon(R,6);
-     eBetti E
+     golodBetti(F,K,6)
+     betti res (coker vars R, LengthLimit => 6)
      betti resolutionFromEagon E     
-     betti res coker vars R
-   Caveat
-    Things to fix:
-    
-    This should be done with only arithmetic computations from the 
-    finite resolution, but currently the Eagon double complex is computed.
-
-    Also, the display is not the true Betti display, as the name would imply.
    SeeAlso
     eagon
     resolutionFromEagon
@@ -940,6 +999,7 @@ doc ///
 restart
 uninstallPackage "EagonResolution"
 installPackage "EagonResolution"
+check EagonResolution
 viewHelp EagonResolution
 loadPackage("EagonResolution", Reload => true)
 *-
@@ -1045,16 +1105,6 @@ assert all(4,i-> prune HH_(i+1) F == 0)
 ///
 
 TEST///
-S = ZZ/101[a,b,c]
-I = ideal(a,b)*ideal(a,b,c)
-I = (ideal(a^2,b^3))^2
-R = S/I
-E = eagon(R,5);
-assert(eBetti E == {1, 3, 6, 12, 24, 48})
-V = verticalStrand(E,3)
-V = horizontalStrand(E,2)
-///
-TEST///
 assert(eagonSymbols(1,2) == {(3, {}), (0, {2})})
 assert (eagonSymbols(2,1) == eagonSymbols(3,0))
 assert(eagonSymbols(1,3) == {(4, {}), (0, {3})})
@@ -1064,6 +1114,24 @@ assert(eagonSymbols(3,1) == {(4, {}), (0, {3}), (1, {2}), (2, {1}), (0, {1, 1})}
 assert(eagonSymbols(3,2) == {(5, {}), (0, {4}), (1, {3}), (2, {2}), (0, {1, 2})})
 ///
 
+///
+restart
+loadPackage("EagonResolution",Reload => true)
+needsPackage "DGAlgebras"
+///
+TEST///
+S = ZZ/101[x,y,z]
+I = trim(ideal(x,y)*ideal"x,y2,z")
+R = S/I
+F = res I
+G = res coker vars S
+b = 6
+H = res(coker vars R,LengthLimit =>6)
+E = eagon(R,b);
+assert(betti resolutionFromEagon E == betti H)
+assert(golodBetti(F,G,b) == betti H)
+assert (golodBetti (coker vars R,b) == betti H)
+///
 
 end--
 
