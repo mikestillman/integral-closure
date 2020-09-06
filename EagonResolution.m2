@@ -520,7 +520,6 @@ A := extend(K, X, K.dd_1, Verify => true);
 print (betti K, betti X);
 bool := prune HH_1 chainComplex {bar K.dd_1, bar K.dd_2 | bar A_1} == 0;
 <<prepend(bool, apply(length X-1, i ->  prune coker HH_(i+2) bar A == 0))<<endl;
-A
 )
 
 ///
@@ -528,19 +527,29 @@ restart
 loadPackage("EagonResolution",Reload =>true)
 needsPackage "DGAlgebras"
 kk = ZZ/101
-S = kk[x,y,z]
-I = ideal"x2,xy,y2,z3"
+S = kk[w,x,y,z]
+I = ideal"x2,y2,z3"*(ideal(vars S))^2
+I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
+I = (ideal(vars S))^2 -- ok in this case
 R = S/I
-assert(isGolod R == false)
-
-N = coker random(R^2,R^{-1,-2,-3})
-res N
-M = prune coker (res N).dd_2
-A = testY1 M
-A = testY1 N
 bar = map(R,S)
-apply(length X,i-> (betti res (M**HH_i bar K),betti res (HH_i bar X)))
-betti res (M**HH_2 bar K)
+isGolod R
+M = prune coker random(R^2,R^{-1,-2,-3})--this is a counter-example {true, false, false, false}
+A = testY1 M
+
+
+kk = ZZ/101
+S = kk[w,x,y]
+I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
+
+R = S/I
+bar = map(R,S)
+isGolod R
+M = prune coker random(R^2,R^{-1,-2,-3})--this is a counter-example {true, false, false, false}
+A = testY1 M
+
+MS = pushForward(bar, M)
+pdim (S^1/I) >= pdim MS
 
 ///
 
