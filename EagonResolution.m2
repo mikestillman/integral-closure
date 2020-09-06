@@ -22,7 +22,8 @@ export {
     "eagonSymbols",    
     "picture",
     "displayBlocks",
-    "mapComponent"
+    "mapComponent",
+    "testY1"
     }
 
 --SOME USEFUL INTERNAL FUNCTIONS
@@ -495,6 +496,53 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     (<<endl<<"*** bad source or target symbol; use `picture M1' to check ***"<<endl<<endl; error())
     )
 
+testY1 = M ->(
+    --tests whether the condition on Y1 necessary to start the Eagon process is satisfied:
+    --the generators of I**K_0 must lift to kill HH_1 K; and the higher homology of X should
+    --kill the higher homology of K; that is, Tor_(i+1)(R,R)**cover M --> Tor_i(M,R) should be surjective.
+    --Since we need Torthis *cannot be true* in case the projective dimension of M is larger than that of
+    --R = ring M, but might be true otherwise.
+R := ring M;
+Igens := presentation R;
+S := ring Igens;
+MS := pushForward(bar := map(R,S), M);
+K := res MS;
+m := inducedMap(M,bar K_0);
+X' := (res image Igens) ** K_0;
+X'M := (res image Igens) ** MS;
+eps := map( K_0, X'_0, Igens ** K_0);
+
+A1 := eps//K.dd_1;
+X := chainComplex prepend(A1, apply(length X', i-> X'.dd_(i+1)));
+A := extend(K, X, K.dd_1, Verify => true);
+
+--apply(length K, i->numrows bar A_i)
+print (betti K, betti X);
+bool := prune HH_1 chainComplex {bar K.dd_1, bar K.dd_2 | bar A_1} == 0;
+<<prepend(bool, apply(length X-1, i ->  prune coker HH_(i+2) bar A == 0))<<endl;
+A
+)
+
+///
+restart
+loadPackage("EagonResolution",Reload =>true)
+needsPackage "DGAlgebras"
+kk = ZZ/101
+S = kk[x,y,z]
+I = ideal"x2,xy,y2,z3"
+R = S/I
+assert(isGolod R == false)
+
+N = coker random(R^2,R^{-1,-2,-3})
+res N
+M = prune coker (res N).dd_2
+A = testY1 M
+A = testY1 N
+bar = map(R,S)
+apply(length X,i-> (betti res (M**HH_i bar K),betti res (HH_i bar X)))
+betti res (M**HH_2 bar K)
+
+///
 
 
 beginDocumentation()
@@ -1180,39 +1228,8 @@ mapComponent(M, (0,{2}), (0,{1,1}))
 mapComponent(M, (2,{}), (1,{1}))
 picture M
 ======================
-restart
-needsPackage "EagonResolution"
-needsPackage "DGAlgebras"
-kk = ZZ/101
-S = kk[x,y,z]
-I = ideal"x2,xy,y2,z3"
-R = S/I
-phi = map(R,S)
-N = coker random(R^2,R^{-1,-2,-3})
-res N
-M = coker (res N).dd_2
 
 
 
-testY1 = M ->(
-MS := prune pushForward(map(R,S), M);
-K := res MS;
-X'' := res I;
-eps := map( K_0, X''_1**K_0, gens I ** K_0);
-A1 := eps//K.dd_1;
-X' := chainComplex apply(length X'' -1 , i-> K_0**X''.dd_(i+2));
-X := chainComplex prepend(A1, apply(length X', i-> X'.dd_(i+1)))
-A := extend(K,X,K.dd_1, Verify => true);
-print (betti K, betti X);
-bool := (prune coker  ((K.dd_2 | A_1*syz X.dd_1)//syz K.dd_1))== 0;
-prepend(bool, apply(length X-1, i ->  prune coker HH_(i+2) phi A == 0))
-)
-
-testY1 M
-testY1 N
 
 
-L = prepend(A1, apply(length X', i-> X'.dd_(i+1)))
-L_0*L_1
-L_1*L_2
-chainComplex prepend(A1, apply(length X', i-> X'.dd_(i+1)))
