@@ -22,8 +22,7 @@ export {
     "eagonSymbols",    
     "picture",
     "displayBlocks",
-    "mapComponent",
-    "testY1"
+    "mapComponent"
     }
 
 --SOME USEFUL INTERNAL FUNCTIONS
@@ -342,13 +341,36 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
        Eagon#{beta,n,0} = Eagon#{beta, n-1,1};       
     	    	    
     for i from 1 to g+1 do(
+--for beta:
+        M1 := Eagon#{north,n-2,i+1};
+	    firstColumnBlock := first indices flattenBlocks source M1;
+        toLift := -(if #components Eagon#{0,n-2,i} ===1 then 
+	   id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
+             Eagon#{beta,n-1,i}*
+             eTensor(Eagon#{north, n-2,1},X(i));
+
+       if firstColumnBlock =!= null and firstColumnBlock_1 == {} then(
+          M := flattenBlocks M1;
+          M2 := M_[firstColumnBlock];
+          if toLift % M2 == 0 then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
+	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
+	  if toLift % M2 == 0 then M1 = M2);
+       Eagon#{beta,n,i} = toLift//M1;
+
+-*
     	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
 		            id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
                              Eagon#{beta,n-1,i}*
-                               eTensor(Eagon#{north, n-2,1},X(i)) --,(a,b)->(a#0+b#0,a#1|b#1)) --*Eagon#{0,n,i}^[1]
+                               eTensor(Eagon#{north, n-2,1},X(i)) 
 		                   )//
 			       Eagon#{north,n-2,i+1};
-			               
+*-	     
+	     
+	
+	
+     
+	    
+--here
 	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 	                   Eagon#{0,n-1,i}_[1]* (Eagon#{west,n-1,0}**X(i))  *(Eagon#{0,n,i})^[1]+
 	                   (if Eagon#?{west,n-1,i+1} then 
@@ -377,6 +399,7 @@ trimWithLabel hashTable pairs Eagon
 restart
 loadPackage("EagonResolution", Reload=>true)
 S = ZZ/101[a,b,c]/ideal(b^2,c^2) -- complete intersection
+S = ZZ/101[a,b,c]/(ideal(b^2,c^2))^2 --Golod
 B = 6
 E = eagon(S,B);
 F = resolutionFromEagon(S,B)
@@ -425,7 +448,7 @@ componentsAndIndices = (F) -> (
         )
     else if #F.cache.components == 1 then (
         if F.cache.?indices then ({F}, F.cache.indices)
-        else (F, {null})
+        else ({F}, {null})
         )
     else (
         a := for f in F.cache.components list componentsAndIndices f;
@@ -1309,18 +1332,18 @@ findSocleColumns  = M ->(
 S = ZZ/101[a,b,c]
 I_1= (a^4,b^4,c^4, a*b^3) -- kSS = {0}
 I_2=(a^4,b^4,c^4, a*b^3,c*b^3) -- {2,3}
-I_3=(a^4,b^4,c^4, a*b^3, b*c^3)
+I_3=(a^4,b^4,c^4, a*b^3, b*c^3) 
 I_4=(a^4,b^4,c^4, a*b^3, b^2*c^2)
 I_5=(a^4,b^4,c^4,a*b*c)
 I_6 = (ideal"a2,b2,c2")^2
 
-j = 2
+j = 6
 use S
 R = S/I_j
 isGolod R
 soc = (0_R*R^1:(ideal vars R))
 Isoc = ideal gens soc
-kList = kSS(R,8)
+kList = kSS(R,5)
 m = if kList_0 !=0 then kList_0 else numgens R
 E = eagon(R,m);
 F = resolutionFromEagon E
@@ -1329,7 +1352,7 @@ findSocleColumns F.dd_m
 picture F.dd_m
 mapComponent(F.dd_m, (m-1,{}),(0,{m-1}))
 Isoc
-mapComponent(F.dd_m, (2,{}),(3,{}))
+
 
 -------------------
 S = ZZ/101[a,b,c,d]
