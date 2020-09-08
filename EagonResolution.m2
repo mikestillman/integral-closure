@@ -342,8 +342,8 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
        Eagon#{beta,n,0} = Eagon#{beta, n-1,1};       
     	    	    
     for i from 1 to g+1 do(
-    	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then id_(Eagon#{0,n-2,i}) else
-		                                                          Eagon#{0,n-2,i}_[0])*
+    	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
+		            id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
                              Eagon#{beta,n-1,i}*
                                eTensor(Eagon#{north, n-2,1},X(i)) --,(a,b)->(a#0+b#0,a#1|b#1)) --*Eagon#{0,n,i}^[1]
 		                   )//
@@ -509,7 +509,7 @@ MS := pushForward(bar := map(R,S), M);
 K := res MS;
 m := inducedMap(M,bar K_0);
 X' := (res image Igens) ** K_0;
-X'M := (res image Igens) ** MS;
+--X'M := (res image Igens) ** MS;
 eps := map( K_0, X'_0, Igens ** K_0);
 
 A1 := eps//K.dd_1;
@@ -530,11 +530,44 @@ kk = ZZ/101
 S = kk[w,x,y,z]
 I = ideal"x2,y2,z3"*(ideal(vars S))^2
 I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
-I = (ideal(vars S))^2 -- ok in this case
+--I = (ideal(vars S))^2 -- ok in this case
 R = S/I
 bar = map(R,S)
 isGolod R
 M = prune coker random(R^2,R^{-1,-2,-3})--this is a counter-example {true, false, false, false}
+M = prune coker random(R^2,R^{-1,-1,-1})--this is a counter-example {true, false, true,true}
+testY1 M
+
+restart
+loadPackage("EagonResolution",Reload =>true)
+needsPackage "DGAlgebras"
+kk = ZZ/101
+S = kk[x,y,z]
+I = ideal"x2,y2,z3"*(ideal(vars S))^2
+I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
+--I = (ideal(vars S))^2 -- ok in this case
+R = S/I
+bar = map(R,S)
+isGolod R
+M = prune coker matrix"x,y,z;y,z,x"
+betti res prune HH_2 bar X
+betti res prune HH_2 bar K
+B = basis(-1, Hom(HH_2 bar X, HH_2 bar K));
+betti B
+numrows B
+betti X--I think there can be no surjection! 
+betti K
+golodBetti(M,4)
+coker 
+betti (KR = res M)
+golodBetti(coker KR.dd_2, 4)
+betti res (coker KR.dd_2)
+testY1 (M = coker KR.dd_2) --{true, false, false}
+
+betti res 
+Ho = Hom(HH_2 bar X, HH_2 bar K);
+numrows basis(-1,Ho)
+
 A = testY1 M
 
 
@@ -650,7 +683,7 @@ Description
    K_i**F_{j_1}**..**F_{j_m} with the symbol (i,{j_1,..,j_m}), and we can write out
    the differentials in block form with the function displayBlocks:
   Example
-   netList picture resolutionFromEagon(R,3)
+   netList picture resolutionFromEagon(R,5)
   Text
    Since the matrices can be very large, it is sometimes better to know just whether
    a given block is zero or not, and this can be obtained with the function picture:
@@ -1237,8 +1270,83 @@ mapComponent(M, (0,{2}), (0,{1,1}))
 mapComponent(M, (2,{}), (1,{1}))
 picture M
 ======================
+-*New idea: use the maps
+from K times the i+1-fold tensor product of X to K times the i-fold tensor product.
+K -> M
+X -> R
+K**X -> K, identity on K**X_0
+is there a map K**X**X -> K**X identity on K**X? 
+*-
+restart
+collapse = M ->(
+    R = ring M;
+    I = presentation R;
+    S = ring I;
+    bar = map(R,S);
+    MS = pushForward(bar, M);
+    K = res MS;
+    X = res coker I;
+    A0 = map(K_0,(K**X)_0,1);
+    extend(bar K, bar(K**X), bar A0)
+)    
 
+S = ZZ/101[x,y]
+R = S/(ideal(x,y))^2
+M = coker vars R
+collapse M
+X
+K
+===============
+restart
+debug needsPackage "EagonResolution"
+load"~/gitRepos/SocleInSyzygy/DaoSocle.m2"
+needsPackage "DGAlgebras"
+findSocleColumns  = M ->(
+    L := for i in toList(0..numcols M -1) list (
+    if M_{i} != 0 and M_{i} % Isoc == 0 then i);
+    positions(L, i->i=!=null))
 
+S = ZZ/101[a,b,c]
+I_1= (a^4,b^4,c^4, a*b^3) -- kSS = {0}
+I_2=(a^4,b^4,c^4, a*b^3,c*b^3) -- {2,3}
+I_3=(a^4,b^4,c^4, a*b^3, b*c^3)
+I_4=(a^4,b^4,c^4, a*b^3, b^2*c^2)
+I_5=(a^4,b^4,c^4,a*b*c)
+I_6 = (ideal"a2,b2,c2")^2
 
+j = 2
+use S
+R = S/I_j
+isGolod R
+soc = (0_R*R^1:(ideal vars R))
+Isoc = ideal gens soc
+kList = kSS(R,8)
+m = if kList_0 !=0 then kList_0 else numgens R
+E = eagon(R,m);
+F = resolutionFromEagon E
 
+findSocleColumns F.dd_m
+picture F.dd_m
+mapComponent(F.dd_m, (m-1,{}),(0,{m-1}))
+Isoc
+mapComponent(F.dd_m, (2,{}),(3,{}))
 
+-------------------
+S = ZZ/101[a,b,c,d]
+I_1 = ideal"a4,b4,c4,d4,a2b2,a2c2,a2d2"
+j = 1
+use S
+R = S/I_j
+isGolod R
+soc = (0_R*R^1:(ideal vars R))
+Isoc = ideal gens soc
+kSS(R,8)
+E = eagon(R,5);
+F = resolutionFromEagon E
+
+m = numgens R +1
+L = for i in toList(0..numcols F.dd_m -1) list (
+    if (F.dd_m)_{i} != 0 and (F.dd_m)_{i} % Isoc == 0 then i)
+positions(L, i->i=!=null)
+picture F.dd_m
+mapComponent(F.dd_m, (m-1,{}),(0,{m-1}))
