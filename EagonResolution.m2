@@ -341,24 +341,31 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
        Eagon#{beta,n,0} = Eagon#{beta, n-1,1};       
     	    	    
     for i from 1 to g+1 do(
+
 --for beta:
-        M1 := Eagon#{north,n-2,i+1};
-	    firstColumnBlock := first indices flattenBlocks source M1;
         toLift := -(if #components Eagon#{0,n-2,i} ===1 then 
 	   id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
              Eagon#{beta,n-1,i}*
              eTensor(Eagon#{north, n-2,1},X(i));
 
-       if firstColumnBlock =!= null and firstColumnBlock_1 == {} then(
-          M := flattenBlocks M1;
-          M2 := M_[firstColumnBlock];
-          if toLift % M2 == 0 then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
-	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
-	  if toLift % M2 == 0 then M1 = M2);
-       Eagon#{beta,n,i} = toLift//M1;
+        M := Eagon#{north,n-2,i+1};
+
+	firstColumnBlock := first indices (src := flattenBlocks source M);
+	goodBlock := firstColumnBlock =!= null and firstColumnBlock_1 == {};
+	koz := false;
+
+        if goodBlock then(
+           M1 := (flattenBlocks M)_[firstColumnBlock]*(src ^[firstColumnBlock]);
+	   koz = toLift % M1 == 0;
+        if koz then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
+       	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
+    	    );
+        --at this point, koz == true iff goodBlock and the lifting works.
+       
+       Eagon#{beta,n,i} = if koz then toLift//M1 else toLift//M;
 
 -*
-    	Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
+       Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
 		            id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
                              Eagon#{beta,n-1,i}*
                                eTensor(Eagon#{north, n-2,1},X(i)) 
@@ -397,7 +404,7 @@ trimWithLabel hashTable pairs Eagon
 
 ///
 restart
-loadPackage("EagonResolution", Reload=>true)
+debug loadPackage("EagonResolution", Reload=>true)
 S = ZZ/101[a,b,c]/ideal(b^2,c^2) -- complete intersection
 S = ZZ/101[a,b,c]/(ideal(b^2,c^2))^2 --Golod
 B = 6
