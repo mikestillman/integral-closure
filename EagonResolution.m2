@@ -15,6 +15,7 @@ newPackage(
 
 export {
     "eagon", 
+    "CompressBeta", --option for eagon
     "resolutionFromEagon", 
     "golodBetti",
     "verticalStrand", --make a vertical strand of the Eagon complex
@@ -22,7 +23,9 @@ export {
     "eagonSymbols",    
     "picture",
     "displayBlocks",
-    "mapComponent"
+    "mapComponent",
+    "beta",
+    "Picture" -- option for beta
     }
 
 --SOME USEFUL INTERNAL FUNCTIONS
@@ -236,8 +239,8 @@ trimWithLabel ChainComplex := ChainComplex => F -> chainComplex apply(
                               length F, i-> trimWithLabel(F.dd_(i+1))
 			      )
     
-eagon = method()
-eagon(Ring, ZZ) := HashTable => (R,b) ->(
+eagon = method(Options => {CompressBeta => true})
+eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
     --compute the Eagon configuration up to and including column b; and thus
     --also the "Eagon Resolution"
     --Y^b_0 \to...\to Y^1_0 \to Y^0_0. 
@@ -347,37 +350,60 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 	   id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
              Eagon#{beta,n-1,i}*
              eTensor(Eagon#{north, n-2,1},X(i));
-
         M := Eagon#{north,n-2,i+1};
-
-	firstColumnBlock := first indices (src := flattenBlocks source M);
-	goodBlock := firstColumnBlock =!= null and firstColumnBlock_1 == {};
 	koz := false;
 
-        if goodBlock then(
-           M1 := (flattenBlocks M)_[firstColumnBlock]*(src ^[firstColumnBlock]);
+-*	
+     
+--idea: when o.CompresBeta == true, then 
+--try the initial segments of blocks until lifting becomes possible; then
+--set M = that lifting.  koz and M1 would no longer be needed, since we
+--know that a lifting is eventually possible.
+
+--problem: numInd, below, doesn't seem to give the number of blocks correctly.
+--probably should have an external routine that extracts the first b blocks
+--(but keeps source and target the same!)
+
+     if o.CompressBeta == true then(
+        ind := indices (src := flattenBlocks source M);
+	numInd := #ind;
+
+     if numInd != 0 and o.CompressBeta == true then(
+	 
+	firstColumnBlock := first indices (src := flattenBlocks source M);
+j := 1;
+
+while( apply(j, i-> (flattenBlocks phi)_[ind_i])
+
+           M1 := (flattenBlocks M)_[firstColumnBlock]*(src^[firstColumnBlock]);
 	   koz = toLift % M1 == 0;
         if koz then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
        	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
     	    );
         --at this point, koz == true iff goodBlock and the lifting works.
-       
+     ));       
+*-
+
+     if o.CompressBeta == true then(
+	 
+	ind := indices (src := flattenBlocks source M);
+	numInd := #ind;
+	firstColumnBlock := first indices src;
+	
+	goodBlock := firstColumnBlock =!= null and firstColumnBlock_1 == {};
+
+
+        if goodBlock then(
+           M1 := (flattenBlocks M)_[firstColumnBlock]*(src^[firstColumnBlock]);
+	   koz = toLift % M1 == 0;
+        if koz then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
+       	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
+    	    );
+        --at this point, koz == true iff goodBlock and the lifting works.
+     );       
+
        Eagon#{beta,n,i} = if koz then toLift//M1 else toLift//M;
 
--*
-       Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
-		            id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
-                             Eagon#{beta,n-1,i}*
-                               eTensor(Eagon#{north, n-2,1},X(i)) 
-		                   )//
-			       Eagon#{north,n-2,i+1};
-*-	     
-	     
-	
-	
-     
-	    
---here
 	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 	                   Eagon#{0,n-1,i}_[1]* (Eagon#{west,n-1,0}**X(i))  *(Eagon#{0,n,i})^[1]+
 	                   (if Eagon#?{west,n-1,i+1} then 
@@ -402,6 +428,17 @@ eagon(Ring, ZZ) := HashTable => (R,b) ->(
 trimWithLabel hashTable pairs Eagon
 )
 
+beta = method(Options => {Picture => true})
+--pictures or displayBlocks of the beta's in the resolution corresponding to E.
+--Note: ther are no beta(E,0) or beta(E,1); the display starts with beta(E,2).
+
+beta(HashTable, ZZ) := o -> (E,n) -> if o.Picture == true then 
+             picture E#{"beta",n,0} else displayBlocks E#{"beta",n,0}
+
+beta HashTable := List => o-> E ->(
+b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
+netList apply(b-1, n -> beta(E,n+2,Picture => o.Picture)))
+
 ///
 restart
 debug loadPackage("EagonResolution", Reload=>true)
@@ -409,10 +446,51 @@ S = ZZ/101[a,b,c]/ideal(b^2,c^2) -- complete intersection
 S = ZZ/101[a,b,c]/(ideal(b^2,c^2))^2 --Golod
 B = 6
 E = eagon(S,B);
-F = resolutionFromEagon(S,B)
-F1 = resolutionFromEagon E
-assert (F == F1)
+Enc = eagon(S,B,CompressBeta => false);
+beta E
+beta Enc
+F = resolutionFromEagon E
+
+extractBlocks = method()
+extractBlocks(Matrix, List) := Matrix => (phi, L) -> (
+    --the map map(target phi, source phi, phi_[L]*(source phi)^[L], where L is a list
+    --of blocks in source phi.
+    phi1 := flattenBlocks phi;
+    src := source phi1;
+    ind := indices src;
+    sum(L, i->phi1_[ind_i]*src^[ind_i])
+    )
+
+
+M = F.dd_4
+phi = M
+L = {0}
+extractBlocks(M,{0})
+Mf = flattenBlocks M;
+Mff = flattenBlocks Mf
+indices Mf == indices Mff
+
+src = source Mf
+ind = indices source Mf
+components source Mf
+Mf_[ind_0]
+src_[ind_0] --inclusion of the first component into the whole
+src^[ind_0] -- projection of the source onto the first component
+Mf_[ind_0]*src^[ind_0]
+Mf_[ind_1]*src^[ind_1]
+Mf_[ind_2]*src^[ind_2]
+L = {0,2}
+
+
+picture Mf
+componentsAndIndices Mf
+extractBlocks F.dd_5
+
 assert all(B-1,i -> prune HH_(i+1) F == 0)
+picture F.dd_2
+beta(E,4)
+beta(E,4,Picture =>false)
+beta E
 ///
 
 resolutionFromEagon = method()
@@ -1380,3 +1458,20 @@ L = for i in toList(0..numcols F.dd_m -1) list (
 positions(L, i->i=!=null)
 picture F.dd_m
 mapComponent(F.dd_m, (m-1,{}),(0,{m-1}))
+
+
+
+-*
+       Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
+		            id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
+                             Eagon#{beta,n-1,i}*
+                               eTensor(Eagon#{north, n-2,1},X(i)) 
+		                   )//
+			       Eagon#{north,n-2,i+1};
+*-	     
+	     
+	
+	
+     
+	    
+--here
