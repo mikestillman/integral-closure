@@ -244,7 +244,10 @@ trimWithLabel ChainComplex := ChainComplex => F -> chainComplex apply(
 			      )
 
 EagonData = new Type of HashTable
-expression EagonData := E -> ("EagonData computed to length "| toString(E.EagonLength))
+--expression EagonData := E -> ("expr EagonData computed to length "| toString(E.EagonLength))
+net EagonData := E -> net ("EagonData computed to length "| toString(E.EagonLength))
+--toString EagonData := E -> ("string EagonData computed to length "| toString(E.EagonLength))
+--toExternalString EagonData := E -> ("estring EagonData computed to length "| toString(E.EagonLength))
 
 eagon = method(Options => {CompressBeta => true, Verbose => false})
 eagon(Ring, ZZ) := EagonData => o -> (R,b) ->(
@@ -824,7 +827,7 @@ doc ///
      I = ideal(a,b)*ideal"a3,b3,c3"
      R = S/I
      needsPackage "DGAlgebras"; isGolod R
-     E = eagon(R,6);
+     E = eagon(R,6)
     Text
      We can see the vertical and horizontal strands, and the beta maps
     Example
@@ -839,7 +842,7 @@ doc ///
      To see the effect of CompressBeta => true, consider:
     Example     
      eagon(R,-1)
-     E = eagon(R,6, Verbose =>true);
+     E = eagon(R,6, Verbose =>true)
      eagon(R,-1)
      En = eagon(R,6,CompressBeta => false)
      beta (E,4), beta(E,5)
