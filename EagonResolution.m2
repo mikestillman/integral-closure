@@ -239,7 +239,7 @@ trimWithLabel ChainComplex := ChainComplex => F -> chainComplex apply(
                               length F, i-> trimWithLabel(F.dd_(i+1))
 			      )
     
-eagon = method(Options => {CompressBeta => true})
+eagon = method(Options => {CompressBeta => true, Verbose => false})
 eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
     --compute the Eagon configuration up to and including column b; and thus
     --also the "Eagon Resolution"
@@ -352,38 +352,26 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
              eTensor(Eagon#{north, n-2,1},X(i));
         M := Eagon#{north,n-2,i+1};
 	koz := false;
-
--*	
      
 --idea: when o.CompresBeta == true, then 
 --try the initial segments of blocks until lifting becomes possible; then
---set M = that lifting.  koz and M1 would no longer be needed, since we
+--set M = that lifting.  We
 --know that a lifting is eventually possible.
 
---problem: numInd, below, doesn't seem to give the number of blocks correctly.
---probably should have an external routine that extracts the first b blocks
---(but keeps source and target the same!)
+     ind := indices flattenBlocks source M;
+     if o.CompressBeta == true and ind =!=null then(
+       numInd := #ind;
+       if numInd != 0 then scan(numInd, p-> (
+		 M' := extractBlocks(M,toList(0..p));
+		 if toLift % M' == 0 then(
+		     (M = M';
+		      if o.Verbose == true then 
+		         <<"Used "<<p+1<<" of "<<numInd<<" blocks of beta "<<(n,i)<<endl;
+		      break)))));
 
-     if o.CompressBeta == true then(
-        ind := indices (src := flattenBlocks source M);
-	numInd := #ind;
-
-     if numInd != 0 and o.CompressBeta == true then(
-	 
-	firstColumnBlock := first indices (src := flattenBlocks source M);
-j := 1;
-
-while( apply(j, i-> (flattenBlocks phi)_[ind_i])
-
-           M1 := (flattenBlocks M)_[firstColumnBlock]*(src^[firstColumnBlock]);
-	   koz = toLift % M1 == 0;
-        if koz then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
-       	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
-    	    );
-        --at this point, koz == true iff goodBlock and the lifting works.
-     ));       
-*-
-
+       Eagon#{beta,n,i} = toLift//M;
+ 
+ -*
      if o.CompressBeta == true then(
 	 
 	ind := indices (src := flattenBlocks source M);
@@ -403,6 +391,7 @@ while( apply(j, i-> (flattenBlocks phi)_[ind_i])
      );       
 
        Eagon#{beta,n,i} = if koz then toLift//M1 else toLift//M;
+*-
 
 	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 	                   Eagon#{0,n-1,i}_[1]* (Eagon#{west,n-1,0}**X(i))  *(Eagon#{0,n,i})^[1]+
@@ -439,22 +428,12 @@ beta HashTable := List => o-> E ->(
 b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
 netList apply(b-1, n -> beta(E,n+2,Picture => o.Picture)))
 
-///
-restart
-debug loadPackage("EagonResolution", Reload=>true)
-S = ZZ/101[a,b,c]/ideal(b^2,c^2) -- complete intersection
-S = ZZ/101[a,b,c]/(ideal(b^2,c^2))^2 --Golod
-B = 6
-E = eagon(S,B);
-Enc = eagon(S,B,CompressBeta => false);
-beta E
-beta Enc
-F = resolutionFromEagon E
+
 
 extractBlocks = method()
 extractBlocks(Matrix, List) := Matrix => (phi, L) -> (
     --the map map(target phi, source phi, phi_[L]*(source phi)^[L], where L is a list
-    --of blocks in source phi.
+    --of integers respresenting blocks in source phi.
     phi1 := flattenBlocks phi;
     src := source phi1;
     ind := indices src;
@@ -462,35 +441,9 @@ extractBlocks(Matrix, List) := Matrix => (phi, L) -> (
     )
 
 
-M = F.dd_4
-phi = M
-L = {0}
-extractBlocks(M,{0})
-Mf = flattenBlocks M;
-Mff = flattenBlocks Mf
-indices Mf == indices Mff
-
-src = source Mf
-ind = indices source Mf
-components source Mf
-Mf_[ind_0]
-src_[ind_0] --inclusion of the first component into the whole
-src^[ind_0] -- projection of the source onto the first component
-Mf_[ind_0]*src^[ind_0]
-Mf_[ind_1]*src^[ind_1]
-Mf_[ind_2]*src^[ind_2]
-L = {0,2}
-
-
-picture Mf
-componentsAndIndices Mf
-extractBlocks F.dd_5
-
-assert all(B-1,i -> prune HH_(i+1) F == 0)
-picture F.dd_2
-beta(E,4)
-beta(E,4,Picture =>false)
-beta E
+///
+restart
+loadPackage("EagonResolution", Reload=>true)
 ///
 
 resolutionFromEagon = method()
@@ -702,6 +655,7 @@ restart
 loadPackage"EagonResolution"
 uninstallPackage "EagonResolution"
 installPackage "EagonResolution"
+check "EagonResolution"
 viewHelp EagonResolution
 *-
 
@@ -774,7 +728,7 @@ Description
    (not necessarily minimal) resolution.  The functions picture and displayBlocks give
    alternate ways of viewing the innards of the resolution.
    
-   The function @TO eagon @ produces a hashTable that contains all the data produced in
+   The function @TO eagon@ produces a hashTable that contains all the data produced in
    Eagon's construction of the resolution: a double complex Y^n_i, and some internal 
    maps. The vertical differental is called dVert: Y^n_i -> Y^n_{i+1} and the horizontal
    differential is dHor: Y^n_i -> Y^{n-1}_i. 
@@ -789,13 +743,15 @@ Description
    As stated above, F = K\otimes T(F'), and one can see the maps between 
    each pair of summands. We denote the summand 
    K_i**F_{j_1}**..**F_{j_m} with the symbol (i,{j_1,..,j_m}), and we can write out
-   the differentials in block form with the function displayBlocks:
+   the differentials in block form with the function @TO displayBlocks@:
   Example
-   netList picture resolutionFromEagon(R,5)
+   F.dd_3
+   displayBlocks F.dd_3
   Text
    Since the matrices can be very large, it is sometimes better to know just whether
-   a given block is zero or not, and this can be obtained with the function picture:
+   a given block is zero or not, and this can be obtained with the function @TO picture@,
   Example   
+   picture F.dd_3
    netList picture F
 SeeAlso
    eagon
@@ -808,6 +764,8 @@ doc ///
    Key 
     eagon
     (eagon, Ring, ZZ)
+    [eagon,CompressBeta]
+    [eagon,Verbose]
    Headline 
     compute the Eagon double complex
    Usage
@@ -866,21 +824,32 @@ doc ///
      It remains to define beta^{n+1}_i; we take this to be
      the negative of
      
-     a lifting to Y^{n+1}_{i-1} \subset Y^n_i of the composite
+     a lifting along the map from Y^{n+1}_{i-1} \subset Y^n_i to Y^n_{i-1} of the composite
      
-     dVert^{n+1}_{i-1} *  (dHor^n_0 ** X_i): Y^n_0**X_i -> Y^{n-1}_0
+     dVert^{n+1}_{i-1} *  (dHor^n_0 ** X_i): Y^n_0**X_i -> Y^{n-1}_0.
+     
     Example
      S = ZZ/101[a,b,c]
-     I = ideal(a,b,c)*ideal(b,c)
+     I = ideal(a,b)*ideal"a3,b3,c3"
      R = S/I
-     E = eagon(R,5);
+     E = eagon(R,6);
     Text
-     We can see the vertical and horizontal strands:
+     We can see the vertical and horizontal strands, and the beta maps
     Example
      verticalStrand(E,3)
      horizontalStrand(E,2)
-     resolutionFromEagon E
      horizontalStrand (E,0)
+     F = resolutionFromEagon E     
+     beta E     
+    Text
+     With the option CompressBeta => true, only a subset of the components of Y^{n+1}_{i-1} are used;
+     this is the default behavior.
+     To see the effect of CompressBeta => true, consider:
+    Example     
+     E = eagon(R,6, Verbose =>true);
+     En = eagon(R,6,CompressBeta => false);
+     beta (E,4), beta(E,5)
+     beta (En,4), beta(En,5)
     Text
      There are also ways to investigate the components of dVert, dHor, and beta; see 
      @TO picture@, @TO displayBlocks@, and @TO mapComponent@.
@@ -998,7 +967,7 @@ doc ///
     Text
      The free modules that are the sources and targets of the matrices defined in the HashTable eagon(R,b) 
      generally have many components. These can be analyzed with the functions
-     @TO picture@, displayBlocks, and @TO mapComponent@. Each summand of one of these free modules has
+     @TO picture@, @TO displayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
      a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
      where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
      Thus a block is identified by a pair of such symbols, representing source and target.
@@ -1025,6 +994,49 @@ doc ///
     mapComponent
     horizontalStrand
     verticalStrand
+///
+
+doc///
+   Key
+    beta
+    (beta,HashTable)
+    (beta,HashTable,ZZ)
+    [beta, Picture]
+   Headline
+    print the beta maps in the Eagon resolution
+   Usage
+    N = beta E
+    N = beta(E,n)
+   Inputs
+    E:HashTable
+     created by eagon(R,b)
+    n:ZZ
+     which beta to show
+   Outputs
+    N:Net
+     either a "Picture" display (with Picture => true, the default) or a "displayBlocks" display
+   Description
+    Text
+     The beta maps are the components of the Eagon resolution,
+     starting from the 2nd differential that may or may not be minimal, 
+     and are therefore most interesting. With the default option 
+     
+     Picture => true
+     
+     the pictures (which blocks are 0,nonzero, nonminimal) are shown;
+     otherwise, displayBlocks is called.
+    Example
+     S = ZZ/101[x_0..x_3]
+     I = ideal(x_0..x_2)*ideal(x_0..x_3)
+     R = S/I
+     E = eagon(R,4);
+     beta(E,3)
+     beta(E,3,Picture => false)
+     beta E
+   SeeAlso
+    eagon
+    picture
+    displayBlocks
 ///
 
 doc///
@@ -1193,14 +1205,6 @@ doc ///
     eagon
     resolutionFromEagon
 ///
--*
-restart
-uninstallPackage "EagonResolution"
-installPackage "EagonResolution"
-check EagonResolution
-viewHelp EagonResolution
-loadPackage("EagonResolution", Reload => true)
-*-
 doc ///
    Key
     eagonSymbols
@@ -1252,6 +1256,91 @@ doc ///
     displayBlocks
     mapComponent
 ///
+doc ///
+   Key
+    Picture
+   Headline
+    Option for beta, default is true
+   Usage
+    beta(E,Picture =>true)
+   Inputs
+    E:HashTable
+   Description
+    Text
+     if Picture=>true then @TO picture@ is invoked; if false then @TO displayBlocks@ is used instead.
+    Example
+     R = ZZ/101[x,y,z]/ideal"x3,y3,z3"
+     E = eagon(R,5);
+     beta(E,3)
+     beta(E,3,Picture =>false)
+   SeeAlso
+    eagon
+///
+doc ///
+   Key
+    CompressBeta
+   Headline
+    option for eagon
+   Usage
+    E = eagon(R,b,CompressBeta =>true, Verbose =>true)
+   Inputs
+    R:Ring
+    b:ZZ
+   Outputs
+    E:HashTable
+   Description
+    Text
+     beta(E,i) := E#{"beta",n,0} 
+     is defined by lifting another map along the map dVert^n_i. If
+     CompressBeta => true, the default, then the lifting uses
+     the smallest initial subsequence of the blocks of source dVert as possible,
+     and thus the columns of picture beta(E,i) will have fewer nonzero entries.
+     if Verbose =>true, then data about the usage is printed.
+    Example
+     R = ZZ/101[x,y,z]/ideal"x3,y3,z3"
+     E = eagon(R,4,CompressBeta =>true, Verbose =>true);
+   SeeAlso
+    eagon
+    beta
+///
+
+----TESTS
+-*
+restart
+uninstallPackage "EagonResolution"
+installPackage "EagonResolution"
+check EagonResolution
+viewHelp EagonResolution
+loadPackage("EagonResolution", Reload => true)
+*-
+
+TEST///
+     S = ZZ/101[a,b,c]
+     I = ideal(a,b)*ideal"a3,b3,c3"
+     R = S/I
+     E = eagon(R,6,CompressBeta =>true);
+     En = eagon(R,6,CompressBeta => false);
+     F = resolutionFromEagon E
+     Fn= resolutionFromEagon En
+     assert(F.dd^2 == 0)
+     assert(Fn.dd^2 == 0)
+     assert(all(5, i->prune HH_(i+1) F == 0))
+     assert(all(5, i->prune HH_(i+1) Fn == 0))
+///
+
+TEST///
+debug EagonResolution
+S = ZZ/101[a,b,c]/ideal(b^2,c^2) -- complete intersection
+B = 3
+E = eagon(S,B);
+F = resolutionFromEagon E
+M = F.dd_3
+M' = extractBlocks(M,{0,2})
+M'' = map(target M', source M', matrix {{c, 0, -b, 0, 0, 0, 0, 0}, {-b, 0, 0, -c, 0, 0, 0, 0}, {a, 0, 0, 0, 0, -c, b, 0}, {0, 0, a, 0, b,
+      0, c, 0}, {0, 0, 0, a, 0, b, 0, c}})
+assert(M' == M'')
+///
+
 TEST///
 S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
