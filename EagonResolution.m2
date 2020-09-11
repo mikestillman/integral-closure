@@ -15,7 +15,8 @@ newPackage(
 
 export {
     "eagon", 
-    "Eagon",
+--    "Eagon",
+    "EagonData",
     "EagonLength",
     "CompressBeta", --option for eagon
     "resolutionFromEagon", 
@@ -217,6 +218,7 @@ eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b
 
 trimWithLabel = method()
 trimWithLabel ZZ := ZZ => n -> n
+trimWithLabel Symbol := Symbol => s -> s
 
 trimWithLabel Module := Module => M ->(
 if M == 0 then return (ring M)^0;
@@ -240,9 +242,12 @@ trimWithLabel HashTable := HashTable => E -> hashTable apply(keys E, k-> (k,trim
 trimWithLabel ChainComplex := ChainComplex => F -> chainComplex apply(
                               length F, i-> trimWithLabel(F.dd_(i+1))
 			      )
-    
+
+EagonData = new Type of HashTable
+expression EagonData := E -> ("EagonData computed to length "| toString(E.EagonLength))
+
 eagon = method(Options => {CompressBeta => true, Verbose => false})
-eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
+eagon(Ring, ZZ) := EagonData => o -> (R,b) ->(
     --compute the Eagon configuration up to and including column b; and thus
     --also the "Eagon Resolution"
     --Y^b_0 \to...\to Y^1_0 \to Y^0_0. 
@@ -260,9 +265,10 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
     --assuming that the differential of Y^n and the maps Y^n --> Y^(n-1) are known
     --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
     --this isomorphism must be made explicit.
-    
-    if R.cache.?Eagon == true and R.cache.EagonLength >= b then return();
 
+    if b == -1 then (remove(R.cache,symbol EagonData);  return null);    
+    if R.cache.?EagonData  and R.cache.EagonData.EagonLength >= b then return R.cache.EagonData;
+    
     Eagon := new MutableHashTable;        
 
     g := numgens R;
@@ -370,7 +376,7 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
 		         <<"Used "<<p+1<<" of "<<numInd<<" blocks of beta "<<(n,i)<<endl;
 		      break)))));
 
-       Eagon#{beta,n,i} = toLift//M;
+    Eagon#{beta,n,i} = toLift//M;
  
 
 	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
@@ -395,9 +401,10 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
 			    );
 ));
 
-E := trimWithLabel hashTable pairs Eagon;		
-R.cache.EagonLength = b;
-R.cache.Eagon = E;
+H := trimWithLabel hashTable prepend((symbol EagonLength, b), pairs Eagon);
+E :=new EagonData from H;
+
+R.cache.EagonData = E;
 E
 )
 
@@ -816,6 +823,7 @@ doc ///
      S = ZZ/101[a,b,c]
      I = ideal(a,b)*ideal"a3,b3,c3"
      R = S/I
+     needsPackage "DGAlgebras"; isGolod R
      E = eagon(R,6);
     Text
      We can see the vertical and horizontal strands, and the beta maps
@@ -830,8 +838,10 @@ doc ///
      this is the default behavior.
      To see the effect of CompressBeta => true, consider:
     Example     
+     eagon(R,-1)
      E = eagon(R,6, Verbose =>true);
-     En = eagon(R,6,CompressBeta => false);
+     eagon(R,-1)
+     En = eagon(R,6,CompressBeta => false)
      beta (E,4), beta(E,5)
      beta (En,4), beta(En,5)
     Text
