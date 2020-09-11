@@ -15,6 +15,8 @@ newPackage(
 
 export {
     "eagon", 
+    "Eagon",
+    "EagonLength",
     "CompressBeta", --option for eagon
     "resolutionFromEagon", 
     "golodBetti",
@@ -259,8 +261,8 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
     --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
     --this isomorphism must be made explicit.
     
-    --The isomorphism is NOT given by a map of complexes from Y_i^0**K to Y_i --
-    
+    if R.cache.?Eagon == true and R.cache.EagonLength >= b then return();
+
     Eagon := new MutableHashTable;        
 
     g := numgens R;
@@ -351,7 +353,6 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
              Eagon#{beta,n-1,i}*
              eTensor(Eagon#{north, n-2,1},X(i));
         M := Eagon#{north,n-2,i+1};
-	koz := false;
      
 --idea: when o.CompresBeta == true, then 
 --try the initial segments of blocks until lifting becomes possible; then
@@ -371,27 +372,6 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
 
        Eagon#{beta,n,i} = toLift//M;
  
- -*
-     if o.CompressBeta == true then(
-	 
-	ind := indices (src := flattenBlocks source M);
-	numInd := #ind;
-	firstColumnBlock := first indices src;
-	
-	goodBlock := firstColumnBlock =!= null and firstColumnBlock_1 == {};
-
-
-        if goodBlock then(
-           M1 := (flattenBlocks M)_[firstColumnBlock]*(src^[firstColumnBlock]);
-	   koz = toLift % M1 == 0;
-        if koz then <<"beta from column " <<n<< " row " <<i<< " factors through Koszul"<<endl else
-       	  	  <<"beta from column " <<n<< " row " <<i<< " does not factor through Koszul"<<endl;
-    	    );
-        --at this point, koz == true iff goodBlock and the lifting works.
-     );       
-
-       Eagon#{beta,n,i} = if koz then toLift//M1 else toLift//M;
-*-
 
 	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 	                   Eagon#{0,n-1,i}_[1]* (Eagon#{west,n-1,0}**X(i))  *(Eagon#{0,n,i})^[1]+
@@ -413,8 +393,12 @@ eagon(Ring, ZZ) := HashTable => o -> (R,b) ->(
 	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 			    Eagon#{0,n-1,i}_[1]*(Eagon#{north, n-2,1}**X(i))*(Eagon#{0,n,i}^[1])
 			    );
-			));
-trimWithLabel hashTable pairs Eagon
+));
+
+E := trimWithLabel hashTable pairs Eagon;		
+R.cache.EagonLength = b;
+R.cache.Eagon = E;
+E
 )
 
 beta = method(Options => {Picture => true})
@@ -663,7 +647,7 @@ doc ///
 Key
   EagonResolution
 Headline
- Construct the double complex including the Eagon resolution of the residue field
+ Construct the Eagon double complex, which contains a resolution of the residue field
 Description
   Text
    Produces the components that make up a not-necessarily minimal resolution of
