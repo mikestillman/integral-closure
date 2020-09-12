@@ -15,7 +15,6 @@ newPackage(
 
 export {
     "eagon", 
---    "Eagon",
     "EagonData",
     "EagonLength",
     "CompressBeta", --option for eagon
@@ -40,7 +39,7 @@ export {
 compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
     -- nparts is the number of terms
     -- k is the sum of the elements
-    -- each element is between 0 <= maxelem.
+    -- each element is between 0 and maxelem.
      compositionn := (n,k) -> (
 	  if n===0 or k < 0 then {}
 	  else if k===0 then {toList(n:0)}
@@ -57,8 +56,13 @@ compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
      result
      );
 
+--EagonData--
+EagonData = new Type of HashTable
+net EagonData := E -> net ("EagonData in <ring>.cache computed to length "| toString(E.EagonLength))
+
+--verticalStrand--
 verticalStrand = method()
-verticalStrand (HashTable, ZZ) := ChainComplex =>  (E,n) -> (
+verticalStrand (EagonData, ZZ) := ChainComplex =>  (E,n) -> (
     	   Kemax :=select(keys E, k -> (k_0 === "dVert" and E#k !=0));
            maxn := max apply(Kemax, k->k_1);
 	   if n>maxn then error "That vertical strand wasn't defined";
@@ -66,8 +70,9 @@ verticalStrand (HashTable, ZZ) := ChainComplex =>  (E,n) -> (
 	   b := max (Ke/(k-> k_2));
            chainComplex(apply(b, i-> E#{"dVert", n,i+1})))
        
+--horizontalStrand--       
 horizontalStrand = method()
-horizontalStrand (HashTable, ZZ) := ChainComplex =>  (E,i) -> (
+horizontalStrand (EagonData, ZZ) := ChainComplex =>  (E,i) -> (
     	   Kemax :=select(keys E, k -> (k_0 === "dHor" and E#k !=0));
            maxi := max apply(Kemax, k->k_2);
 	   if i>maxi then error "That horizontal strand wasn't defined";
@@ -80,21 +85,11 @@ restart
 loadPackage("EagonResolution", Reload => true)
 ///
 
--*
-eBetti = method()
-eBetti HashTable := List => E ->(
-    K := keys E;
-    K00 := sort select(K, k-> k_0 === 0 and k_2 === 0 and #k === 3);
-    FF := apply(K00,k->E#k);
-    betti chainComplex apply(#FF-1, i-> map(FF_i,FF_(i+1),0))
-)
-*-
-
 --tensoring a list of modules together:
 tensorL = (R,L) -> (if L === {} then return R^1;
                               if #L === 1 then return L_0;
 			      L_0**tensorL(R,drop(L,1)))
-			  
+--golodBetti--			  
 golodBetti = method()
 golodBetti (ChainComplex, ChainComplex, ZZ) := BettiTally => (F,G,b) ->(
     --F,G finite free complexes (resolutions) over a ring S.
@@ -184,10 +179,6 @@ homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
     g := isDegreeZeroSurjection(H, M, Verbose => true); -- this is just a check; get rid of it eventually
     map(C_i,HH_i C, gens Hi)*p*f
 )
-///
-restart
-loadPackage("EagonResolution", Reload =>true)
-///
 
 labeler = (L,F) -> directSum(1:(L=>F));
 
@@ -243,12 +234,22 @@ trimWithLabel ChainComplex := ChainComplex => F -> chainComplex apply(
                               length F, i-> trimWithLabel(F.dd_(i+1))
 			      )
 
-EagonData = new Type of HashTable
---expression EagonData := E -> ("expr EagonData computed to length "| toString(E.EagonLength))
-net EagonData := E -> net ("EagonData computed to length "| toString(E.EagonLength))
---toString EagonData := E -> ("string EagonData computed to length "| toString(E.EagonLength))
---toExternalString EagonData := E -> ("estring EagonData computed to length "| toString(E.EagonLength))
+///
+restart
+loadPackage("EagonResolution", Reload =>true)
+S = ZZ/101[x,y,z]
+R = S/ideal"x2,y2,z2"
+E = eagon(R,5)
+E
+resolutionFromEagon E
 
+resolution E
+res E
+eagon(R,4)
+eagon(R,-1)
+///
+
+--eagon--
 eagon = method(Options => {CompressBeta => true, Verbose => false})
 eagon(Ring, ZZ) := EagonData => o -> (R,b) ->(
     --compute the Eagon configuration up to and including column b; and thus
@@ -269,7 +270,11 @@ eagon(Ring, ZZ) := EagonData => o -> (R,b) ->(
     --To construct the differential of Y^(n+1) and the map Y^(n+1) \to Y^n, 
     --this isomorphism must be made explicit.
 
-    if b == -1 then (remove(R.cache,symbol EagonData);  return null);    
+    if b == -1 then (
+	remove(R.cache,symbol EagonData);  
+	<<"EagonData removed from "<<R<<".cache"<<endl;
+	return null);    
+    
     if R.cache.?EagonData  and R.cache.EagonData.EagonLength >= b then return R.cache.EagonData;
     
     Eagon := new MutableHashTable;        
@@ -411,17 +416,18 @@ R.cache.EagonData = E;
 E
 )
 
-beta = method(Options => {Picture => true})
---pictures or displayBlocks of the beta's in the resolution corresponding to E.
---Note: ther are no beta(E,0) or beta(E,1); the display starts with beta(E,2).
+beta = method(Options => {Picture => "picture"})
+--There are no maps beta(E,0) or beta(E,1); the display starts with beta(E,2).
 
-beta(HashTable, ZZ) := o -> (E,n) -> if o.Picture == true then 
-             picture E#{"beta",n,0} else displayBlocks E#{"beta",n,0}
+beta(EagonData, ZZ) := o -> (E,n) -> 
+         if o.Picture == "picture" then picture E#{"beta",n,0} else 
+	 if o.Picture == "displayBlocks" then 
+	                                displayBlocks E#{"beta",n,0} else 
+	                                E#{"beta",n,0}
 
-beta HashTable := List => o-> E ->(
+beta EagonData := List => o-> E ->(
 b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
 netList apply(b-1, n -> beta(E,n+2,Picture => o.Picture)))
-
 
 
 extractBlocks = method()
@@ -434,14 +440,9 @@ extractBlocks(Matrix, List) := Matrix => (phi, L) -> (
     sum(L, i->phi1_[ind_i]*src^[ind_i])
     )
 
-
-///
-restart
-loadPackage("EagonResolution", Reload=>true)
-///
-
+--resolutionFromEagon--
 resolutionFromEagon = method()
-resolutionFromEagon HashTable := ChainComplex => E ->(
+resolutionFromEagon EagonData := ChainComplex => E ->(
     b := max apply( select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
     chainComplex(apply(b,n->E#{"dHor",n+1,0}))
     )    
@@ -450,11 +451,13 @@ resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
     resolutionFromEagon eagon(R,b)
     )
 
+--res--
+--resolution--
+resolution EagonData := E -> resolutionFromEagon E
 ///
 restart
 loadPackage("EagonResolution", Reload=>true)
 ///
-
 
 eagonSymbols = method()
 eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
@@ -467,12 +470,6 @@ eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
     eagonSymbols(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
    )
 
-///
-restart
-debug loadPackage("EagonResolution", Reload=>true)
-///
-
-    
 componentsAndIndices = (F) -> (
     if not F.cache.?components then (
         -- F has no components
@@ -504,6 +501,7 @@ flattenBlocks Matrix := (M) -> (
     map(F,G,matrix M)
     )
 
+--displayBlocks--
 displayBlocks = method()
 displayBlocks Matrix := (M1) -> (
     M := flattenBlocks M1;
@@ -518,8 +516,9 @@ displayBlocks Matrix := (M1) -> (
         ), Alignment=>Center)
     )
 displayBlocks ChainComplex := List => C -> apply(length C, i -> displayBlocks(C.dd_(i+1)))
-displayBlocks HashTable := List => E -> displayBlocks resolutionFromEagon E
+displayBlocks EagonData := List => E -> displayBlocks resolutionFromEagon E
 
+--picture--
 picture = method()
 picture Matrix := (M1) -> (
     M := flattenBlocks M1;
@@ -536,8 +535,9 @@ picture Matrix := (M1) -> (
         ), Alignment=>Center)
     )
 picture ChainComplex := List => C -> apply(length C, i-> picture C.dd_(i+1))
-picture HashTable := List => E ->  picture resolutionFromEagon E
+picture EagonData := List => E ->  picture resolutionFromEagon E
 
+--mapComponent--
 mapComponent = method()
 mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     --Matrix should be one with labeled components, such as produced by
@@ -550,97 +550,6 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     try (M2 := M1^[tar]_[src]) then M2 else 
     (<<endl<<"*** bad source or target symbol; use `picture M1' to check ***"<<endl<<endl; error())
     )
-
-testY1 = M ->(
-    --tests whether the condition on Y1 necessary to start the Eagon process is satisfied:
-    --the generators of I**K_0 must lift to kill HH_1 K; and the higher homology of X should
-    --kill the higher homology of K; that is, Tor_(i+1)(R,R)**cover M --> Tor_i(M,R) should be surjective.
-    --Since we need Torthis *cannot be true* in case the projective dimension of M is larger than that of
-    --R = ring M, but might be true otherwise.
-R := ring M;
-Igens := presentation R;
-S := ring Igens;
-MS := pushForward(bar := map(R,S), M);
-K := res MS;
-m := inducedMap(M,bar K_0);
-X' := (res image Igens) ** K_0;
---X'M := (res image Igens) ** MS;
-eps := map( K_0, X'_0, Igens ** K_0);
-
-A1 := eps//K.dd_1;
-X := chainComplex prepend(A1, apply(length X', i-> X'.dd_(i+1)));
-A := extend(K, X, K.dd_1, Verify => true);
-
---apply(length K, i->numrows bar A_i)
-print (betti K, betti X);
-bool := prune HH_1 chainComplex {bar K.dd_1, bar K.dd_2 | bar A_1} == 0;
-<<prepend(bool, apply(length X-1, i ->  prune coker HH_(i+2) bar A == 0))<<endl;
-)
-
-///
-restart
-loadPackage("EagonResolution",Reload =>true)
-needsPackage "DGAlgebras"
-kk = ZZ/101
-S = kk[w,x,y,z]
-I = ideal"x2,y2,z3"*(ideal(vars S))^2
-I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
---I = (ideal(vars S))^2 -- ok in this case
-R = S/I
-bar = map(R,S)
-isGolod R
-M = prune coker random(R^2,R^{-1,-2,-3})--this is a counter-example {true, false, false, false}
-M = prune coker random(R^2,R^{-1,-1,-1})--this is a counter-example {true, false, true,true}
-testY1 M
-
-restart
-loadPackage("EagonResolution",Reload =>true)
-needsPackage "DGAlgebras"
-kk = ZZ/101
-S = kk[x,y,z]
-I = ideal"x2,y2,z3"*(ideal(vars S))^2
-I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
---I = (ideal(vars S))^2 -- ok in this case
-R = S/I
-bar = map(R,S)
-isGolod R
-M = prune coker matrix"x,y,z;y,z,x"
-betti res prune HH_2 bar X
-betti res prune HH_2 bar K
-B = basis(-1, Hom(HH_2 bar X, HH_2 bar K));
-betti B
-numrows B
-betti X--I think there can be no surjection! 
-betti K
-golodBetti(M,4)
-coker 
-betti (KR = res M)
-golodBetti(coker KR.dd_2, 4)
-betti res (coker KR.dd_2)
-testY1 (M = coker KR.dd_2) --{true, false, false}
-
-betti res 
-Ho = Hom(HH_2 bar X, HH_2 bar K);
-numrows basis(-1,Ho)
-
-A = testY1 M
-
-
-kk = ZZ/101
-S = kk[w,x,y]
-I = ideal"x"*(ideal(vars S))^2 -- not ok in this case
-
-R = S/I
-bar = map(R,S)
-isGolod R
-M = prune coker random(R^2,R^{-1,-2,-3})--this is a counter-example {true, false, false, false}
-A = testY1 M
-
-MS = pushForward(bar, M)
-pdim (S^1/I) >= pdim MS
-
-///
-
 
 beginDocumentation()
 
@@ -731,7 +640,7 @@ Description
    S = ZZ/101[a,b,c]
    I = ideal(a,b,c)*ideal(b,c)
    R = S/I
-   E = eagon(R,5);
+   E = eagon(R,5)
    F = resolutionFromEagon E
   Text
    As stated above, F = K\otimes T(F'), and one can see the maps between 
@@ -754,7 +663,32 @@ SeeAlso
    picture
 ///
 
+--docEagonData
 doc ///
+   Key
+    EagonData
+   Headline
+    HashTable storing output of eagon
+   Usage
+    E = eagon(R,b)
+   Inputs
+    R:Ring
+    b:ZZ
+   Outputs
+    E:EagonData
+   Description
+    Text
+     The command E = eagon(R,b) puts the EagonData E in R.cache so that E== R.cache.EagonData,
+     and causes the message "EagonData in <ring>.cache computed to length b"
+    Example
+     R = ZZ/101[x,y]/ideal"x2,xy,y2"
+     E = eagon(R,3)
+     E === R.cache.EagonData
+   SeeAlso
+///
+
+--doceagon
+doc///
    Key 
     eagon
     (eagon, Ring, ZZ)
@@ -767,15 +701,19 @@ doc ///
    Inputs
     R:Ring
     b:ZZ
-     how far to carry the computation
+     how far to carry the computation; -1 means "delete EagonData"
    Outputs
-    E:HashTable
+    E:EagonData
    Description
     Text
-     eagon(R,b) computes the first b columns of the Eagon double complex Y^*_* of R. Folowing
+     eagon(R,b) computes the first b columns of the Eagon double complex Y^*_* of R, 
+     and caches them in a HashTable of class EagonData in of R.cache.EagonData. 
+     (The command eagon(R,-1) removes this.) 
+     
+     Folowing
      Gulliksen-Levin we think of Y^n_* as the n-th column, and Y^*_i as the i-th row. The columns
-     Y^n are not resolutions. But
-     the i-th row is a resolution of the i-th module of boundaries in the Koszul complex K
+     Y^n are not acyclic.
+     The i-th row is a resolution of the i-th module of boundaries in the Koszul complex K
      of the variables of R; in particular, the
      "Eagon Resolution" is the 0-th row,
      
@@ -855,11 +793,12 @@ doc ///
     horizontalStrand
 ///
 
+--docresolutionFromEagon
 doc ///
    Key
     resolutionFromEagon
     (resolutionFromEagon, Ring, ZZ)
-    (resolutionFromEagon, HashTable)
+    (resolutionFromEagon, EagonData)
    Headline
     computes a resolution of the residue field
    Usage
@@ -870,7 +809,7 @@ doc ///
      factor ring of a polynomial ring
     n:ZZ
      number of maps to compute
-    E:HashTable
+    E:EagonData
      computed by eagon(R,n)
    Outputs
     F:ChainComplex
@@ -887,13 +826,13 @@ doc ///
      eagon
 ///
 
-
+--docpicture
 doc ///
    Key
     picture
     (picture, Matrix)
     (picture, ChainComplex)    
-    (picture, HashTable)        
+    (picture, EagonData)        
    Headline
     information about components of a labeled Matrix or ChainComplex
    Usage
@@ -903,7 +842,7 @@ doc ///
    Inputs
     M:Matrix
     C:ChainComplex
-    E:HashTable
+    E:EagonData
      produced by eagon; picture E is equivalent to picture resolutionFromEagon E
    Outputs
     N:Net
@@ -912,7 +851,7 @@ doc ///
      List of Nets, one for each map in the complex
    Description
     Text
-     The free modules that are the sources and targets of the matrices defined in the HashTable eagon(R,b) 
+     The free modules that are the sources and targets of the matrices defined in the EagonData eagon(R,b) 
      generally have many components. These can be analyzed with the functions
      picture, @TO displayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
      a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
@@ -940,18 +879,18 @@ doc ///
     mapComponent
 ///
 
+--docdisplayBlocks
 doc ///
    Key
     displayBlocks
     (displayBlocks,Matrix)
     (displayBlocks,ChainComplex)
-    (displayBlocks,HashTable)    
+    (displayBlocks,EagonData)    
    Headline
     displays the components of a labeled matrix or ChainComplex
    Usage
     N = displayBlocks M
     L = displayBlocks C
-    
    Inputs
     M:Matrix
     C:ChainComplex
@@ -962,7 +901,7 @@ doc ///
      List of Nets, one for each map in the complex
    Description
     Text
-     The free modules that are the sources and targets of the matrices defined in the HashTable eagon(R,b) 
+     The free modules that are the sources and targets of the matrices defined in the EagonData eagon(R,b) 
      generally have many components. These can be analyzed with the functions
      @TO picture@, @TO displayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
      a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
@@ -996,8 +935,8 @@ doc ///
 doc///
    Key
     beta
-    (beta,HashTable)
-    (beta,HashTable,ZZ)
+    (beta,EagonData)
+    (beta,EagonData,ZZ)
     [beta, Picture]
    Headline
     print the beta maps in the Eagon resolution
@@ -1005,30 +944,34 @@ doc///
     N = beta E
     N = beta(E,n)
    Inputs
-    E:HashTable
+    E:EagonData
      created by eagon(R,b)
     n:ZZ
      which beta to show
    Outputs
     N:Net
-     either a "Picture" display (with Picture => true, the default) or a "displayBlocks" display
+     either a "Picture" display (with Picture => "picture", the default) or a "displayBlocks" display
+     with Picture => "displayBlocks" or a plain matrix if Picture => <anything else>.
    Description
     Text
      The beta maps are the components of the Eagon resolution,
      starting from the 2nd differential that may or may not be minimal, 
      and are therefore most interesting. With the default option 
      
-     Picture => true
+     Picture => "picture"
      
-     the pictures (which blocks are 0,nonzero, nonminimal) are shown;
-     otherwise, displayBlocks is called.
+     the pictures (which blocks are 0,nonzero, nonminimal) are shown; or
+     the displayBlocks output
+     with Picture => "displayBlocks" or a plain matrix if Picture => <any other string>.
     Example
-     S = ZZ/101[x_0..x_3]
-     I = ideal(x_0..x_2)*ideal(x_0..x_3)
+     S = ZZ/101[a,b,c,d]
+     I = ideal(a,b,c)*ideal(a,b,c,d)
+     I = ideal"a3,b3,c3"
      R = S/I
      E = eagon(R,4);
-     beta(E,3)
-     beta(E,3,Picture => false)
+     beta(E,4)
+     beta(E,4,Picture => "displayBlocks")
+     beta(E,4,Picture => "")     
      beta E
    SeeAlso
     eagon
@@ -1039,13 +982,13 @@ doc///
 doc///
    Key
     horizontalStrand
-    (horizontalStrand, HashTable, ZZ)
+    (horizontalStrand, EagonData, ZZ)
    Headline
     extracts one horizontal strand from an Eagon double complex
    Usage
     F = horizontalStrand(E,i)
    Inputs
-    E:HashTable
+    E:EagonData
      produced by eagon(R,b)
     i:ZZ
      which strand
@@ -1072,13 +1015,13 @@ doc///
 doc ///
    Key
     verticalStrand
-    (verticalStrand, HashTable, ZZ)
+    (verticalStrand, EagonData, ZZ)
    Headline
     extracts one vertical strand from an Eagon double complex
    Usage
     F = verticalStrand(E,i)
    Inputs
-    E:HashTable
+    E:EagonData
      produced by eagon(R,b)
     i:ZZ
      which strand
@@ -1259,17 +1202,18 @@ doc ///
    Headline
     Option for beta, default is true
    Usage
-    beta(E,Picture =>true)
+    beta(E,Picture => "picture")
    Inputs
-    E:HashTable
+    E:EagonData
    Description
     Text
-     if Picture=>true then @TO picture@ is invoked; if false then @TO displayBlocks@ is used instead.
+     if Picture=>"picture" then @TO picture@ is invoked; if Picture =>"displayBlocks" 
+     then @TO displayBlocks@ is used instead.
     Example
      R = ZZ/101[x,y,z]/ideal"x3,y3,z3"
      E = eagon(R,5);
      beta(E,3)
-     beta(E,3,Picture =>false)
+     beta(E,3,Picture =>"displayBlocks")
    SeeAlso
     eagon
 ///
@@ -1284,7 +1228,7 @@ doc ///
     R:Ring
     b:ZZ
    Outputs
-    E:HashTable
+    E:EagonData
    Description
     Text
      beta(E,i) := E#{"beta",n,0} 
@@ -1431,13 +1375,14 @@ viewHelp EagonResolution
 
 --Irena's examples: m generic forms of degree d in n variables
 restart
-debug loadPackage("EagonResolution", Reload=> true)
+loadPackage("EagonResolution", Reload=> true)
 --
-(m,n,d) = (6,3,2)
+(m,n,d) = (4,3,2) --number of forms, numvars, degree
 S = ZZ/101[x_1..x_n]
 I = ideal random(S^1,S^{m:-d})
 R = S/I
-E' = eagon(R,4);
+E = eagon(R,8)
+beta E
 E = resolutionFromEagon E'
 res (coker vars R, LengthLimit=> 4)
 E = resolutionFromEagon(R,n+1)
@@ -1547,17 +1492,3 @@ mapComponent(F.dd_m, (m-1,{}),(0,{m-1}))
 
 
 
--*
-       Eagon#{beta,n,i} = -((if #components Eagon#{0,n-2,i} ===1 then 
-		            id_(Eagon#{0,n-2,i}) else Eagon#{0,n-2,i}_[0])*
-                             Eagon#{beta,n-1,i}*
-                               eTensor(Eagon#{north, n-2,1},X(i)) 
-		                   )//
-			       Eagon#{north,n-2,i+1};
-*-	     
-	     
-	
-	
-     
-	    
---here
