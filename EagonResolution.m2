@@ -16,9 +16,8 @@ newPackage(
 export {
     "eagon", 
     "EagonData",
-    "EagonLength",
     "CompressBeta", --option for eagon
-    "resolutionFromEagon", 
+    "eagonResolution", 
     "golodBetti",
     "verticalStrand", --make a vertical strand of the Eagon complex
     "horizontalStrand", --make a vertical strand of the Eagon complex    
@@ -29,32 +28,8 @@ export {
     "beta",
     "Picture" -- option for beta
     }
+protect EagonLength
 
---SOME USEFUL INTERNAL FUNCTIONS
---    "isIsomorphic",
---    "isDegreeZeroSurjection",
---    "weight", currently not used
-
--- place this into M2 core.
-compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
-    -- nparts is the number of terms
-    -- k is the sum of the elements
-    -- each element is between 0 and maxelem.
-     compositionn := (n,k) -> (
-	  if n===0 or k < 0 then {}
-	  else if k===0 then {toList(n:0)}
-	  else (
-          set1 := apply(compositionn(n-1,k), s -> s | {0});
-          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
-          set2 = select(set2, s -> s#(n-1) <= maxelem);
-          join(set1, set2)
-          )
-      );
-     compositionn = memoize compositionn;
-     result := compositionn(nparts,k);
-     compositionn = null;
-     result
-     );
 
 --EagonData--
 EagonData = new Type of HashTable
@@ -129,30 +104,6 @@ b = 5
 golodBetti(M,5)
 ///
 
-isDegreeZeroSurjection := method(Options => {Verbose => false})
-isDegreeZeroSurjection(Module,Module) := o -> (A,B)->(
-    --tests a random degree 0 map f:A --> B to see whether its a surjection, 
-    --and returns the answer. If "true" and  o.Verbose == true then returns f.
-    H := Hom(A,B);
-    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
-    f := homomorphism(B0*random(source B0, (ring B0)^1));
-    b := (coker f == 0);
-    if (b and o.Verbose) then f else b
-)
-
-isIsomorphic = method()
-isIsomorphic(Module,Module) := (A,B) -> (
-    --tests random degree 0 maps A->B, B->A and returns true
-    --if both are surjective.
-    if not(isHomogeneous A and isHomogeneous B) then 
-	  error"not implemented for inhomogeneous modules";
-    Ap := prune A;
-    Bp := prune B;
-    dA := set flatten degrees source gens Ap;
-    dB := set flatten degrees source gens Bp;
-    if dA =!= dB then false else
-    isDegreeZeroSurjection(Ap,Bp) and isDegreeZeroSurjection(Bp,Ap)
-    )
 
 homologyCover = method()
 homologyCover(ChainComplex,ZZ) := Matrix => (C,i) ->(
@@ -175,8 +126,9 @@ homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
     Hi := HH_i C;
     H := prune Hi;
     p := H.cache.pruningMap; -- iso from H to HH_i C
-    f := isDegreeZeroSurjection(M, H, Verbose => true);
-    g := isDegreeZeroSurjection(H, M, Verbose => true); -- this is just a check; get rid of it eventually
+    f := degreeZeroSurjection(M,H);
+    if f === null then error "non-iso modules that should be iso";
+--    g := degreeZeroSurjection(H, M); -- this is just a check; get rid of it eventually
     map(C_i,HH_i C, gens Hi)*p*f
 )
 
@@ -241,7 +193,7 @@ S = ZZ/101[x,y,z]
 R = S/ideal"x2,y2,z2"
 E = eagon(R,5)
 E
-resolutionFromEagon E
+eagonResolution E
 
 resolution E
 res E
@@ -440,23 +392,33 @@ extractBlocks(Matrix, List) := Matrix => (phi, L) -> (
     sum(L, i->phi1_[ind_i]*src^[ind_i])
     )
 
---resolutionFromEagon--
-resolutionFromEagon = method()
-resolutionFromEagon EagonData := ChainComplex => E ->(
+--eagonResolution--
+eagonResolution = method()
+eagonResolution EagonData := ChainComplex => E ->(
     b := max apply( select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
     chainComplex(apply(b,n->E#{"dHor",n+1,0}))
     )    
 
-resolutionFromEagon(Ring,ZZ) := ChainComplex => (R,b) ->(
-    resolutionFromEagon eagon(R,b)
+eagonResolution(Ring,ZZ) := ChainComplex => (R,b) ->(
+    eagonResolution eagon(R,b)
     )
-
+resolution EagonData := opts->E -> eagonResolution E
 --res--
 --resolution--
-resolution EagonData := E -> resolutionFromEagon E
+
 ///
 restart
 loadPackage("EagonResolution", Reload=>true)
+S = ZZ/101[a,b,c]
+I = ideal"a3,b3,c3"
+R = S/I
+E = eagon(R,6)
+eagonResolution E -- works
+--resolution EagonData := E -> eagonResolution E
+resolution E -- fails
+eagonResolution E
+res R.cache.EagonData
+eagonResolution E
 ///
 
 eagonSymbols = method()
@@ -516,26 +478,29 @@ displayBlocks Matrix := (M1) -> (
         ), Alignment=>Center)
     )
 displayBlocks ChainComplex := List => C -> apply(length C, i -> displayBlocks(C.dd_(i+1)))
-displayBlocks EagonData := List => E -> displayBlocks resolutionFromEagon E
+displayBlocks EagonData := List => E -> displayBlocks eagonResolution E
 
+    
 --picture--
 picture = method()
 picture Matrix := (M1) -> (
     M := flattenBlocks M1;
     src := indices source M;
     tar := indices target M;
+    kkk := ring M/(ideal gens ring M);
     netList (prepend(
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
 		cont := ideal M^[t]_[s];
                 h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "id" else 
-		if cont == ideal(1_(ring mts)) then "u" else "*"
+		if cont == ideal(1_(ring mts)) then toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) else "*"
+--		if cont == ideal(1_(ring mts)) then "u" else "*"		
                 ))
         ), Alignment=>Center)
     )
 picture ChainComplex := List => C -> apply(length C, i-> picture C.dd_(i+1))
-picture EagonData := List => E ->  picture resolutionFromEagon E
+picture EagonData := List => E ->  picture eagonResolution E
 
 --mapComponent--
 mapComponent = method()
@@ -544,12 +509,26 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     --E = eagon(R,n)
     --M = E#{"dVert",4,1}
     --or
-    --M = (resolutionFromEagon(R,n)).dd_4
+    --M = (eagonResolution(R,n)).dd_4
     M1 := flattenBlocks M;
     --use "member" and "componentsAndIndices" to check reasonableness? or try evaluating and catch error.
     try (M2 := M1^[tar]_[src]) then M2 else 
     (<<endl<<"*** bad source or target symbol; use `picture M1' to check ***"<<endl<<endl; error())
     )
+
+degreeZeroSurjection = method()
+degreeZeroSurjection(Module,Module) := Matrix => (A,B) -> ( -- null if no surjection
+    --creates a random degree 0 map f:A --> B and tests surjectivity. returns the map if true, else null.
+    A' := prune A;
+     pruningMapA := A'.cache.pruningMap; --from A' to A
+    B' := prune B;
+     pruningMapB := B'.cache.pruningMap;   
+    H := Hom(A',B');
+    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
+    f := homomorphism(B0*random(source B0, (ring B0)^1));
+    t := coker f == 0;
+    if t then pruningMapB * f * (pruningMapA)^-1 else null
+)
 
 beginDocumentation()
 
@@ -557,6 +536,7 @@ beginDocumentation()
 restart
 loadPackage"EagonResolution"
 uninstallPackage "EagonResolution"
+restart
 installPackage "EagonResolution"
 check "EagonResolution"
 viewHelp EagonResolution
@@ -627,7 +607,7 @@ Description
    the "Massey products" from topology, used by Golod to construct the complex
    in a special case.
    
-   resolutionFromEagon produces the 
+   eagonResolution produces the 
    (not necessarily minimal) resolution.  The functions picture and displayBlocks give
    alternate ways of viewing the innards of the resolution.
    
@@ -641,7 +621,7 @@ Description
    I = ideal(a,b,c)*ideal(b,c)
    R = S/I
    E = eagon(R,5)
-   F = resolutionFromEagon E
+   F = eagonResolution E
   Text
    As stated above, F = K\otimes T(F'), and one can see the maps between 
    each pair of summands. We denote the summand 
@@ -658,7 +638,7 @@ Description
    netList picture F
 SeeAlso
    eagon
-   resolutionFromEagon
+   eagonResolution
    displayBlocks
    picture
 ///
@@ -772,7 +752,7 @@ doc///
      verticalStrand(E,3)
      horizontalStrand(E,2)
      horizontalStrand (E,0)
-     F = resolutionFromEagon E     
+     F = eagonResolution E     
      beta E     
     Text
      With the option CompressBeta => true, only a subset of the components of Y^{n+1}_{i-1} are used;
@@ -793,17 +773,17 @@ doc///
     horizontalStrand
 ///
 
---docresolutionFromEagon
+--doceagonResolution
 doc ///
    Key
-    resolutionFromEagon
-    (resolutionFromEagon, Ring, ZZ)
-    (resolutionFromEagon, EagonData)
+    eagonResolution
+    (eagonResolution, Ring, ZZ)
+    (eagonResolution, EagonData)
    Headline
     computes a resolution of the residue field
    Usage
-    F = resolutionFromEagon(R,n)
-    F = resolutionFromEagon E
+    F = eagonResolution(R,n)
+    F = eagonResolution E
    Inputs
     R:Ring
      factor ring of a polynomial ring
@@ -821,7 +801,7 @@ doc ///
      S = ZZ/101[a,b,c]
      I = ideal(a,b,c)*ideal(b,c)
      R = S/I
-     resolutionFromEagon(R,5)
+     eagonResolution(R,5)
    SeeAlso
      eagon
 ///
@@ -843,7 +823,7 @@ doc ///
     M:Matrix
     C:ChainComplex
     E:EagonData
-     produced by eagon; picture E is equivalent to picture resolutionFromEagon E
+     produced by eagon; picture E is equivalent to picture eagonResolution E
    Outputs
     N:Net
      prints a "picture" -- a net -- showing information about the blocks
@@ -870,11 +850,11 @@ doc ///
      E = eagon(R,4);
      picture E
      picture E#{"beta",3,1}
-     netList picture resolutionFromEagon E
+     netList picture eagonResolution E
    SeeAlso
     eagon
     "beta"
-    resolutionFromEagon
+    eagonResolution
     displayBlocks
     mapComponent
 ///
@@ -922,10 +902,10 @@ doc ///
      C = horizontalStrand(E,0)
      netList picture C
      displayBlocks C.dd_2
-     netList picture resolutionFromEagon E
+     netList picture eagonResolution E
    SeeAlso
     eagon
-    resolutionFromEagon
+    eagonResolution
     picture
     mapComponent
     horizontalStrand
@@ -1004,7 +984,7 @@ doc///
      S = ZZ/101[x,y,z]
      R = S/((ideal(x,y))^2+ideal(z^3))
      E = eagon(R,5);
-     F = horizontalStrand(E,3)
+     F = horizontalStrand(E,2)
      netList picture F
    SeeAlso
     verticalStrand
@@ -1140,10 +1120,10 @@ doc ///
      E = eagon(R,6);
      golodBetti(F,K,6)
      betti res (coker vars R, LengthLimit => 6)
-     betti resolutionFromEagon E     
+     betti eagonResolution E     
    SeeAlso
     eagon
-    resolutionFromEagon
+    eagonResolution
 ///
 doc ///
    Key
@@ -1261,8 +1241,8 @@ TEST///
      R = S/I
      E = eagon(R,6,CompressBeta =>true);
      En = eagon(R,6,CompressBeta => false);
-     F = resolutionFromEagon E
-     Fn= resolutionFromEagon En
+     F = eagonResolution E
+     Fn= eagonResolution En
      assert(F.dd^2 == 0)
      assert(Fn.dd^2 == 0)
      assert(all(5, i->prune HH_(i+1) F == 0))
@@ -1274,7 +1254,7 @@ debug EagonResolution
 S = ZZ/101[a,b,c]/ideal(b^2,c^2) -- complete intersection
 B = 3
 E = eagon(S,B);
-F = resolutionFromEagon E
+F = eagonResolution E
 M = F.dd_3
 M' = extractBlocks(M,{0,2})
 M'' = map(target M', source M', matrix {{c, 0, -b, 0, 0, 0, 0, 0}, {-b, 0, 0, -c, 0, 0, 0, 0}, {a, 0, 0, 0, 0, -c, b, 0}, {0, 0, a, 0, b,
@@ -1287,7 +1267,7 @@ S = ZZ/101[a,b,c]
 R = S/(ideal"ab,ac")^2 --a simple Golod ring on which to try this
 b = 6
 E = eagon(R,b);
-F = resolutionFromEagon E
+F = eagonResolution E
 G = res (coker vars R, LengthLimit => b)
 assert(betti F == betti G)
 assert(F.dd^2== 0)
@@ -1315,8 +1295,8 @@ E = eagon(R,bound);
 Y = apply(bound, n-> verticalStrand(E,n))
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
-F = resolutionFromEagon(R,bound)
-F = resolutionFromEagon E
+F = eagonResolution(R,bound)
+F = eagonResolution E
 assert isHomogeneous F
 assert all(bound-1,i-> prune HH_(i+1) F == 0)
 assert(betti res(coker vars R,LengthLimit => bound) == betti F)
@@ -1327,7 +1307,7 @@ E = eagon(R,5);
 Y = apply(5, n -> verticalStrand(E,n));
 assert(all(#Y, n->((Y_n).dd)^2 == 0))
 assert all(#Y, n->isHomogeneous Y_n)
-F = resolutionFromEagon(R,5)
+F = eagonResolution(R,5)
 assert isHomogeneous F
 assert all(4,i-> prune HH_(i+1) F == 0)
 ///
@@ -1356,10 +1336,84 @@ G = res coker vars S
 b = 6
 H = res(coker vars R,LengthLimit =>6)
 E = eagon(R,b);
-assert(betti resolutionFromEagon E == betti H)
+assert(betti eagonResolution E == betti H)
 assert(golodBetti(F,G,b) == betti H)
 assert (golodBetti (coker vars R,b) == betti H)
 ///
+
+
+--SOME USEFUL INTERNAL FUNCTIONS
+--    "isIsomorphic",
+--    "isDegreeZeroSurjection",
+--    "weight", currently not used
+
+-- place this into M2 core.
+-*
+compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
+    -- nparts is the number of terms
+    -- k is the sum of the elements
+    -- each element is between 0 and maxelem.
+     compositionn := (n,k) -> (
+	  if n===0 or k < 0 then {}
+	  else if k===0 then {toList(n:0)}
+	  else (
+          set1 := apply(compositionn(n-1,k), s -> s | {0});
+          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
+          set2 = select(set2, s -> s#(n-1) <= maxelem);
+          join(set1, set2)
+          )
+      );
+     compositionn = memoize compositionn;
+     result := compositionn(nparts,k);
+     compositionn = null;
+     result
+     );
+
+isDegreeZeroSurjection := method()
+isDegreeZeroSurjection(Module,Module) := Boolean => (A,B) -> (
+    --tests a random degree 0 map f:A --> B to see whether its a surjection, 
+    --and returns the answer. If "true" and  o.Verbose == true then returns f.
+    H := Hom(A,B);
+    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
+    f := homomorphism(B0*random(source B0, (ring B0)^1));
+    coker f == 0
+)
+
+
+isIsomorphic = method()
+isIsomorphic(Module,Module) := (A,B) -> (
+    --tests random degree 0 maps A->B, B->A and returns true
+    --if both are surjective.
+    if not(isHomogeneous A and isHomogeneous B) then 
+	  error"not implemented for inhomogeneous modules";
+    Ap := prune A;
+    Bp := prune B;
+    dA := set flatten degrees source gens Ap;
+    dB := set flatten degrees source gens Bp;
+    if dA =!= dB then return false;
+    degreeZeroSurjection(Ap,Bp) =!= null and degreeZeroSurjection(Bp,Ap) =!= null
+    )
+*-
+
+
+TEST/// --test of degreeZeroSurjection
+debug needsPackage "EagonResolution"--degreeZeroSurjection is not exported.
+S = ZZ/101[a,b]
+A = S^{1,0}; B = S^{0,1};B1 = B/((ideal a)*B)
+f = degreeZeroSurjection(A,B)
+assert(source f == A)
+assert(target f == B)
+assert(coker f == 0)
+
+f = degreeZeroSurjection(A,B1)
+assert(source f == A)
+assert(target f == B1)
+assert(coker f == 0)
+
+f = degreeZeroSurjection(B1,A)
+assert(f===null)
+///
+
 
 end--
 
@@ -1372,6 +1426,29 @@ check EagonResolution
 
 viewHelp EagonResolution
 --------------------------------------
+--Gorenstein codim 3 examples.
+
+S = ZZ/101[a,b,c]
+n = 5
+m' = map(S^n,S^{n:-1},(i,j) -> if j <= i then 0_S else 
+                          if j == i+1 then S_(j%2) else
+			  if j == n-1-i then S_2 else 0_S)
+m = m'-transpose m'
+I = pfaffians(n-1,m)
+R = S/I
+--Poincare series is (1+t)^n/(1 - nt^2-nt^3+t^5)
+time E = eagon(R,10)
+beta E
+netList picture E
+F = eagonResolution E
+
+picture F.dd_7
+mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))
+mapComponent(F.dd_7,(0, {3,1}),(0, {1, 1, 2}))
+
+picture F.dd_8
+mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))
+mapComponent(F.dd_7,(0, {3,1}),(0, {1, 1, 2}))
 
 --Irena's examples: m generic forms of degree d in n variables
 restart
@@ -1383,9 +1460,9 @@ I = ideal random(S^1,S^{m:-d})
 R = S/I
 E = eagon(R,8)
 beta E
-E = resolutionFromEagon E'
+E = eagonResolution E'
 res (coker vars R, LengthLimit=> 4)
-E = resolutionFromEagon(R,n+1)
+E = eagonResolution(R,n+1)
 componentsAndIndices E'#{0,4,1}
 componentsAndIndices E_4
 displayBlocks (E.dd_4)
@@ -1462,7 +1539,7 @@ Isoc = ideal gens soc
 kList = kSS(R,5)
 m = if kList_0 !=0 then kList_0 else numgens R
 E = eagon(R,m);
-F = resolutionFromEagon E
+F = eagonResolution E
 
 findSocleColumns F.dd_m
 picture F.dd_m
@@ -1481,7 +1558,7 @@ soc = (0_R*R^1:(ideal vars R))
 Isoc = ideal gens soc
 kSS(R,8)
 E = eagon(R,5);
-F = resolutionFromEagon E
+F = eagonResolution E
 
 m = numgens R +1
 L = for i in toList(0..numcols F.dd_m -1) list (
@@ -1490,5 +1567,60 @@ positions(L, i->i=!=null)
 picture F.dd_m
 mapComponent(F.dd_m, (m-1,{}),(0,{m-1}))
 
+--------from roos.m2 20.09.15
+
+roosNonKoszul = method()
+roosNonKoszul ZZ := (n) -> (
+    S := ZZ/32003[a,b,c,d,e,f];
+    I1 := ideal"a2,ab,bc,c2,cd,d2,de,ef,f2";
+    I2 := ideal(a*c + n*c*f - d*f);
+    I3 := ideal(c*f + a*d + (n-2) * d*f);
+    I := I1 + I2 + I3;
+    (I, S/I)
+    )
+R = S/I
+
+roosNonKoszul QQ := (n) -> (
+    S := QQ[a,b,c,d,e,f];
+    I1 := ideal"a2,ab,bc,c2,cd,d2,de,ef,f2";
+    I2 := ideal(a*c + n*c*f - d*f);
+    I3 := ideal(c*f + a*d + (n-2) * d*f);
+    I := I1 + I2 + I3;
+    (I, S/I)
+    )
+
+end--
+restart
+load "roos.m2"
+(I,R) = roosNonKoszul 3
+betti res I
+betti res coker vars R
+time E = eagon(R,5)
+netList picture 
+betti eagonResolution E
+
+resolution EagonData := opts->E -> eagonResolution E
+resolution E
+betti res E
+(I,R) = roosNonKoszul 4
+betti res I
+betti res(coker vars R, LengthLimit=>5)
+
+(I,R) = roosNonKoszul 5
+betti res I
+betti res(coker vars R, LengthLimit=>5)
+
+for n from 2 to 8 list betti res first roosNonKoszul n
+
+for n from 2 to 8 list elapsedTime print betti res(coker vars last roosNonKoszul n, LengthLimit=>n+1)
+
+(I,R) = roosNonKoszul (1/2)
+betti res I
+betti res(coker vars R, LengthLimit=>5)
+betti res(coker vars R, LengthLimit=>10, DegreeLimit=>2)
 
 
+-- Another Roos non-Koszul example (but check that!).  Does this fit into a family like the
+-- ones above?
+S = ZZ/32003[a,b,c,d,e,f];
+I = ideal"a2,b2,c2,d2,e2,f2,ab,bc,de,ef,ac+3cd-df,cf+ad+df"
