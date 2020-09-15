@@ -1427,7 +1427,8 @@ check EagonResolution
 viewHelp EagonResolution
 --------------------------------------
 --Gorenstein codim 3 examples.
-
+restart
+loadPackage("EagonResolution", Reload =>true)
 S = ZZ/101[a,b,c]
 n = 5
 m' = map(S^n,S^{n:-1},(i,j) -> if j <= i then 0_S else 
@@ -1437,12 +1438,16 @@ m = m'-transpose m'
 I = pfaffians(n-1,m)
 R = S/I
 --Poincare series is (1+t)^n/(1 - nt^2-nt^3+t^5)
-time E = eagon(R,10)
-beta E
-netList picture E
-F = eagonResolution E
 
-picture F.dd_7
+eagon(R, -1)
+time E = eagon(R,7)
+beta(E)
+beta(F,Picture=>"")
+netList picture E
+F = eagonResolution(R,7)
+F = res E
+G = betti res coker vars R
+
 mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))
 mapComponent(F.dd_7,(0, {3,1}),(0, {1, 1, 2}))
 
