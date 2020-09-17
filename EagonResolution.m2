@@ -1445,6 +1445,13 @@ beta(E)
 beta(F,Picture=>"")
 netList picture E
 F = eagonResolution(R,7)
+betti F
+betti res( coker vars R, LengthLimit =>7)
+F.dd_2
+F.dd_3
+displayBlocks F.dd_6
+mapComponent(F.dd_7,(0, {1,3}),(0, {1,1,2}))
+
 F = res E
 G = betti res coker vars R
 
@@ -1452,18 +1459,23 @@ mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))
 mapComponent(F.dd_7,(0, {3,1}),(0, {1, 1, 2}))
 
 picture F.dd_8
-mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))
+mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))mapComponent(F.dd_7,(0, {1, 3}),(0, {1, 1, 2}))
 mapComponent(F.dd_7,(0, {3,1}),(0, {1, 1, 2}))
 
 --Irena's examples: m generic forms of degree d in n variables
 restart
 loadPackage("EagonResolution", Reload=> true)
 --
-(m,n,d) = (4,3,2) --number of forms, numvars, degree
+(m,n,d) = (7,4,2) --number of forms, numvars, degree
 S = ZZ/101[x_1..x_n]
 I = ideal random(S^1,S^{m:-d})
+betti res I
 R = S/I
-E = eagon(R,8)
+betti res (coker vars R, LengthLimit=>4)
+
+E = eagon(R,6)
+betti res E
+
 beta E
 E = eagonResolution E'
 res (coker vars R, LengthLimit=> 4)
