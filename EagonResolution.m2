@@ -368,18 +368,19 @@ R.cache.EagonData = E;
 E
 )
 
-beta = method(Options => {Picture => "picture"})
+--beta--
+beta = method(Options => {Picture => "picture", Verbose => false})
 --There are no maps beta(E,0) or beta(E,1); the display starts with beta(E,2).
 
 beta(EagonData, ZZ) := o -> (E,n) -> 
-         if o.Picture == "picture" then picture E#{"beta",n,0} else 
+         if o.Picture == "picture" then picture(E#{"beta",n,0},Verbose => o.Verbose) else 
 	 if o.Picture == "displayBlocks" then 
 	                                displayBlocks E#{"beta",n,0} else 
 	                                E#{"beta",n,0}
 
 beta EagonData := List => o-> E ->(
 b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
-netList apply(b-1, n -> beta(E,n+2,Picture => o.Picture)))
+netList apply(b-1, n -> beta(E,n+2,Picture => o.Picture, Verbose => o.Verbose)))
 
 
 extractBlocks = method()
@@ -482,25 +483,37 @@ displayBlocks EagonData := List => E -> displayBlocks eagonResolution E
 
     
 --picture--
-picture = method()
-picture Matrix := (M1) -> (
+picture = method(Options => {Verbose => false, Picture => "picture"})
+picture Matrix := o -> (M1) -> (
     M := flattenBlocks M1;
     src := indices source M;
     tar := indices target M;
     kkk := ring M/(ideal gens ring M);
+    if o.Picture == "displayBlocks" then return displayBlocks M1;
+    if o.Picture == "picture" then(
     netList (prepend(
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
+		nums := toString(numrows mts,numcols mts);
 		cont := ideal M^[t]_[s];
-                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "id" else 
-		if cont == ideal(1_(ring mts)) then toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) else "*"
---		if cont == ideal(1_(ring mts)) then "u" else "*"		
+		if o.Verbose == false then(
+                
+		h := if mts == 0 then "." else 
+		     if (numrows mts == numcols mts and mts == 1) then "id" else 
+		     if cont == ideal(1_(ring mts)) 
+		       then toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) else "*") 
+		
+		                     else(
+		
+		h = if mts == 0 then nums|" ." else 
+		     if (numrows mts == numcols mts and mts == 1) then nums|" id" else 
+		     if cont == ideal(1_(ring mts)) then nums|","|toString rank(kkk**M^[t]_[s]) else "*") 
                 ))
-        ), Alignment=>Center)
+        ), Alignment=>Center))
     )
-picture ChainComplex := List => C -> apply(length C, i-> picture C.dd_(i+1))
-picture EagonData := List => E ->  picture eagonResolution E
+picture ChainComplex := List => o -> C -> apply(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
+picture EagonData := List => o -> E -> picture (eagonResolution E, Verbose => o.Verbose)
 
 --mapComponent--
 mapComponent = method()
@@ -542,6 +555,7 @@ check "EagonResolution"
 viewHelp EagonResolution
 *-
 
+--docEagonResolution
 doc ///
 Key
   EagonResolution
@@ -813,6 +827,8 @@ doc ///
     (picture, Matrix)
     (picture, ChainComplex)    
     (picture, EagonData)        
+    [picture, Picture]
+    [picture, Verbose]
    Headline
     information about components of a labeled Matrix or ChainComplex
    Usage
@@ -826,7 +842,9 @@ doc ///
      produced by eagon; picture E is equivalent to picture eagonResolution E
    Outputs
     N:Net
-     prints a "picture" -- a net -- showing information about the blocks
+     prints a "picture" -- a net -- showing information about the blocks. If Verbose=>true then also displays
+     "(numrows, numcols)" for each block
+     If Picture => "displayBlocks" then displays the matrices in each block
     L:List
      List of Nets, one for each map in the complex
    Description
@@ -912,12 +930,14 @@ doc ///
     verticalStrand
 ///
 
+--docbeta
 doc///
    Key
     beta
     (beta,EagonData)
     (beta,EagonData,ZZ)
     [beta, Picture]
+    [beta, Verbose]
    Headline
     print the beta maps in the Eagon resolution
    Usage
@@ -932,6 +952,7 @@ doc///
     N:Net
      either a "Picture" display (with Picture => "picture", the default) or a "displayBlocks" display
      with Picture => "displayBlocks" or a plain matrix if Picture => <anything else>.
+     With Verbose => true, the display includes (rank target beta,rank source beta)
    Description
     Text
      The beta maps are the components of the Eagon resolution,
@@ -959,6 +980,7 @@ doc///
     displayBlocks
 ///
 
+--dochorizontalStrand
 doc///
    Key
     horizontalStrand
@@ -992,6 +1014,7 @@ doc///
     picture
 ///
 
+--docverticalStrand
 doc ///
    Key
     verticalStrand
@@ -1024,6 +1047,8 @@ doc ///
     eagon
     picture
 ///
+
+--docmapComponent
 doc ///
    Key
     mapComponent
@@ -1075,6 +1100,7 @@ doc ///
     eagon
 ///
 
+--docgolodBetti
 doc ///
    Key
     golodBetti
@@ -1125,6 +1151,7 @@ doc ///
     eagon
     eagonResolution
 ///
+--doceagonSymbols
 doc ///
    Key
     eagonSymbols
@@ -1176,6 +1203,7 @@ doc ///
     displayBlocks
     mapComponent
 ///
+--docPicture
 doc ///
    Key
     Picture
@@ -1197,6 +1225,7 @@ doc ///
    SeeAlso
     eagon
 ///
+--docCompressBeta
 doc ///
    Key
     CompressBeta
@@ -1224,7 +1253,30 @@ doc ///
     eagon
     beta
 ///
-
+-*
+doc ///
+   Key
+    net
+    (net, EagonData)
+   Headline
+    prints the homological degree to which the EagonData has been computed
+   Usage
+    s = net E
+   Inputs
+    E:Eagondata
+   Outputs
+    s:String
+   Description
+    Text
+     prints the homological degree to which the EagonData has been computed
+    Example
+     R = ZZ/101[a,b]/ideal"a2,b2"
+     E = eagon(R,4)
+     net E
+   SeeAlso
+    EagonData
+///
+*-
 ----TESTS
 -*
 restart
@@ -1442,15 +1494,18 @@ R = S/I
 eagon(R, -1)
 time E = eagon(R,7)
 beta(E)
-beta(F,Picture=>"")
-netList picture E
+beta(E, Verbose=>true)
+--beta(F,Picture=>"")
+netList picture(E, Verbose => true)
 F = eagonResolution(R,7)
 betti F
+mapComponent(F.dd_7,(0, {1,3}),(0, {1,1,2}))
+
 betti res( coker vars R, LengthLimit =>7)
 F.dd_2
 F.dd_3
 displayBlocks F.dd_6
-mapComponent(F.dd_7,(0, {1,3}),(0, {1,1,2}))
+
 
 F = res E
 G = betti res coker vars R
