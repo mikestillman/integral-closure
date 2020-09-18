@@ -46,6 +46,7 @@ raw = value Core#"private dictionary"#"raw"
 rawIsField = value Core#"private dictionary"#"rawIsField"
 isField EngineRing := R -> (R.?isField and R.isField) or rawIsField raw R
 
+--inNoetherForm
 inNoetherForm = method()
 inNoetherForm Ring := Boolean => (R) -> R.?NoetherInfo
 
@@ -375,8 +376,98 @@ doc ///
       B = noetherForm phi
   Caveat
     The base field must currently be a finite field, or the rationals.
-    Finiteness is not yet checked.  The 3rd version is not yet written.
+    Finiteness is not yet checked.
   SeeAlso
+///
+
+doc ///
+  Key
+    multiplication
+    (multiplication, RingElement)
+  Headline
+    matrix of multiplication by an element
+  Usage
+    multiplication f
+  Inputs
+    f:RingElement
+  Outputs
+    :Matrix
+  Description
+    Text
+      Given a ring.
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (getBasis, Ring)
+///
+
+doc ///
+  Key
+    traceForm
+    (traceForm, Ring)
+  Headline
+    trace form matrix of ring created using noetherForm
+  Usage
+    traceForm R
+  Inputs
+    R:Ring
+  Outputs
+    :Matrix
+  Description
+    Text
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (getBasis, Ring)
+    (multiplication, RingElement)
+///
+
+doc ///
+  Key
+    inNoetherForm
+    (inNoetherForm, Ring)
+  Headline
+    whether the ring was created using noetherForm
+  Usage
+    inNoetherForm R
+  Inputs
+    R:Ring
+  Outputs
+    :Boolean
+  Description
+    Text
+  Caveat
+    This function only checks whether the ring was vreated using @TO noetherForm@, not
+    whether it really is in Noether normal form
+  SeeAlso
+    noetherForm
+///
+
+doc ///
+  Key
+    getBasis
+    (getBasis, Ring)
+  Headline
+    basis over coefficient ring of ring in Noether form
+  Usage
+    getBasis R
+  Inputs
+    R:Ring
+  Outputs
+    :Matrix
+  Description
+    Text
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (getBasis, Ring)
+    (multiplication, RingElement)
 ///
 
 TEST ///
@@ -450,11 +541,44 @@ TEST ///
 
   multmaps = for x in getBasis B list pushFwd(map(B,A), map(B^1, B^1, {{x}}))
   multmaps2 = for x in getBasis B list multiplication x
-  assert(multmaps === multmaps2)
+  assert(multmaps === multmaps2) -- NOT EQUAL.  pushFwd uses different basis for B?
+                                  -- would be nice: to have this play well with pushFwd... if possible.
 
   traces = multmaps/trace
   MB = pushFwd(map(B,A), B^1) -- dim 4, free
   map(A^1, MB, {traces}) -- traces as a map of modules
+  
+  use B
+  1/x
+  1/x^2
+  1/y
+  (1/y) * y == 1
+///
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+  
+  test the following:
+    1. singly graded case.
+    2. inhomog case
+    3. multi-graded case.  What to do if phi is not graded?
+    4. subset of the variables
+    5. a bunch of linear forms
+    6. what else?
+*-
+  S = QQ[a..d]
+  I = ideal"a3-b2-c, bc-d, a2-b2-d2"
+  R = S/I
+
+  B = noetherForm R
+  A = coefficientRing B  
+  degrees B -- not good... multigradings!
+  leadTerm ideal B
+
+  
+
 ///
 
 TEST ///      
@@ -564,7 +688,7 @@ TEST ///
   traceForm L
 
   R = QQ[a..d]/(b^2-a, b*c-d)
-  B = noetherForm{a,d} -- needs to give an error! BUG need to check that it is finite...
+  B = noetherForm{a,d} -- TODO: needs to give an error! BUG need to check that it is finite...
 ///
 
 TEST ///
@@ -575,29 +699,28 @@ TEST ///
 --  needsPackage "NoetherNormalization"
   kk = ZZ/101
   R = kk[x,y]/(x*y-1)
-B = noetherForm R
-describe B
-frac B
+  B = noetherForm R
+  describe B
+  frac B
   A = kk[t]
+  use R
   phi = map(R,A,{x+y})
-  noetherForm phi
 
-  --noetherForm R  -- call noetherNormalization, to find the linear forms that are independent.
+  noetherForm phi
+  noetherForm R
     
   (F, J, xv) = noetherNormalization R
   R' = (ambient R)/J
 
   G = map(R', R, sub(F.matrix, R'))
   isWellDefined G    
-G^-1 (xv_0)
+  G^-1 (xv_0)
   ideal R'
   ideal R
   for x in xv list G^-1 x
   A = kk[t]
   phi = map(R, A, for x in xv list G^-1 x)
   noetherForm phi
-
-    
 ///
 
 TEST ///
@@ -611,7 +734,7 @@ TEST ///
   S = reesAlgebra I
   S = first flattenRing S
   
-  elapsedTime (F, J, xv) = noetherNormalization S -- wow, this takes more time than I would have thought!
+  elapsedTime (F, J, xv) = noetherNormalization S -- wow, this takes more time than I would have thought! 3.1 sec on my macbookpro, Sep 2020.
 
   xv/(x -> F x)
 
