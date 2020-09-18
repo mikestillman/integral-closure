@@ -23,6 +23,7 @@ export {
     "horizontalStrand", --make a vertical strand of the Eagon complex    
     "eagonSymbols",    
     "picture",
+    "Transpose", -- option for picture
     "displayBlocks",
     "mapComponent",
     "beta",
@@ -483,15 +484,50 @@ displayBlocks EagonData := List => E -> displayBlocks eagonResolution E
 
     
 --picture--
-picture = method(Options => {Verbose => false, Picture => "picture"})
-picture Matrix := o -> (M1) -> (
+pictureList = method(Options => {Verbose => false, Picture => "picture", Transpose => false})
+pictureList Matrix := o -> (M1) -> (
     M := flattenBlocks M1;
     src := indices source M;
     tar := indices target M;
     kkk := ring M/(ideal gens ring M);
+--    if o.Picture == "picture" then(
+    L := prepend(
+        prepend("", src),
+        for t in tar list prepend(t, for s in src list (
+                mts := M^[t]_[s];
+		nums := toString(numrows mts,numcols mts);
+		cont := ideal M^[t]_[s];
+		if o.Verbose == false then(
+                
+		h := if mts == 0 then "." else 
+		     if (numrows mts == numcols mts and mts == 1) then "id" else 
+		     if cont == ideal(1_(ring mts)) 
+		       then toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) else "*") 
+		
+		                     else(
+		
+		h = if mts == 0 then nums|" ." else 
+		     if (numrows mts == numcols mts and mts == 1) then nums|" id" else 
+		     if cont == ideal(1_(ring mts)) then nums|","|toString rank(kkk**M^[t]_[s]) else "*") 
+                )));
+    if o.Transpose then transpose L else L
+    )
+
+pictureList ChainComplex := List => o -> C -> apply(length C, i-> pictureList(C.dd_(i+1), o))
+pictureList EagonData := List => o -> E -> pictureList (eagonResolution E, o)
+
+picture = method(Options => options pictureList)
+picture Matrix := o -> (M1) -> (
+--    M := flattenBlocks M1;
+--    src := indices source M;
+--    tar := indices target M;
+--    kkk := ring M/(ideal gens ring M);
     if o.Picture == "displayBlocks" then return displayBlocks M1;
-    if o.Picture == "picture" then(
-    netList (prepend(
+--    if o.Picture == "picture" then(
+    netList (pictureList(M1,o), Alignment => Center)
+  )  
+-*
+(prepend(
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
                 mts := M^[t]_[s];
@@ -512,8 +548,9 @@ picture Matrix := o -> (M1) -> (
                 ))
         ), Alignment=>Center))
     )
-picture ChainComplex := List => o -> C -> apply(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
-picture EagonData := List => o -> E -> picture (eagonResolution E, Verbose => o.Verbose)
+*-
+picture ChainComplex := Net => o -> C -> netList apply(pictureList(C,o), p -> netList(p, Alignment => Center)) --(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
+picture EagonData := Net => o -> E -> picture (eagonResolution E, o)
 
 --mapComponent--
 mapComponent = method()
@@ -649,7 +686,7 @@ Description
    a given block is zero or not, and this can be obtained with the function @TO picture@,
   Example   
    picture F.dd_3
-   netList picture F
+   picture (F, Verbose => true, Transpose => true)
 SeeAlso
    eagon
    eagonResolution
@@ -868,7 +905,7 @@ doc ///
      E = eagon(R,4);
      picture E
      picture E#{"beta",3,1}
-     netList picture eagonResolution E
+     picture eagonResolution E
    SeeAlso
     eagon
     "beta"
@@ -918,9 +955,9 @@ doc ///
      E = eagon(R,4);
      M = E#{"dVert",3,1}
      C = horizontalStrand(E,0)
-     netList picture C
+     picture C
      displayBlocks C.dd_2
-     netList picture eagonResolution E
+     picture eagonResolution E
    SeeAlso
     eagon
     eagonResolution
@@ -1007,7 +1044,7 @@ doc///
      R = S/((ideal(x,y))^2+ideal(z^3))
      E = eagon(R,5);
      F = horizontalStrand(E,2)
-     netList picture F
+     picture F
    SeeAlso
     verticalStrand
     eagon
@@ -1041,7 +1078,7 @@ doc ///
      R = S/((ideal(x,y))^2+ideal(z^3))
      E = eagon(R,5);
      F = verticalStrand(E,3)
-     netList picture F
+     picture F
    SeeAlso
     horizontalStrand
     eagon
@@ -1495,9 +1532,12 @@ eagon(R, -1)
 time E = eagon(R,7)
 beta(E)
 beta(E, Verbose=>true)
+ (picture (E,Verbose => true))
 --beta(F,Picture=>"")
-netList picture(E, Verbose => true)
+picture(E, Verbose => true)
 F = eagonResolution(R,7)
+picture(F.dd_4)
+class oo
 betti F
 mapComponent(F.dd_7,(0, {1,3}),(0, {1,1,2}))
 
@@ -1668,7 +1708,6 @@ load "roos.m2"
 betti res I
 betti res coker vars R
 time E = eagon(R,5)
-netList picture 
 betti eagonResolution E
 
 resolution EagonData := opts->E -> eagonResolution E
