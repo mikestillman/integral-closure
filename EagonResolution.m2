@@ -573,14 +573,12 @@ Headline
  Construct the Eagon double complex, which contains a resolution of the residue field
 Description
   Text
-   Produces the components that make up a not-necessarily minimal resolution of
+   This package implements Eagon's algorithm for producing a not-necessarily minimal resolution of
    the residue field of a ring R = S/I where S is a polynomial ring and I is an ideal.
    The resolution constructed is minimal if and only if R is Golod. The resolution
-   constructed is called the Golod or Shamash or Eagon resolution, and the algorithm given here
-   is the one by Jack Eagon. 
+   constructed is sometimes called the Golod or Shamash or Eagon resolution.
    
-   The resolution could, perhaps more properly, be called the Golod-Eagon-Shamash
-   resolution. It was described, in the special case where it is minimal, by
+   This resolution was described, in the special case where it is minimal, by
    E.S. Golod: Homology of some local rings, Uspekhi Mat. Nauk 33 (1978), no. 5(203), 177–178.
    A general construction was described by Jack Shamash:
    The Poincaré series of a local ring II, J. Algebra 17 (1971), 1–18
@@ -624,27 +622,32 @@ Description
    1 in homological degree so that F_i is in homological degree i+1, and truncated
    by dropping F_0; and T(F') denotes the tensor algebra on the graded module F'.
 
-   The differentials of this complex come from the differentials in the Koszul
+   The differentials of the complex come from the differentials in the Koszul
    complex and various maps identifying the homology, at successive stages of the 
-   construction, with tensor products of modules already constructed with the F_i.
+   construction, with tensor products of modules already constructed.
    These are also the ingredients of
    the "Massey products" from topology, used by Golod to construct the complex
-   in a special case.
+   in the special case where there are ``trivial Massey products'', and the resolution is therefore minimal.
    
-   eagonResolution EagonData
-
-   or simply 
-
-   res EagonData
-
-   produces the 
-   (not necessarily minimal) resolution.  The function picture gives
-   alternate ways of viewing the innards of the resolution.
-   
-   The function @TO eagon@ produces a hashTable that contains all the data produced in
+   The command  @TO eagon@ produces a type of hashTable called an @TO EagonData@, defined in the package.
+   It contains all the data produced in
    Eagon's construction of the resolution: a double complex Y^n_i, and some internal 
    maps. The vertical differental is called dVert: Y^n_i -> Y^n_{i+1} and the horizontal
    differential is dHor: Y^n_i -> Y^{n-1}_i. 
+
+   Thus for example if $R$ is a factor ring of a polynomial ring S, then
+   
+   E = eagon(R,5)
+   @TO eagonResolution@ E
+
+   or simply 
+
+   res EE
+
+   produces the first 5 steps of a 
+   (not necessarily minimal) R-free resolution of the residue field of R.  The function picture gives
+   alternate ways of viewing the innards of the resolution.
+   
    
   Example
    S = ZZ/101[a,b,c]
@@ -655,15 +658,17 @@ Description
    assert(F == res E)
   Text
    As stated above, F = K\otimes T(F'), and one can see the maps between 
-   each pair of summands. We denote the summand 
-   K_i**F_{j_1}**..**F_{j_m} with the symbol (i,{j_1,..,j_m}), and we can write out
-   the differentials in block form with the function picture, with the option Picture => "DisplayBlocks".
+   each pair of summands. We label the summand 
+   K_i**F_{j_1}**..**F_{j_m} with the symbol (i,\{j_1,..,j_m\}), and we can write out
+   the differentials in block form with the function picture, 
+   with the option Picture => "DisplayBlocks", including the labels:
   Example
    F.dd_3
    picture(F.dd_3, Picture => "DisplayBlocks")
   Text
    Since the matrices can be very large, it is sometimes better to know just whether
    a given block is zero or not, and this can be obtained with the function @TO picture@,
+   with the default option Picture => "picture".
   Example   
    picture F.dd_3
    picture (F, Verbose => true)
@@ -789,8 +794,7 @@ doc///
      F = eagonResolution E     
      beta E     
     Text
-     With the option CompressBeta => true, only a subset of the components of Y^{n+1}_{i-1} are used;
-     this is the default behavior.
+     With the default option CompressBeta => true, only a subset of the components of Y^{n+1}_{i-1} are used.
      To see the effect of CompressBeta => true, consider:
     Example     
      eagon(R,-1)
@@ -904,9 +908,9 @@ doc ///
    Key
     DisplayBlocks
    Headline
-    option for Picture
+    Picture => "DisplayBlocks" option for picture
    Usage
-    N = picture(M, DisplayBlocks => b)
+    N = picture(M, Picture => "DisplayBlocks")
    Inputs
     M:Matrix
    Outputs
@@ -963,7 +967,7 @@ doc///
    Outputs
     N:Net
      either a "Picture" display (with Picture => "picture", the default) or a "displayBlocks" display
-     with Picture => "displayBlocks" or a plain matrix if Picture => <anything else>.
+     with Picture => "DisplayBlocks" or a plain matrix if Picture => <anything else>.
      With Verbose => true, the display includes (rank target beta,rank source beta)
    Description
     Text
@@ -975,7 +979,7 @@ doc///
      
      the pictures (which blocks are 0,nonzero, nonminimal) are shown; or
      the displayBlocks output
-     with Picture => "displayBlocks" or a plain matrix if Picture => <any other string>.
+     with Picture => "DisplayBlocks" or a plain matrix if Picture => <any other string>.
     Example
      S = ZZ/101[a,b,c,d]
      I = ideal(a,b,c)*ideal(a,b,c,d)
@@ -983,7 +987,7 @@ doc///
      R = S/I
      E = eagon(R,4);
      beta(E,4)
-     beta(E,4,Picture => "displayBlocks")
+     beta(E,4,Picture => "DisplayBlocks")
      beta(E,4,Picture => "")     
      beta E
    SeeAlso
@@ -1093,7 +1097,7 @@ doc ///
 
      The block structure of the matrix, together with the source and
      target Sequences, can be seen from 
-     picture M or displayBlocks M.
+     picture M.
      
      The function mapComponent returns a single block of such a matrix.     
     Example
@@ -1143,11 +1147,18 @@ doc ///
      has underlying graded module H = R**K**T(F'), where F' is the truncated resolution
      F_1 <- F_2... and T(F') is the tensor algebra.
      
-     Since the component modules of H are given, we can compute the betti table without computing
-     the differentials in the resolution.
+     Since the component modules of H are given, the computation only requires the computation of
+     the minimal S-free resolution of M, and then is purely numeric;
+     the differentials in the R-free resolution of M are not computed.
      
-     In case M = coker vars R, this is the usual resolution of the residue field
-     of a Golod ring. 
+     In case M = coker vars R, the result is the Betti table of the Golod-Shamash-Eagon 
+     resolution of the residue field.
+     
+     We say that M is a Golod module (over R) if the ranks of the free modules in a minimal R-free resolution
+     of M are equal to the numbers produced by golodBetti. Theorems of Levin and Lescot assert that if
+     R has a Golod module, then R is a Golod ring; and that if R is Golod, then thpe d-th syzygy
+     of any R-module M$ is Golod for all d greater than or equal to the projective dimension
+     of M as an S-module (more generally, the co-depth of M) (Avramov, 6 lectures, 5.3.2).
      
     Example
      S = ZZ/101[a,b,c]
@@ -1213,7 +1224,7 @@ doc ///
    SeeAlso
     eagon
     picture
-    displayBlocks
+    DisplayBlocks
     mapComponent
 ///
 *-
@@ -1231,7 +1242,7 @@ doc ///
    Description
     Text
      if Picture=>"picture" then @TO picture@ is invoked; if Picture =>"DisplayBlocks" 
-     then @TO displayBlocks@ is used instead.
+     then a net with the matrices (the "blocks") is produced.
     Example
      R = ZZ/101[x,y,z]/ideal"x3,y3,z3"
      E = eagon(R,5);
@@ -1245,12 +1256,14 @@ doc ///
    Key
     CompressBeta
    Headline
-    option for eagon
+    CompressBeta => true, default option for eagon
    Usage
-    E = eagon(R,b,CompressBeta =>true, Verbose =>true)
+    E = eagon(R,b,CompressBeta =>bool1, Verbose =>bool2)
    Inputs
     R:Ring
     b:ZZ
+    bool1: Boolean
+    bool2: Boolean
    Outputs
     E:EagonData
    Description
@@ -1272,7 +1285,7 @@ doc ///
    Key
     Transpose
    Headline
-    Option for picture
+    Transpose => false, default option for picture
    Usage
     N = picture(M, Transpose => b)
    Inputs
@@ -1553,7 +1566,7 @@ mapComponent(F.dd_7,(0, {1,3}),(0, {1,1,2}))
 betti res( coker vars R, LengthLimit =>7)
 F.dd_2
 F.dd_3
-displayBlocks F.dd_6
+picture(F.dd_6, Picture =>"DisplayBlocks")
 
 
 F = res E
@@ -1586,21 +1599,21 @@ res (coker vars R, LengthLimit=> 4)
 E = eagonResolution(R,n+1)
 componentsAndIndices E'#{0,4,1}
 componentsAndIndices E_4
-displayBlocks (E.dd_4)
 picture(M = E.dd_4)
+picture(M = E.dd_4, Picture =>"DisplayBlocks")
 mapComponent(M, (0,{2}), (0,{1,1}))
 
 
 ==================
 picture E'#{"beta",4,0}
 picture (M = E'#{"dHor",2,1})
-displayBlocks (M = E'#{"beta",3,0})
+picture(M = E'#{"beta",3,0}, Picture => "DisplayBlocks")
 indices source M
 indices target M
 M
 --but these are ok:
-displayBlocks E'#{"dHor",4,0}
 picture E'#{"dHor",4,0}
+picture(E'#{"dHor",4,0}, Picture => "DisplayBlocks")
 keys E'
 picture E'#{"dVert",3,1}
 mapComponent(M, (0,{2}), (0,{1,1}))
