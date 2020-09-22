@@ -36,7 +36,6 @@ export {
     "inNoetherForm",
     "multiplication",
     "traceForm",
-    "tr",
     -- keys used:
     "noetherField",
     "noetherRing",
@@ -154,8 +153,7 @@ setTraces = (R) -> (
         );
     )
 
-tr = method()
-tr RingElement := (f) -> (
+trace RingElement := (f) -> (
      -- R = ring f should be a noetherRing or noetherField
      -- result is in the coefficient ring of R.
      R := ring f;
@@ -186,7 +184,7 @@ traceForm Ring := (R) -> (
         M := mutableMatrix(K, #S, #S);
         for i from 0 to #S-1 do
         for j from i to #S-1 do (
-            f := tr(S#i * S#j);
+            f := trace(S#i * S#j);
             M_(i,j) = M_(j,i) = f;
             );
         matrix M
@@ -547,13 +545,13 @@ TEST ///
   multiplication B_0
   (getBasis B)/multiplication/trace
   (getBasis L)/multiplication/trace
-  tr y
-  trace multiplication y == tr y
-  trace multiplication y_L == tr y_L
+  trace y
+  trace multiplication y == trace y
+  trace multiplication y_L == trace y_L
   M = multiplication y_L
   trace M
-  tr(y_L)
-  tr y
+  trace(y_L)
+  trace y
 ///
 
 TEST ///
