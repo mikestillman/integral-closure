@@ -27,7 +27,7 @@ newPackage(
 -- how to get the isomorphism from B to R?
 
 export {
-    "finiteOverCoefficientRing",
+    "isFiniteOverCoefficientRing",
     "checkNoetherNormalization",
     "noetherForm",
     "makeFrac",
@@ -192,25 +192,52 @@ traceForm Ring := (R) -> (
     NI#"trace form"
     )
 
-finiteOverCoefficientRing = method()
-finiteOverCoefficientRing Ring := Boolean => (R) -> (
+isComputablePolynomialRing = method()
+isComputablePolynomialRing Ring := Boolean => R ->(
+    --checks whether R is suitable as coefficientRing for a Noether normalization
+    --In the future we might want a broader class, for example poly ring over poly ring or a fraction field.
+    if not isPolynomialRing R then return false;
+    k := coefficientRing R;
+    isAffineRing R and
+    isField k and
+    precision k === infinity and -- eliminates approximate fields RR, CC 
+    not instance(k, FractionField)
+    )
+
+isFiniteOverCoefficients1 = method()
+isFiniteOverCoefficients1 Ring := Boolean => R ->(
+   g := gens gb ideal R;
+   S := coefficientRing R;
+   lt := flatten entries (leadTerm g%promote(ideal vars S,ring g));
+   #select(lt/support , l->#l==1) == numgens R
+   )
+    
+TEST/// -- of finiteOverCoefficients
+debug needsPackage "NoetherNormalForm"
+R1 = ZZ/5[a,b][x,y]/intersect(ideal (a*(x-1),y), ideal(x^2,y^2))
+R2 = ZZ/5[a,b][x,y]/intersect(ideal (a*x-1,y), ideal(x^2,y^2))
+R3 = ZZ/5[a,b][x,y]/intersect(ideal ((a-1)*x-1,y), ideal(x^2,y^2))
+R4 = QQ[a,b][x,y]
+R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
+
+assert(
+isFiniteOverCoefficients1 R1 == false and
+isFiniteOverCoefficients1 R2 == false and
+isFiniteOverCoefficients1 R3== false and
+isFiniteOverCoefficients1 R4== false and
+isFiniteOverCoefficients1 R5== true)
+///
+
+isFiniteOverCoefficientRing = method()
+isFiniteOverCoefficientRing Ring := Boolean => (R) -> (
     if R.?NoetherInfo then return true;
-    if not instance(R, QuotientRing) then (
-        if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field or polynomials ring" << endl;
-        return false;
-        );
+    if not (try (coefficientRing R; true) else false) then return false;
+    if not isAffineRing R then return false; 
     A := coefficientRing R;
-    if isPolynomialRing A and not isField coefficientRing A then (
-        if debugLevel > 0 then << "expected coefficient ring to be a polynomial ring or a field" << endl;
-        return false;
-        );
-    if not isPolynomialRing A and not isField A then (
-        if debugLevel > 0 then << "expected coefficient ring to be a polynomial ring or a field" << endl;
-        return false;
-        );
-    J := ideal R;
-    I := J + promote(ideal vars A, ring J);
-    if dim I > 0 then (
+    if not isComputablePolynomialRing A then (
+	    if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field" << endl;
+	    return false);
+    if not isFiniteOverCoefficients1 R then (
         if debugLevel > 0 then << "ring is not finite over its coefficient ring" << endl;
         false
         )
