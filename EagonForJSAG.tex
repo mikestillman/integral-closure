@@ -1,0 +1,151 @@
+   
+   
+   \documentclass[11pt, oneside]{article}   	% use "amsart" instead of "article" for AMSLaTeX format
+   \usepackage{geometry}                		% See geometry.pdf to learn the layout options. There are lots.
+   \geometry{letterpaper}                   		% ... or a4paper or a5paper or ... 
+   %\geometry{landscape}                		% Activate for rotated page geometry
+   %\usepackage[parfill]{parskip}    		% Activate to begin paragraphs with an empty line rather than an indent
+   \usepackage{graphicx}				% Use pdf, png, jpg, or epsÂ§ with pdflatex; use eps in DVI mode
+   								% TeX will automatically convert eps --> pdf in pdflatex		
+   \usepackage{amssymb}
+   
+   %SetFonts
+   
+   %SetFonts
+   
+   
+   \title{The EagonResolution package in Macaulay2}
+   \author{David Eisenbud and Michael Stillman}
+   %\date{}							% Activate to display a given date or no date
+   
+   \begin{document}
+   \maketitle
+   %\section{}
+   %\subsection{}
+   
+   
+   
+  This package implements Eagon's algorithm for producing a not-necessarily minimal resolution of
+   the residue field of a ring $R = S/I$ where $S$ is a polynomial ring and $I$ is an ideal.
+   The resolution constructed is minimal if and only if R is Golod. The resolution
+   constructed is sometimes called the Golod or Shamash or Eagon resolution.
+   
+   This resolution was described, in the special case where it is minimal, by
+   E.S. Golod: Homology of some local rings, Uspekhi Mat. Nauk 33 (1978), no. 5(203), 177?178.
+   A general construction was described by Jack Shamash:
+   The Poincaré series of a local ring II, J. Algebra 17 (1971), 1?18
+   and, perhaps around the same time, by Jack Eagon.
+   Eagon's construction, superficially different than Shamash'
+   was not published by him, but is described in Ch. 4 of the notes
+   by Gulliksen and Levin: Homology of local rings,
+   Queen's Paper in Pure and Applied Mathematics, No. 20 Queen's University, Kingston, Ont. 1969.  
+   
+   To get a glimpse of the construction, consider the first steps. Let 
+   $K$ be the Koszul complex of $S$, which is the minimal $S$-free resolution
+   of the residue field k. If numgens $S = n$, this begins 
+   
+  $$
+   (K_1 = S^n) \to (K_0 = S) \to k.
+   $$
+ 
+   
+   Let F be the mimimal $S$-free resolution of R.
+   by the right-exactness of the tensor product, the complex
+   
+   $$
+   R\otimes K_1 \to R\otimes K_0 \to k
+   $$
+   
+   is a presentation of $k$, and of course $R\otimes K_2$ maps to the kernel of
+   $R\otimes K_1 \to R \otimes K_0$. But there are new elements of the kernel, obtained by
+   writing the generators of $I$, which correspond to the generators of $F_1$,
+   in terms of the generators of the maximal ideal. Thus we must add a map
+   $R\otimes F_1 \to R\otimes K_1$, and it is easy to show that the resulting complex
+   
+   $$
+   R\otimes F_1 ++ R\otimes K_2 \to R\otimes K_1 \to R\otimes K_0 \to k
+   $$
+   
+   is exact. There are three important points to note:
+   
+   1) $F_0$ does not occur
+   
+   2) $F_1$ occurs in homological degree 2
+
+   3) There is a map $F_1 \to K_1$ that must be introduced and that does not
+      come from either the complex $F$ nor the complex $K$.
+      
+   Eagon showed how this complex can be continued to a resolution.
+   The underlying graded
+   module of the complex is $K \otimes T(F')$, where $F'$ is the complex $F$, shifted by
+   1 in homological degree so that $F_i$ is in homological degree $i+1$, and truncated
+   by dropping $F_0$; and $T(F')$ denotes the tensor algebra on the graded module $F'$.
+
+   The differentials of the complex come from the differentials in the Koszul
+   complex and various maps identifying the homology, at successive stages of the 
+   construction, with tensor products of modules already constructed.
+   These are also the ingredients of
+   the "Massey products" from topology, used by Golod to construct the complex
+   in the special case where there are ``trivial Massey products'', and the resolution is therefore minimal.
+   
+   The command   eagon produces a type of hashTable called an  EagonData, defined in the package.
+   It contains all the data produced in
+   Eagon's construction of the resolution: a double complex $Y^n_i$, and some internal 
+   maps. The vertical differental is called $dVert: Y^n_i \to Y^n_{i+1}$ and the horizontal
+   differential is $dHor: Y^n_i \to Y^{n-1}_i. $
+
+   Thus for example if $R$ is a factor ring of a polynomial ring $S$, then
+   
+\begin{verbatim}
+ 
+   E = eagon(R,5)
+    eagonResolution E
+
+   or simply 
+
+   res EE
+\end{verbatim}
+
+   produces the first 5 steps of a 
+   (not necessarily minimal) $R$-free resolution of the residue field of $R$.  The function picture gives
+   alternate ways of viewing the innards of the resolution.
+   
+   
+\begin{verbatim}
+ 
+   S = ZZ/101[a,b,c]
+   I = ideal(a,b,c)*ideal(b,c)
+   R = S/I
+   E = eagon(R,5)
+   F = eagonResolution E
+   assert(F == res E)
+ \end{verbatim}
+
+   As stated above, $F = K\otimes T(F')$, and one can see the maps between 
+   each pair of summands. We label the summand 
+   $K_i\otimes F_{j_1}\otimes\cdots \otimes F_{j_m}$ with the symbol $(i,\{j_1,..,j_m\})$, and we can write out
+   the differentials in block form with the function picture, 
+   with the option 
+   
+\begin{verbatim}
+ Display => "DisplayBlocks"
+\end{verbatim}
+ including the labels:
+ 
+\begin{verbatim}
+   F.dd_3
+   picture(F.dd_3, Display => "DisplayBlocks")
+
+\end{verbatim}
+   Since the matrices can be very large, it is sometimes better to know just whether
+   a given block is zero or not, and this can be obtained with the function  picture,
+   with the default option 
+   
+\begin{verbatim}
+    Display => "picture".
+  Example   
+   picture F.dd_3
+   picture (F, Verbose => true)
+   picture (F, Verbose => true, Transpose => true)
+   \end{verbatim}
+    \end{document}  
