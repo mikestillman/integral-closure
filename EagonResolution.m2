@@ -25,12 +25,11 @@ export {
 --Symbols:
     "EagonData", -- the result of the eagon computation
     "Transpose", -- option for picture
-    "DisplayBlocks", --option for picture; should be DisplayBlocks
-    "Picture", -- option for beta
+    "DisplayBlocks", --option for picture
+    "Display", -- option for picture and for beta
     "CompressBeta" --option for eagon
     }
 protect EagonLength
-
 
 --EagonData--
 EagonData = new Type of HashTable
@@ -370,18 +369,18 @@ E
 )
 
 --beta--
-beta = method(Options => {Picture => "picture", Verbose => false})
+beta = method(Options => {Display => "picture", Verbose => false})
 --There are no maps beta(E,0) or beta(E,1); the display starts with beta(E,2).
 
 beta(EagonData, ZZ) := o -> (E,n) -> 
-         if o.Picture == "picture" then picture(E#{"beta",n,0},Verbose => o.Verbose) else 
-	 if o.Picture == "DisplayBlocks" then 
+         if o.Display == "picture" then picture(E#{"beta",n,0},Verbose => o.Verbose) else 
+	 if o.Display == "DisplayBlocks" then 
 	                                displayBlocks E#{"beta",n,0} else 
 	                                E#{"beta",n,0}
 
 beta EagonData := List => o-> E ->(
 b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
-netList apply(b-1, n -> beta(E,n+2,Picture => o.Picture, Verbose => o.Verbose)))
+netList apply(b-1, n -> beta(E,n+2,Display => o.Display, Verbose => o.Verbose)))
 
 
 extractBlocks = method()
@@ -484,7 +483,7 @@ displayBlocks EagonData := List => E -> displayBlocks eagonResolution E
 
     
 --pictureList--
-pictureList = method(Options => {Verbose => false, Picture => "picture", Transpose => false})
+pictureList = method(Options => {Verbose => false, Display => "picture", Transpose => false})
 pictureList Matrix := o -> (M1) -> (
     M := flattenBlocks M1;
     src := indices source M;
@@ -518,7 +517,7 @@ pictureList EagonData := List => o -> E -> pictureList (eagonResolution E, o)
 --picture--
 picture = method(Options => options pictureList)
 picture Matrix := o -> (M1) -> (
-    if o.Picture === "DisplayBlocks" then return displayBlocks M1;
+    if o.Display === "DisplayBlocks" then return displayBlocks M1;
     netList (pictureList(M1,o), Alignment => Center)
   )  
 --picture ChainComplex := Net => o -> C -> netList apply(pictureList(C,o), p -> netList(p, Alignment => Center)) --(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
@@ -661,14 +660,14 @@ Description
    each pair of summands. We label the summand 
    K_i**F_{j_1}**..**F_{j_m} with the symbol (i,\{j_1,..,j_m\}), and we can write out
    the differentials in block form with the function picture, 
-   with the option Picture => "DisplayBlocks", including the labels:
+   with the option Display => "DisplayBlocks", including the labels:
   Example
    F.dd_3
-   picture(F.dd_3, Picture => "DisplayBlocks")
+   picture(F.dd_3, Display => "DisplayBlocks")
   Text
    Since the matrices can be very large, it is sometimes better to know just whether
    a given block is zero or not, and this can be obtained with the function @TO picture@,
-   with the default option Picture => "picture".
+   with the default option Display => "picture".
   Example   
    picture F.dd_3
    picture (F, Verbose => true)
@@ -851,7 +850,7 @@ doc ///
     (picture, Matrix)
     (picture, ChainComplex)    
     (picture, EagonData)        
-    [picture, Picture]
+    [picture, Display]
     [picture, Verbose]
     [picture, Transpose]    
    Headline
@@ -867,33 +866,48 @@ doc ///
      produced by eagon; picture E is equivalent to picture @TO eagonResolution@ E and to picture res E
    Outputs
     N:Net
-     prints a "picture" - a net - showing information about the blocks. If Verbose=>true then also displays
-     "(numrows, numcols)" for each block
-     If Picture => "DisplayBlocks" then displays the matrices in each block
     L:List
      List of Nets, one for each map in the complex
    Description
     Text
      The free modules that are the sources and targets of the matrices defined in the EagonData eagon(R,b) 
      generally have many components. These can be analyzed with the functions
-     picture, @TO DisplayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
-     a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
-     where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
-     Thus a block is identified by a pair of such symbols, representing source and target.
+     picture, and @TO mapComponent@. Each summand of one of these free modules has
+     a label of the form (i, \{u_1..u_s\}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
+     where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension over S of R.
+     Thus a block is identified by a pair of such symbols in the order target, source.
 
-     For any labeled matrix M, picture M prints a net showing which blocks of the matrix are 
+     For any labeled matrix M, picture M (with the default option Display => "picture") 
+     prints a net showing which blocks of the matrix are 
      0 (represented by .); or
      nonzero and in the maximal ideal, represented by *; or
-     contain a unit entry, represented by a pair of numbers: 
-     the rank of the target and the rank of the block tensored with the residue field.
+     contain a unit entry, represented by a pair of numbers, which are
+     the rank of the target of the matrix and the rank of the matrix tensored with the residue field
+     (the "nonminimal part").
+     
+     Options:
+     The default option is Display => "picture".
+     With the option Display=>"DisplayBlocks", picture prints the matrices in each block.
+     With any other assignment such as Display =>"", Display prints the whole matrix, without showing 
+     the block structure.
+     With the option Verbose => true, picture prints (numrows,numcols) for each block.
+     With the option Transpose => true, picture prints the data for the transposed matrix 
+     (possibly useful if there are many columns in the matrix).
+     
+     Applied to a complex of labeled matrices such as that produced by (res, EagonData) or applied to 
+     an instance of EagonData, 
+     picture prints a netList of the pictures of the maps in the complex
+
     Example
      S = ZZ/101[a,b,c]
      I = ideal(a,b)*ideal(a,b,c)
      R = S/I
      E = eagon(R,4);
      picture E
-     picture E#{"beta",3,1}
-     picture eagonResolution E
+     picture E#{"beta",3,0}
+     picture E
+     picture verticalStrand(E,1)
+
    SeeAlso
     eagon
     "beta"
@@ -908,9 +922,9 @@ doc ///
    Key
     DisplayBlocks
    Headline
-    Picture => "DisplayBlocks" option for picture
+    Display => "DisplayBlocks" option for picture
    Usage
-    N = picture(M, Picture => "DisplayBlocks")
+    N = picture(M, Display => "DisplayBlocks")
    Inputs
     M:Matrix
    Outputs
@@ -925,8 +939,8 @@ doc ///
      where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
      Thus a block is identified by a pair of such symbols, representing source and target.
      
-     Picture => "picture"; with this option, @TO picture@ does not actually print
-     the entries of the matrices. But picture(M, Picture => "DisplayBlocks") prints a net 
+     Display => "picture"; with this option, @TO picture@ does not actually print
+     the entries of the matrices. But picture(M, Display => "DisplayBlocks") prints a net 
      with the matrices themselves.
     Example
      S = ZZ/101[a,b,c]
@@ -935,7 +949,7 @@ doc ///
      E = eagon(R,4);
      C = horizontalStrand(E,0)
      picture C
-     picture(C, Picture => "DisplayBlocks")
+     picture(C, Display => "DisplayBlocks")
    SeeAlso
     eagon
     eagonResolution
@@ -952,7 +966,7 @@ doc///
     beta
     (beta,EagonData)
     (beta,EagonData,ZZ)
-    [beta, Picture]
+    [beta, Display]
     [beta, Verbose]
    Headline
     print the beta maps in the Eagon resolution
@@ -966,8 +980,8 @@ doc///
      which beta to show
    Outputs
     N:Net
-     either a "Picture" display (with Picture => "picture", the default) or a "displayBlocks" display
-     with Picture => "DisplayBlocks" or a plain matrix if Picture => <anything else>.
+     either a "Display" display (with Display => "picture", the default) or a "displayBlocks" display
+     with Display => "DisplayBlocks" or a plain matrix if Display => <anything else>.
      With Verbose => true, the display includes (rank target beta,rank source beta)
    Description
     Text
@@ -975,11 +989,18 @@ doc///
      starting from the 2nd differential that may or may not be minimal, 
      and are therefore most interesting. With the default option 
      
-     Picture => "picture"
+     Display => "picture"
      
      the pictures (which blocks are 0,nonzero, nonminimal) are shown; or
      the displayBlocks output
-     with Picture => "DisplayBlocks" or a plain matrix if Picture => <any other string>.
+     with Display => "DisplayBlocks" or a plain matrix if Display => <any other string>.
+     
+     In the notes of Gulliksen-Levin it is proven that R is Golod if and only if the maps beta can be
+     taken with values in the Koszul complex; thus in particular, if R is Golod, then 
+     there are no "new" betas after beta(E,numgens R+1). Since R is Golod iff all the beta matrices have
+     all entries in the maximal ideal, this proves in particular that R is Golod if and only if
+     the Betti numbers of the resolution of coker vars R agree up to the step numgens R with 
+     the Betti numbers of the Eagon resolution.
     Example
      S = ZZ/101[a,b,c,d]
      I = ideal(a,b,c)*ideal(a,b,c,d)
@@ -987,8 +1008,8 @@ doc///
      R = S/I
      E = eagon(R,4);
      beta(E,4)
-     beta(E,4,Picture => "DisplayBlocks")
-     beta(E,4,Picture => "")     
+     beta(E,4,Display => "DisplayBlocks")
+     beta(E,4,Display => "")     
      beta E
    SeeAlso
     eagon
@@ -1015,9 +1036,10 @@ doc///
      beginning of the free resolution of the i-th boundary module of the Koszul complex
    Description
     Text
-     The 0-th strand is a possibly non-minimal resolution of the residuce field;
-     the other strands resolve the boundary modules in the Koszul complex. They are
-     all minimal iff the 0 strand is minimal iff R is Golod.
+     The 0-th strand is a possibly non-minimal resolution of the residuce field.
+     More generally, the i-th strand resolves the i-th boundary module in the Koszul complex of R. These
+     resolutions are
+     all minimal iff R is Golod.
     Example
      S = ZZ/101[x,y,z]
      R = S/((ideal(x,y))^2+ideal(z^3))
@@ -1049,9 +1071,9 @@ doc ///
      beginning of the free resolution of the i-th boundary module of the Koszul complex
    Description
     Text
-     The 0-th strand is a possibly non-minimal resolution of the residuce field;
-     the other strands resolve the boundary modules in the Koszul complex. They are
-     all minimal iff the 0 strand is minimal iff R is Golod.
+     The 0-th vertical strand is the Koszul complex of R. The vertical strands are
+     never resolutions unless R is regular. The key lemma in Eagon's treatment identifies
+     the i-th homology H_i of the n-th vertical strand with H_0**X_i.
     Example
      S = ZZ/101[x,y,z]
      R = S/((ideal(x,y))^2+ideal(z^3))
@@ -1084,22 +1106,19 @@ doc ///
     N:Matrix
    Description
     Text
-     The source and target of a a map in the Eagon double complex such as
-     dVert, dHor, and beta, is a direct sum of tensor products of
-     a component of the Koszul complex and a list of modules X_i. Such
-     a tensor product is represented by a symbol that is a two element Sequence
-     of the form
+     The source and target of a a map in the Eagon double complex, such as
+     dVert, dHor, and beta, are direct sums of tensor products of the form
+     K_i**X_{u_1}**..**X_{u_s} where K_i is a term of the Koszul complex and X_i
+     is a term of the S-free resolution of R, all tensored with R.
+     This tensor product is represented by a symbol that is a two element Sequence
      
-     (i, {u_1..u_s})
-     
-     representing K_i ** X_{u_1} ** .. ** X_{u_s}. 
-     
+     (i, \{u_1..u_s\})
 
      The block structure of the matrix, together with the source and
      target Sequences, can be seen from 
      picture M.
      
-     The function mapComponent returns a single block of such a matrix.     
+     The function mapComponent returns a single block.
     Example
      S = ZZ/101[a,b,c,d,e]
      R = S/(ideal(e^2,d*e^4)+(ideal"ab,ac")^2) --a non-Golod ring, generators in different degrees
@@ -1156,7 +1175,7 @@ doc ///
      
      We say that M is a Golod module (over R) if the ranks of the free modules in a minimal R-free resolution
      of M are equal to the numbers produced by golodBetti. Theorems of Levin and Lescot assert that if
-     R has a Golod module, then R is a Golod ring; and that if R is Golod, then thpe d-th syzygy
+     R has a Golod module, then R is a Golod ring; and that if R is Golod, then the d-th syzygy
      of any R-module M is Golod for all d greater than or equal to the projective dimension
      of M as an S-module (more generally, the co-depth of M) (Avramov, 6 lectures, 5.3.2).
      
@@ -1229,25 +1248,25 @@ doc ///
 ///
 *-
 
---docPicture
+--docDisplay
 doc ///
    Key
-    Picture
+    Display
    Headline
-    Option for beta, default is true
+    Option for beta, default is "picture"
    Usage
-    beta(E,Picture => "picture")
+    beta(E,Display => "picture")
    Inputs
     E:EagonData
    Description
     Text
-     if Picture=>"picture" then @TO picture@ is invoked; if Picture =>"DisplayBlocks" 
+     if Display=>"picture" then @TO picture@ is invoked; if Display =>"DisplayBlocks" 
      then a net with the matrices (the "blocks") is produced.
     Example
      R = ZZ/101[x,y,z]/ideal"x3,y3,z3"
      E = eagon(R,5);
      beta(E,3)
-     beta(E,3,Picture =>"DisplayBlocks")
+     beta(E,3,Display =>"DisplayBlocks")
    SeeAlso
     eagon
 ///
@@ -1256,7 +1275,7 @@ doc ///
    Key
     CompressBeta
    Headline
-    CompressBeta => true, default option for eagon
+    CompressBeta is an option for eagon, default is true
    Usage
     E = eagon(R,b,CompressBeta =>bool1, Verbose =>bool2)
    Inputs
@@ -1579,7 +1598,7 @@ time E = eagon(R,7)
 beta(E)
 beta(E, Verbose=>true)
  (picture (E,Verbose => true))
---beta(F,Picture=>"")
+--beta(F,Display=>"")
 picture(E, Verbose => true)
 F = eagonResolution(R,7)
 picture(F.dd_4)
@@ -1590,7 +1609,7 @@ mapComponent(F.dd_7,(0, {1,3}),(0, {1,1,2}))
 betti res( coker vars R, LengthLimit =>7)
 F.dd_2
 F.dd_3
-picture(F.dd_6, Picture =>"DisplayBlocks")
+picture(F.dd_6, Display =>"DisplayBlocks")
 
 
 F = res E
@@ -1624,20 +1643,20 @@ E = eagonResolution(R,n+1)
 componentsAndIndices E'#{0,4,1}
 componentsAndIndices E_4
 picture(M = E.dd_4)
-picture(M = E.dd_4, Picture =>"DisplayBlocks")
+picture(M = E.dd_4, Display =>"DisplayBlocks")
 mapComponent(M, (0,{2}), (0,{1,1}))
 
 
 ==================
 picture E'#{"beta",4,0}
 picture (M = E'#{"dHor",2,1})
-picture(M = E'#{"beta",3,0}, Picture => "DisplayBlocks")
+picture(M = E'#{"beta",3,0}, Display => "DisplayBlocks")
 indices source M
 indices target M
 M
 --but these are ok:
 picture E'#{"dHor",4,0}
-picture(E'#{"dHor",4,0}, Picture => "DisplayBlocks")
+picture(E'#{"dHor",4,0}, Display => "DisplayBlocks")
 keys E'
 picture E'#{"dVert",3,1}
 mapComponent(M, (0,{2}), (0,{1,1}))
