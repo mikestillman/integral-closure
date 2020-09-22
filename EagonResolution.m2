@@ -1157,7 +1157,7 @@ doc ///
      We say that M is a Golod module (over R) if the ranks of the free modules in a minimal R-free resolution
      of M are equal to the numbers produced by golodBetti. Theorems of Levin and Lescot assert that if
      R has a Golod module, then R is a Golod ring; and that if R is Golod, then thpe d-th syzygy
-     of any R-module M$ is Golod for all d greater than or equal to the projective dimension
+     of any R-module M is Golod for all d greater than or equal to the projective dimension
      of M as an S-module (more generally, the co-depth of M) (Avramov, 6 lectures, 5.3.2).
      
     Example
@@ -1310,19 +1310,18 @@ doc ///
 ///
 
 
--*
+
 doc ///
    Key
-    net
     (net, EagonData)
    Headline
     prints the homological degree to which the EagonData has been computed
    Usage
     s = net E
    Inputs
-    E:Eagondata
+    E:EagonData
    Outputs
-    s:String
+    s:Net
    Description
     Text
      prints the homological degree to which the EagonData has been computed
@@ -1333,7 +1332,32 @@ doc ///
    SeeAlso
     EagonData
 ///
-*-
+doc ///
+   Key
+    (resolution, EagonData)
+   Headline
+    outputs the resolution that is the 0th row of the Eagon double complex
+   Usage
+    C = resolution E
+   Inputs
+    E:EagonData
+   Outputs
+    C:ChainComplex
+   Description
+    Text
+     This command is equivalent to @TO (eagonResolution, EagonData)@.
+    Example
+     R = ZZ/101[a,b]/ideal"a2,b2"
+     E = eagon(R,4)
+     C = resolution E
+     picture C
+   SeeAlso
+    eagon
+    EagonData
+    eagonResolution
+    picture
+///
+
 ----TESTS
 -*
 restart
