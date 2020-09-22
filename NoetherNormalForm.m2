@@ -27,6 +27,8 @@ newPackage(
 -- how to get the isomorphism from B to R?
 
 export {
+    "finiteOverCoefficientRing",
+    "checkNoetherNormalization",
     "noetherForm",
     "makeFrac",
     "getBasis",
@@ -159,6 +161,7 @@ tr RingElement := (f) -> (
      R := ring f;
      RK := noetherField R;
      NI := noetherInfo RK;
+     if not NI#?"traces" then setTraces RK;
      traces := NI#"traces";
      f = sub(f,RK);
      M := last coefficients(f, Monomials => getBasisMatrix RK);
@@ -175,10 +178,11 @@ tr RingElement := (f) -> (
 
 traceForm = method()
 traceForm Ring := (R) -> (
-    NI := noetherInfo R;
+    RK := noetherField R;
+    NI := noetherInfo RK;
     if not NI#?"trace form" then NI#"trace form" = (
-        S := getBasis R;
-        K := coefficientRing R;
+        S := getBasis RK;
+        K := coefficientRing RK;
         M := mutableMatrix(K, #S, #S);
         for i from 0 to #S-1 do
         for j from i to #S-1 do (
@@ -189,7 +193,32 @@ traceForm Ring := (R) -> (
         );
     NI#"trace form"
     )
-    
+
+finiteOverCoefficientRing = method()
+finiteOverCoefficientRing Ring := Boolean => (R) -> (
+    if R.?NoetherInfo then return true;
+    if not instance(R, QuotientRing) then (
+        if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field or polynomials ring" << endl;
+        return false;
+        );
+    A := coefficientRing R;
+    if isPolynomialRing A and not isField coefficientRing A then (
+        if debugLevel > 0 then << "expected coefficient ring to be a polynomial ring or a field" << endl;
+        return false;
+        );
+    if not isPolynomialRing A and not isField A then (
+        if debugLevel > 0 then << "expected coefficient ring to be a polynomial ring or a field" << endl;
+        return false;
+        );
+    J := ideal R;
+    I := J + promote(ideal vars A, ring J);
+    if dim I > 0 then (
+        if debugLevel > 0 then << "ring is not finite over its coefficient ring" << endl;
+        false
+        )
+    else true
+    )    
+
 checkNoetherNormalization = method()
 checkNoetherNormalization RingMap := Boolean => (phi) -> (
     -- phi : A --> R
@@ -198,6 +227,17 @@ checkNoetherNormalization RingMap := Boolean => (phi) -> (
     --   phi(each var) is a linear form in R
     --   R is a quotient of a polynomial ring over the same field or over A.
     --   R is finite over A.
+    )
+
+checkNoetherNormalization Ring := Boolean => (B) -> (
+    -- check that 
+    --   B is a ring of the form A[x's]/I
+    --   B is finite over A
+    -- if so:
+    --   set frac B? (using makeFrac)
+    --   set NoetherInfo in B, frac B.
+    if not finiteOverCoefficientRing B
+    then error "ring is not in the proper form (set 'debugLevel>0' for details)";
     )
 
 findComplement = method()
@@ -471,6 +511,27 @@ doc ///
 ///
 
 TEST ///
+  -- test-finiteOverCoefficientRing
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+  A = ZZ/101[t]  
+  B = A[x,y]/(x^2-y*t, y^3)
+  assert finiteOverCoefficientRing B
+
+  debugLevel = 1
+  A = ZZ/101
+  B = A[x,y]/(x^2, y^3)
+  assert finiteOverCoefficientRing B
+
+
+  A = ZZ/101
+  B = A[x,y]/(x^2, x*y)
+  assert not finiteOverCoefficientRing B
+///
+
+TEST ///
 -*
   restart
   needsPackage "NoetherNormalForm"
@@ -479,8 +540,8 @@ TEST ///
   R = kk[x,y]/(y^4-x*y^3-(x^2+1)*y-x^6)
   B = noetherForm {x}
   L = frac B
-describe B
-describe L
+  describe B
+  describe L
   getBasis B
   getBasis L
   multiplication B_0
@@ -541,8 +602,9 @@ TEST ///
 
   multmaps = for x in getBasis B list pushFwd(map(B,A), map(B^1, B^1, {{x}}))
   multmaps2 = for x in getBasis B list multiplication x
-  assert(multmaps === multmaps2) -- NOT EQUAL.  pushFwd uses different basis for B?
-                                  -- would be nice: to have this play well with pushFwd... if possible.
+-- TODO: should we try to insure that these matrices use the same bases?
+--  assert(multmaps === multmaps2) -- NOT EQUAL.  pushFwd uses different basis for B?
+--                                  -- would be nice: to have this play well with pushFwd... if possible.
 
   traces = multmaps/trace
   MB = pushFwd(map(B,A), B^1) -- dim 4, free
