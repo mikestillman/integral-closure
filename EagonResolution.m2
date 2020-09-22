@@ -15,19 +15,19 @@ newPackage(
 
 export {
     "eagon", 
-    "EagonData",
-    "CompressBeta", --option for eagon
-    "eagonResolution", 
-    "golodBetti",
+    "eagonResolution", -- use res EagonData as a synonym
+    "golodBetti",   -- the betti table "as if" the module is Golod.
     "verticalStrand", --make a vertical strand of the Eagon complex
     "horizontalStrand", --make a vertical strand of the Eagon complex    
-    "eagonSymbols",    
-    "picture",
-    "Transpose", -- option for picture
-    "displayBlocks",
+    "beta", -- the maps responsible for any non-minimality.
+    "picture", -- compressed display of labeled matrices; various options
     "mapComponent",
-    "beta",
-    "Picture" -- option for beta
+--Symbols:
+    "EagonData", -- the result of the eagon computation
+    "Transpose", -- option for picture
+    "DisplayBlocks", --option for picture; should be DisplayBlocks
+    "Picture", -- option for beta
+    "CompressBeta" --option for eagon
     }
 protect EagonLength
 
@@ -375,7 +375,7 @@ beta = method(Options => {Picture => "picture", Verbose => false})
 
 beta(EagonData, ZZ) := o -> (E,n) -> 
          if o.Picture == "picture" then picture(E#{"beta",n,0},Verbose => o.Verbose) else 
-	 if o.Picture == "displayBlocks" then 
+	 if o.Picture == "DisplayBlocks" then 
 	                                displayBlocks E#{"beta",n,0} else 
 	                                E#{"beta",n,0}
 
@@ -483,14 +483,13 @@ displayBlocks ChainComplex := List => C -> apply(length C, i -> displayBlocks(C.
 displayBlocks EagonData := List => E -> displayBlocks eagonResolution E
 
     
---picture--
+--pictureList--
 pictureList = method(Options => {Verbose => false, Picture => "picture", Transpose => false})
 pictureList Matrix := o -> (M1) -> (
     M := flattenBlocks M1;
     src := indices source M;
     tar := indices target M;
     kkk := ring M/(ideal gens ring M);
---    if o.Picture == "picture" then(
     L := prepend(
         prepend("", src),
         for t in tar list prepend(t, for s in src list (
@@ -516,40 +515,14 @@ pictureList Matrix := o -> (M1) -> (
 pictureList ChainComplex := List => o -> C -> apply(length C, i-> pictureList(C.dd_(i+1), o))
 pictureList EagonData := List => o -> E -> pictureList (eagonResolution E, o)
 
+--picture--
 picture = method(Options => options pictureList)
 picture Matrix := o -> (M1) -> (
---    M := flattenBlocks M1;
---    src := indices source M;
---    tar := indices target M;
---    kkk := ring M/(ideal gens ring M);
-    if o.Picture == "displayBlocks" then return displayBlocks M1;
---    if o.Picture == "picture" then(
+    if o.Picture === "DisplayBlocks" then return displayBlocks M1;
     netList (pictureList(M1,o), Alignment => Center)
   )  
--*
-(prepend(
-        prepend("", src),
-        for t in tar list prepend(t, for s in src list (
-                mts := M^[t]_[s];
-		nums := toString(numrows mts,numcols mts);
-		cont := ideal M^[t]_[s];
-		if o.Verbose == false then(
-                
-		h := if mts == 0 then "." else 
-		     if (numrows mts == numcols mts and mts == 1) then "id" else 
-		     if cont == ideal(1_(ring mts)) 
-		       then toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) else "*") 
-		
-		                     else(
-		
-		h = if mts == 0 then nums|" ." else 
-		     if (numrows mts == numcols mts and mts == 1) then nums|" id" else 
-		     if cont == ideal(1_(ring mts)) then nums|","|toString rank(kkk**M^[t]_[s]) else "*") 
-                ))
-        ), Alignment=>Center))
-    )
-*-
-picture ChainComplex := Net => o -> C -> netList apply(pictureList(C,o), p -> netList(p, Alignment => Center)) --(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
+--picture ChainComplex := Net => o -> C -> netList apply(pictureList(C,o), p -> netList(p, Alignment => Center)) --(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
+picture ChainComplex := Net => o -> C -> netList apply(length C, i-> picture(C.dd_(i+1), o))
 picture EagonData := Net => o -> E -> picture (eagonResolution E, o)
 
 --mapComponent--
@@ -584,7 +557,7 @@ beginDocumentation()
 
 -*
 restart
-loadPackage"EagonResolution"
+debug loadPackage("EagonResolution", Reload => true)
 uninstallPackage "EagonResolution"
 restart
 installPackage "EagonResolution"
@@ -658,8 +631,14 @@ Description
    the "Massey products" from topology, used by Golod to construct the complex
    in a special case.
    
-   eagonResolution produces the 
-   (not necessarily minimal) resolution.  The functions picture and displayBlocks give
+   eagonResolution EagonData
+
+   or simply 
+
+   res EagonData
+
+   produces the 
+   (not necessarily minimal) resolution.  The function picture gives
    alternate ways of viewing the innards of the resolution.
    
    The function @TO eagon@ produces a hashTable that contains all the data produced in
@@ -673,25 +652,29 @@ Description
    R = S/I
    E = eagon(R,5)
    F = eagonResolution E
+   assert(F == res E)
   Text
    As stated above, F = K\otimes T(F'), and one can see the maps between 
    each pair of summands. We denote the summand 
    K_i**F_{j_1}**..**F_{j_m} with the symbol (i,{j_1,..,j_m}), and we can write out
-   the differentials in block form with the function @TO displayBlocks@:
+   the differentials in block form with the function picture, with the option Picture => "DisplayBlocks".
   Example
    F.dd_3
-   displayBlocks F.dd_3
+   picture(F.dd_3, Picture => "DisplayBlocks")
   Text
    Since the matrices can be very large, it is sometimes better to know just whether
    a given block is zero or not, and this can be obtained with the function @TO picture@,
   Example   
    picture F.dd_3
+   picture (F, Verbose => true)
    picture (F, Verbose => true, Transpose => true)
 SeeAlso
    eagon
-   eagonResolution
-   displayBlocks
    picture
+   eagonResolution
+   DisplayBlocks
+   Transpose
+
 ///
 
 --docEagonData
@@ -818,7 +801,7 @@ doc///
      beta (En,4), beta(En,5)
     Text
      There are also ways to investigate the components of dVert, dHor, and beta; see 
-     @TO picture@, @TO displayBlocks@, and @TO mapComponent@.
+     @TO picture@, @TO DisplayBlocks@, and @TO mapComponent@.
    SeeAlso
     verticalStrand
     horizontalStrand
@@ -866,6 +849,7 @@ doc ///
     (picture, EagonData)        
     [picture, Picture]
     [picture, Verbose]
+    [picture, Transpose]    
    Headline
     information about components of a labeled Matrix or ChainComplex
    Usage
@@ -876,28 +860,28 @@ doc ///
     M:Matrix
     C:ChainComplex
     E:EagonData
-     produced by eagon; picture E is equivalent to picture eagonResolution E
+     produced by eagon; picture E is equivalent to picture @TO eagonResolution@ E and to picture res E
    Outputs
     N:Net
-     prints a "picture" -- a net -- showing information about the blocks. If Verbose=>true then also displays
+     prints a "picture" - a net - showing information about the blocks. If Verbose=>true then also displays
      "(numrows, numcols)" for each block
-     If Picture => "displayBlocks" then displays the matrices in each block
+     If Picture => "DisplayBlocks" then displays the matrices in each block
     L:List
      List of Nets, one for each map in the complex
    Description
     Text
      The free modules that are the sources and targets of the matrices defined in the EagonData eagon(R,b) 
      generally have many components. These can be analyzed with the functions
-     picture, @TO displayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
+     picture, @TO DisplayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
      a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
      where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
      Thus a block is identified by a pair of such symbols, representing source and target.
 
-     For any such matrix, picture M prints a net showing which blocks of the matrix are 
-     0 (represented by .); or nonzero,
-     in the maximal ideal, represented by *;
-     or contain a unit entry, represented by u; 
-     or are identity blocks, represented by id.
+     For any labeled matrix M, picture M prints a net showing which blocks of the matrix are 
+     0 (represented by .); or
+     nonzero and in the maximal ideal, represented by *; or
+     contain a unit entry, represented by a pair of numbers: 
+     the rank of the target and the rank of the block tensored with the residue field.
     Example
      S = ZZ/101[a,b,c]
      I = ideal(a,b)*ideal(a,b,c)
@@ -910,54 +894,44 @@ doc ///
     eagon
     "beta"
     eagonResolution
-    displayBlocks
+    DisplayBlocks
     mapComponent
 ///
+
 
 --docdisplayBlocks
 doc ///
    Key
-    displayBlocks
-    (displayBlocks,Matrix)
-    (displayBlocks,ChainComplex)
-    (displayBlocks,EagonData)    
+    DisplayBlocks
    Headline
-    displays the components of a labeled matrix or ChainComplex
+    option for Picture
    Usage
-    N = displayBlocks M
-    L = displayBlocks C
+    N = picture(M, DisplayBlocks => b)
    Inputs
     M:Matrix
-    C:ChainComplex
    Outputs
     N:Net
      prints a "picture" -- a net -- showing information about the blocks
-    L:List
-     List of Nets, one for each map in the complex
    Description
     Text
      The free modules that are the sources and targets of the matrices defined in the EagonData eagon(R,b) 
      generally have many components. These can be analyzed with the functions
-     @TO picture@, @TO displayBlocks@, and @TO mapComponent@. Each summand of one of these free modules has
+     @TO picture@, and @TO mapComponent@. Each summand of one of these free modules has
      a label of the form (i, {u_1..u_s}) representing the tensor product K_i ** X_{u_1}**..**X_{u_s},
      where 0\leq i \leq numvars R and 1\leq u_t \leq projective dimension R.
      Thus a block is identified by a pair of such symbols, representing source and target.
-
-     For any such matrix, picture M prints a net showing which blocks of the matrix are 
-     0 (represented by .); or nonzero,
-     in the maximal ideal, represented by *;
-     or contain a unit entry, represented by u; 
-     or are identity blocks, represented by id.
+     
+     Picture => "picture"; with this option, @TO picture@ does not actually print
+     the entries of the matrices. But picture(M, Picture => "DisplayBlocks") prints a net 
+     with the matrices themselves.
     Example
      S = ZZ/101[a,b,c]
      I = ideal(a,b)*ideal(a,b,c)
      R = S/I
      E = eagon(R,4);
-     M = E#{"dVert",3,1}
      C = horizontalStrand(E,0)
      picture C
-     displayBlocks C.dd_2
-     picture eagonResolution E
+     picture(C, Picture => "DisplayBlocks")
    SeeAlso
     eagon
     eagonResolution
@@ -966,6 +940,7 @@ doc ///
     horizontalStrand
     verticalStrand
 ///
+
 
 --docbeta
 doc///
@@ -1014,7 +989,7 @@ doc///
    SeeAlso
     eagon
     picture
-    displayBlocks
+    DisplayBlocks
 ///
 
 --dochorizontalStrand
@@ -1133,7 +1108,7 @@ doc ///
      mapComponent(E#{"beta",3,1}, (0,{2}),(0,{1,1})) 
    SeeAlso
     picture
-    displayBlocks
+    DisplayBlocks
     eagon
 ///
 
@@ -1188,6 +1163,7 @@ doc ///
     eagon
     eagonResolution
 ///
+-*
 --doceagonSymbols
 doc ///
    Key
@@ -1240,6 +1216,8 @@ doc ///
     displayBlocks
     mapComponent
 ///
+*-
+
 --docPicture
 doc ///
    Key
@@ -1252,13 +1230,13 @@ doc ///
     E:EagonData
    Description
     Text
-     if Picture=>"picture" then @TO picture@ is invoked; if Picture =>"displayBlocks" 
+     if Picture=>"picture" then @TO picture@ is invoked; if Picture =>"DisplayBlocks" 
      then @TO displayBlocks@ is used instead.
     Example
      R = ZZ/101[x,y,z]/ideal"x3,y3,z3"
      E = eagon(R,5);
      beta(E,3)
-     beta(E,3,Picture =>"displayBlocks")
+     beta(E,3,Picture =>"DisplayBlocks")
    SeeAlso
     eagon
 ///
@@ -1290,6 +1268,35 @@ doc ///
     eagon
     beta
 ///
+doc ///
+   Key
+    Transpose
+   Headline
+    Option for picture
+   Usage
+    N = picture(M, Transpose => b)
+   Inputs
+    M:Matrix
+     labeled matrix
+    b:Boolean
+   Outputs
+    N: Net
+   Description
+    Text
+     With the option Transpose => true, picture prints the picture of the transposed matrix; when 
+     the matrix has many more columns than rows this makes it easier to read.
+    Example
+     S = ZZ/101[a,b]
+     R = S/ideal"a2,b2"
+     E = eagon(R,3)
+     picture res E
+     picture(res E, Transpose => true)
+   SeeAlso
+    DisplayBlocks
+    Verbose
+///
+
+
 -*
 doc ///
    Key
@@ -1401,7 +1408,9 @@ assert isHomogeneous F
 assert all(4,i-> prune HH_(i+1) F == 0)
 ///
 
+
 TEST///
+debug needsPackage "EagonResolution"
 assert(eagonSymbols(1,2) == {(3, {}), (0, {2})})
 assert (eagonSymbols(2,1) == eagonSymbols(3,0))
 assert(eagonSymbols(1,3) == {(4, {}), (0, {3})})
