@@ -1,15 +1,15 @@
 newPackage(
         "EagonResolution",
-        Version => "0.9", 
-        Date => "September 1, 2020",
-        Authors => {{Name => "Mike Stillman", 
-                  Email => "mike@math.cornell.edu", 
-                  HomePage => ""},
-	      {Name => "David Eisenbud", 
+        Version => "1.0", 
+        Date => "September 23, 2020",
+        Authors => {{Name => "David Eisenbud", 
                   Email => "de@msri.org", 
-                  HomePage => "http://www.msri.org/~de"}},
+                  HomePage => "http://www.msri.org/~de"},
+	          {Name => "Mike Stillman", 
+                  Email => "mike@math.cornell.edu", 
+                  HomePage => ""}},
         Headline => "Compute the Eagon Resolution of the residue field",
-        DebuggingMode => true
+        DebuggingMode => false
         )
 
 
