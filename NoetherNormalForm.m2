@@ -213,19 +213,19 @@ isFiniteOverCoefficients1 Ring := Boolean => R ->(
    )
     
 TEST/// -- of finiteOverCoefficients
-debug needsPackage "NoetherNormalForm"
-R1 = ZZ/5[a,b][x,y]/intersect(ideal (a*(x-1),y), ideal(x^2,y^2))
-R2 = ZZ/5[a,b][x,y]/intersect(ideal (a*x-1,y), ideal(x^2,y^2))
-R3 = ZZ/5[a,b][x,y]/intersect(ideal ((a-1)*x-1,y), ideal(x^2,y^2))
-R4 = QQ[a,b][x,y]
-R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
+  debug needsPackage "NoetherNormalForm"
+  R1 = ZZ/5[a,b][x,y]/intersect(ideal (a*(x-1),y), ideal(x^2,y^2))
+  R2 = ZZ/5[a,b][x,y]/intersect(ideal (a*x-1,y), ideal(x^2,y^2))
+  R3 = ZZ/5[a,b][x,y]/intersect(ideal ((a-1)*x-1,y), ideal(x^2,y^2))
+  R4 = QQ[a,b][x,y]
+  R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
 
-assert(
-isFiniteOverCoefficients1 R1 == false and
-isFiniteOverCoefficients1 R2 == false and
-isFiniteOverCoefficients1 R3== false and
-isFiniteOverCoefficients1 R4== false and
-isFiniteOverCoefficients1 R5== true)
+  assert(
+    isFiniteOverCoefficients1 R1 == false and
+    isFiniteOverCoefficients1 R2 == false and
+    isFiniteOverCoefficients1 R3== false and
+    isFiniteOverCoefficients1 R4== false and
+    isFiniteOverCoefficients1 R5== true)
 ///
 
 isFiniteOverCoefficientRing = method()
@@ -234,7 +234,7 @@ isFiniteOverCoefficientRing Ring := Boolean => (R) -> (
     if not (try (coefficientRing R; true) else false) then return false;
     if not isAffineRing R then return false; 
     A := coefficientRing R;
-    if not isComputablePolynomialRing A then (
+    if not isField A and not isComputablePolynomialRing A then (
 	    if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field" << endl;
 	    return false);
     if not isFiniteOverCoefficients1 R then (
@@ -261,7 +261,7 @@ checkNoetherNormalization Ring := Boolean => (B) -> (
     -- if so:
     --   set frac B? (using makeFrac)
     --   set NoetherInfo in B, frac B.
-    if not finiteOverCoefficientRing B
+    if not isFiniteOverCoefficientRing B
     then error "ring is not in the proper form (set 'debugLevel>0' for details)";
     )
 
@@ -543,17 +543,17 @@ TEST ///
 *-
   A = ZZ/101[t]  
   B = A[x,y]/(x^2-y*t, y^3)
-  assert finiteOverCoefficientRing B
+  assert isFiniteOverCoefficientRing B
 
   debugLevel = 1
   A = ZZ/101
   B = A[x,y]/(x^2, y^3)
-  assert finiteOverCoefficientRing B
+  assert isFiniteOverCoefficientRing B
 
 
   A = ZZ/101
   B = A[x,y]/(x^2, x*y)
-  assert not finiteOverCoefficientRing B
+  assert not isFiniteOverCoefficientRing B
 ///
 
 TEST ///
