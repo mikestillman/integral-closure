@@ -7,7 +7,7 @@ newPackage(
                   HomePage => "http://www.msri.org/~de"},
 	          {Name => "Mike Stillman", 
                   Email => "mike@math.cornell.edu", 
-                  HomePage => ""}},
+                  HomePage => "http://pi.math.cornell.edu/~mike"}},
         Headline => "Compute the Eagon Resolution of the residue field",
         DebuggingMode => false
         )

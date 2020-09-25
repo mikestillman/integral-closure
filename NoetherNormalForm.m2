@@ -273,6 +273,8 @@ findComplement RingMap := phi -> (
 
 makeFrac = method()
 makeFrac Ring := Ring => (B) -> (
+    if not isFiniteOverCoefficientRing B
+    then error "expected the ring to be finite over the chosen polynomial ring";
     A := coefficientRing B; -- ASSUME: a polynomial ring over a field.
     KA := frac A;
     kk := coefficientRing A; -- must be a field, but not a fraction field.
@@ -775,7 +777,7 @@ TEST ///
   traceForm L
 
   R = QQ[a..d]/(b^2-a, b*c-d)
-  B = noetherForm{a,d} -- TODO: needs to give an error! BUG need to check that it is finite...
+  assert try (B = noetherForm{a,d}; false) else true  -- should give an error message
 ///
 
 TEST ///
