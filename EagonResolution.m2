@@ -1818,3 +1818,57 @@ betti res(coker vars R, LengthLimit=>10, DegreeLimit=>2)
 -- ones above?
 S = ZZ/32003[a,b,c,d,e,f];
 I = ideal"a2,b2,c2,d2,e2,f2,ab,bc,de,ef,ac+3cd-df,cf+ad+df"
+
+
+--SOME USEFUL INTERNAL FUNCTIONS
+--    "isIsomorphic",
+--    "isDegreeZeroSurjection",
+--    "weight", currently not used
+
+-- place this into M2 core.
+-*
+compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
+    -- nparts is the number of terms
+    -- k is the sum of the elements
+    -- each element is between 0 and maxelem.
+     compositionn := (n,k) -> (
+	  if n===0 or k < 0 then {}
+	  else if k===0 then {toList(n:0)}
+	  else (
+          set1 := apply(compositionn(n-1,k), s -> s | {0});
+          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
+          set2 = select(set2, s -> s#(n-1) <= maxelem);
+          join(set1, set2)
+          )
+      );
+     compositionn = memoize compositionn;
+     result := compositionn(nparts,k);
+     compositionn = null;
+     result
+     );
+
+isDegreeZeroSurjection := method()
+isDegreeZeroSurjection(Module,Module) := Boolean => (A,B) -> (
+    --tests a random degree 0 map f:A --> B to see whether its a surjection, 
+    --and returns the answer. If "true" and  o.Verbose == true then returns f.
+    H := Hom(A,B);
+    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
+    f := homomorphism(B0*random(source B0, (ring B0)^1));
+    coker f == 0
+)
+
+
+isIsomorphic = method()
+isIsomorphic(Module,Module) := (A,B) -> (
+    --tests random degree 0 maps A->B, B->A and returns true
+    --if both are surjective.
+    if not(isHomogeneous A and isHomogeneous B) then 
+	  error"not implemented for inhomogeneous modules";
+    Ap := prune A;
+    Bp := prune B;
+    dA := set flatten degrees source gens Ap;
+    dB := set flatten degrees source gens Bp;
+    if dA =!= dB then return false;
+    degreeZeroSurjection(Ap,Bp) =!= null and degreeZeroSurjection(Bp,Ap) =!= null
+    )
+*-
