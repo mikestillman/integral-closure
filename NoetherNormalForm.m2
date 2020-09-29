@@ -417,11 +417,11 @@ noetherForm List := Ring => opts -> (xv) -> (
     --     make a polynomial ring A with #xv variables.
     --     make a ring map A --> (ring xv's), sending i-th var to xv#i.
     --     call noetherForm Ringmap.
-    if #xv === 0 then error "expected non-empty list of variables";
+    if #xv === 0 then error "expected non-empty list of ring elements";
     R := ring xv#0;
-    if any(xv, x -> ring x =!= R) then error "expected variables all in the same ring";
+    if any(xv, x -> ring x =!= R) then error "expected elements all in the same ring";
     I := ideal R;
-    ambientR := ring I;
+    ambientR := ring I; 
     gensR := new MutableList from gens ambientR;
     --gensA1 := select(xv, f -> index f =!= null); -- keep these in order.  Note that there should not be two the same.
     --if #gensA1 != #(unique gensA1) then error "cannot have same variable occuring twice";
@@ -429,7 +429,7 @@ noetherForm List := Ring => opts -> (xv) -> (
     -- this loop returns a list of {varname, value in R}, 
     -- and it also modifies gensR (sets any variable to null that should not be in gens of B).
     elems := for f in xv list (
-        if index f =!= null then (
+        if index f =!= null then ( --index of the variable in R
             gensR#(index f) = null;
             {f, f}
             )
@@ -489,10 +489,17 @@ workAroundInverse RingMap := (phi) -> (
   I = monomialCurveIdeal(S, {1,3,4})
   R = S/I
 
+T = ZZ/101[a..d,s,t,MonomialOrder=>{4,2}]
+IT = sub(I,T)
+J = IT+ideal(s-(a+b), t-(c+d))
+radical ideal leadTerm gens gb J
+
   use R; noetherForm {a,d}
   use R; noetherForm {a,d+c}
-  use R; noetherForm {a+b,d+c}
+  use R; noetherForm {a+b,d+c} -- this one is NOT finite
   use R; B = noetherForm {a+b,a+d}
+  describe B
+  describe ambient B
   use R; noetherForm {a^2, d^2}
 
   B1 = ZZ/101[a, b, c, d, t_0, t_1, MonomialOrder=>{4, 2}]
