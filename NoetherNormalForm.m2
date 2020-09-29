@@ -359,6 +359,7 @@ noetherForm RingMap := Ring => opts -> (f) -> (
     L := makeFrac B;
     B)
 
+-*
 noetherForm List := Ring => opts -> (xv) -> (
     -- R should be a quotient of a polynomial ring,
     -- xv a list of variables, algebraically independent in R
@@ -386,6 +387,7 @@ noetherForm List := Ring => opts -> (xv) -> (
     L := makeFrac B;
     B
     )
+*-
 
 noetherForm Ring := Ring => opts -> R -> (
     (F, J, xv) := noetherNormalization R;
@@ -423,28 +425,22 @@ noetherForm List := Ring => opts -> (xv) -> (
     gensR := new MutableList from gens ambientR;
     --gensA1 := select(xv, f -> index f =!= null); -- keep these in order.  Note that there should not be two the same.
     --if #gensA1 != #(unique gensA1) then error "cannot have same variable occuring twice";
-    removeList := {};
     count := -1;
     -- this loop returns a list of {varname, value in R}, 
-    -- and it also sets removeList, sets genR.
+    -- and it also modifies gensR (sets any variable to null that should not be in gens of B).
     elems := for f in xv list (
         if index f =!= null then (
-            if not member(f, removeList) then (
-                removeList = append(removeList, f);
-                gensR#(index f) = null;
-                );
+            gensR#(index f) = null;
             {f, f}
             )
         else (
             m := leadMonomial f;
             if index m =!= null then (
-                if not member(m, removeList) then removeList = append(removeList, m);
                 gensR#(index m) = null;
                 );
             count = count+1;
             {(opts.Variable)_count, f}
         ));
-    removeList = removeList/(x -> lift(x, ambientR));
     keepList := select(toList gensR, x -> x =!= null);
     -- Create A and B' (ambient for the soon to be created B).
     A := (coefficientRing R)(monoid [elems/first]);
@@ -456,15 +452,33 @@ noetherForm List := Ring => opts -> (xv) -> (
     phi := map(R, B, phi'.matrix);
     -- Now create the inverse of phi.  One should be able to do phi^-1, but fails (Sep 2020, 1.16)
     -- Here is a workaround for the moment.
+    workAroundInverse phi; -- sets inverse of phi.
+-*    
     (B'', F) := flattenRing B; -- B == source phi, R == target phi
     phi.cache.inverse = F^-1 * (phi * F^-1)^-1;
     phi.cache.inverse.cache.inverse = phi;
     assert(phi^-1 * phi === id_(source phi));
     assert(phi * phi^-1 === id_(target phi));
+*-
     B.cache#"NoetherMap" = phi; -- TODO: where to put this.
+    L := makeFrac B;
     B
     )
 
+-- This workaround sets the inverse of the isomorphism phi, in the case
+-- when the coefficient ring of source ring is not the coefficient ring of the target ring.
+-- It is currently assumed, I think, that the target ring's coefficient ring is the
+-- same as the coeff ring of the flattened ring of the source.
+workAroundInverse = method()
+workAroundInverse RingMap := (phi) -> (
+    B := source phi;
+    R := target phi;
+    (B'', F) := flattenRing B;
+    phi.cache.inverse = F^-1 * (phi * F^-1)^-1;
+    phi.cache.inverse.cache.inverse = phi;
+    --assert(phi^-1 * phi === id_B); -- TODO: make sure these are the same?  The matrices are different sometimes only with degrees.
+    --assert(phi * phi^-1 === id_R); -- TODO: same
+    )
 ///
 -*
   restart
@@ -475,10 +489,10 @@ noetherForm List := Ring => opts -> (xv) -> (
   I = monomialCurveIdeal(S, {1,3,4})
   R = S/I
 
-  use R: noetherForm {a,d}
+  use R; noetherForm {a,d}
   use R; noetherForm {a,d+c}
   use R; noetherForm {a+b,d+c}
-  use R; noetherForm {a+b,a+d}
+  use R; B = noetherForm {a+b,a+d}
   use R; noetherForm {a^2, d^2}
 
   B1 = ZZ/101[a, b, c, d, t_0, t_1, MonomialOrder=>{4, 2}]
@@ -508,8 +522,8 @@ noetherForm List := Ring => opts -> (xv) -> (
   (B'', F) = flattenRing source phi'
   phi'.cache.inverse = F^-1 * (phi' * F^-1)^-1
   phi'.cache.inverse.cache.inverse = phi'
-  assert(phi'^-1 * phi' === id_B)
-  assert(phi' * phi'^-1 === id_R)
+  assert(phi'^-1 * phi' === id_B) 
+  assert(phi' * phi'^-1 === id_R) 
 
   -- I will need to place the inverse of the ring F : map R --> B into F.cache.inverse (and vice versa)
 
@@ -957,7 +971,9 @@ TEST ///
   I = ideal"a2,ab,cd,d2"
   S = reesAlgebra I
   S = first flattenRing S
-  
+
+  noetherForm({a - w_0,b,c,d,w_0 + w_1 + w_2 + w_3})  
+
   elapsedTime (F, J, xv) = noetherNormalization S -- wow, this takes more time than I would have thought! 3.1 sec on my macbookpro, Sep 2020.
 
   xv/(x -> F x)
