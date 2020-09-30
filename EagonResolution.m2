@@ -1,15 +1,15 @@
 newPackage(
         "EagonResolution",
-        Version => "0.9", 
-        Date => "September 1, 2020",
-        Authors => {{Name => "Mike Stillman", 
-                  Email => "mike@math.cornell.edu", 
-                  HomePage => ""},
-	      {Name => "David Eisenbud", 
+        Version => "1.0", 
+        Date => "September 23, 2020",
+        Authors => {{Name => "David Eisenbud", 
                   Email => "de@msri.org", 
-                  HomePage => "http://www.msri.org/~de"}},
+                  HomePage => "http://www.msri.org/~de"},
+	          {Name => "Mike Stillman", 
+                  Email => "mike@math.cornell.edu", 
+                  HomePage => "http://pi.math.cornell.edu/~mike"}},
         Headline => "Compute the Eagon Resolution of the residue field",
-        DebuggingMode => true
+        DebuggingMode => false
         )
 
 
@@ -94,7 +94,7 @@ golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
     golodBetti(F,K,b)
     )
 
-    ///
+///
 restart
 loadPackage("EagonResolution", Reload =>true)
 S = ZZ/101[x,y,z]
@@ -164,12 +164,14 @@ trimWithLabel ZZ := ZZ => n -> n
 trimWithLabel Symbol := Symbol => s -> s
 
 trimWithLabel Module := Module => M ->(
-if M == 0 then return (ring M)^0;
-ci := componentsAndIndices M;
-pci := positions(ci_0,M -> M!=0);
-if #pci ===0 then return (ring M)^0;
-if #pci === 1 then labeler(ci_1_pci_0, ci_0_pci_0) else
-            directSum apply(pci, i->labeler(ci_1_i,ci_0_i))
+    if M == 0 then return (ring M)^0;
+    ci := componentsAndIndices M;
+    pci := positions(ci_0,M -> M!=0);
+    if #pci ===0 then return (ring M)^0;
+    if #pci === 1 then 
+        labeler(ci_1_pci_0, ci_0_pci_0) 
+    else
+        directSum apply(pci, i->labeler(ci_1_i,ci_0_i))
 )
 
 trimWithLabel Matrix := Matrix => f ->(
@@ -336,52 +338,56 @@ eagon(Ring, ZZ) := EagonData => o -> (R,b) ->(
 		         <<"Used "<<p+1<<" of "<<numInd<<" blocks of beta "<<(n,i)<<endl;
 		      break)))));
 
-    Eagon#{beta,n,i} = toLift//M;
+     Eagon#{beta,n,i} = toLift//M;
  
 
-	Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
+     Eagon#{west,n,i} = Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 	                   Eagon#{0,n-1,i}_[1]* (Eagon#{west,n-1,0}**X(i))  *(Eagon#{0,n,i})^[1]+
 	                   (if Eagon#?{west,n-1,i+1} then 
 			            Eagon#{0,n-1,i}_[0]*Eagon#{west,n-1,i+1}*Eagon#{0,n,i}^[0] 
 				                     else 0);
 
-	if i == 1 then Eagon#{north,n,i} = -- special case because Y^n_0 is not a tensor product with Y^(n-1)_0
+     if i == 1 then 
+         Eagon#{north,n,i} = -- special case because Y^n_0 is not a tensor product with Y^(n-1)_0
 	                    (
 	                    (Eagon#{north,n-1,i+1})*((Eagon#{0,n,i})^[0])+
 	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 			    Eagon#{0,n-1,i}_[1]*(Eagon#{north, n-2,1}**X(i))*(Eagon#{0,n,i}^[1])
 			    )
-		  else
-	Eagon#{north,n,i} =
+     else
+         Eagon#{north,n,i} =
 	    Eagon#{0,n,i-1}_[0]*
 	                    (
 	                    (Eagon#{north,n-1,i+1})*((Eagon#{0,n,i})^[0])+
 	                    Eagon#{0,n-1,i}_[0]*Eagon#{beta,n,i}*(Eagon#{0,n,i})^[1]+
 			    Eagon#{0,n-1,i}_[1]*(Eagon#{north, n-2,1}**X(i))*(Eagon#{0,n,i}^[1])
 			    );
-));
+  ));
 
-H := trimWithLabel hashTable prepend((symbol EagonLength, b), pairs Eagon);
-E :=new EagonData from H;
+  H := trimWithLabel hashTable prepend((symbol EagonLength, b), pairs Eagon);
+  E :=new EagonData from H;
 
-R.cache.EagonData = E;
-E
+  R.cache.EagonData = E;
+  E
 )
 
 --beta--
 beta = method(Options => {Display => "picture", Verbose => false})
 --There are no maps beta(E,0) or beta(E,1); the display starts with beta(E,2).
 
-beta(EagonData, ZZ) := o -> (E,n) -> 
-         if o.Display == "picture" then picture(E#{"beta",n,0},Verbose => o.Verbose) else 
-	 if o.Display == "DisplayBlocks" then 
-	                                displayBlocks E#{"beta",n,0} else 
-	                                E#{"beta",n,0}
+beta(EagonData, ZZ) := o -> (E,n) -> (
+         if o.Display == "picture" then 
+             picture(E#{"beta",n,0},Verbose => o.Verbose)
+         else if o.Display == "DisplayBlocks" then 
+	     displayBlocks E#{"beta",n,0} 
+         else 
+	     E#{"beta",n,0}
+         )
 
-beta EagonData := List => o-> E ->(
-b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
-netList apply(b-1, n -> beta(E,n+2,Display => o.Display, Verbose => o.Verbose)))
-
+beta EagonData := List => o-> E -> (
+    b := max apply(select(keys E, k-> k_0 === 0 and k_2 === 0), k->k_1);
+    netList apply(b-1, n -> beta(E,n+2,Display => o.Display, Verbose => o.Verbose))
+    )
 
 extractBlocks = method()
 extractBlocks(Matrix, List) := Matrix => (phi, L) -> (
@@ -403,6 +409,7 @@ eagonResolution EagonData := ChainComplex => E ->(
 eagonResolution(Ring,ZZ) := ChainComplex => (R,b) ->(
     eagonResolution eagon(R,b)
     )
+
 resolution EagonData := opts->E -> eagonResolution E
 --res--
 --resolution--
@@ -431,7 +438,7 @@ eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
     e' := eagonSymbols (n-1,0);
     e'1 := apply (e', L -> L_1|{i});
     eagonSymbols(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
-   )
+    )
 
 componentsAndIndices = (F) -> (
     if not F.cache.?components then (
@@ -439,8 +446,10 @@ componentsAndIndices = (F) -> (
         ({F}, {null})
         )
     else if #F.cache.components == 1 then (
-        if F.cache.?indices then ({F}, F.cache.indices)
-        else ({F}, {null})
+        if F.cache.?indices then 
+            ({F}, F.cache.indices)
+        else 
+            ({F}, {null})
         )
     else (
         a := for f in F.cache.components list componentsAndIndices f;
@@ -495,19 +504,25 @@ pictureList Matrix := o -> (M1) -> (
                 mts := M^[t]_[s];
 		nums := toString(numrows mts,numcols mts);
 		cont := ideal M^[t]_[s];
-		if o.Verbose == false then(
-                
-		h := if mts == 0 then "." else 
-		     if (numrows mts == numcols mts and mts == 1) then "id" else 
-		     if cont == ideal(1_(ring mts)) 
-		       then toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) else "*") 
-		
-		                     else(
-		
-		h = if mts == 0 then nums|" ." else 
-		     if (numrows mts == numcols mts and mts == 1) then nums|" id" else 
-		     if cont == ideal(1_(ring mts)) then nums|","|toString rank(kkk**M^[t]_[s]) else "*") 
-                )));
+		if o.Verbose == false then (
+		  h := if mts == 0 then 
+                          "." 
+                       else if (numrows mts == numcols mts and mts == 1) then 
+                          "id" 
+                       else if cont == ideal(1_(ring mts)) then
+		          toString numrows M^[t]_[s]|","|toString rank(kkk**M^[t]_[s]) 
+                       else "*"
+                  )
+                else (
+		  h = if mts == 0 then 
+                          nums|" ." 
+                      else if (numrows mts == numcols mts and mts == 1) then 
+                          nums|" id" 
+                      else if cont == ideal(1_(ring mts)) then 
+                          nums|","|toString rank(kkk**M^[t]_[s]) 
+                      else "*"
+                  )
+         )));
     if o.Transpose then transpose L else L
     )
 
@@ -519,8 +534,7 @@ picture = method(Options => options pictureList)
 picture Matrix := o -> (M1) -> (
     if o.Display === "DisplayBlocks" then return displayBlocks M1;
     netList (pictureList(M1,o), Alignment => Center)
-  )  
---picture ChainComplex := Net => o -> C -> netList apply(pictureList(C,o), p -> netList(p, Alignment => Center)) --(length C, i-> picture(C.dd_(i+1),Verbose => o.Verbose))
+    )  
 picture ChainComplex := Net => o -> C -> netList apply(length C, i-> picture(C.dd_(i+1), o))
 picture EagonData := Net => o -> E -> picture (eagonResolution E, o)
 
@@ -534,17 +548,21 @@ mapComponent(Matrix, Sequence, Sequence) := Matrix => (M,tar,src) -> (
     --M = (eagonResolution(R,n)).dd_4
     M1 := flattenBlocks M;
     --use "member" and "componentsAndIndices" to check reasonableness? or try evaluating and catch error.
-    try (M2 := M1^[tar]_[src]) then M2 else 
-    (<<endl<<"*** bad source or target symbol; use `picture M1' to check ***"<<endl<<endl; error())
+    try (M2 := M1^[tar]_[src]) then 
+       M2
+    else (
+       <<endl<<"*** bad source or target symbol; use `picture M1' to check ***"<<endl<<endl; 
+       error()
+       )
     )
 
 degreeZeroSurjection = method()
 degreeZeroSurjection(Module,Module) := Matrix => (A,B) -> ( -- null if no surjection
     --creates a random degree 0 map f:A --> B and tests surjectivity. returns the map if true, else null.
     A' := prune A;
-     pruningMapA := A'.cache.pruningMap; --from A' to A
+    pruningMapA := A'.cache.pruningMap; --from A' to A
     B' := prune B;
-     pruningMapB := B'.cache.pruningMap;   
+    pruningMapB := B'.cache.pruningMap;   
     H := Hom(A',B');
     B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
     f := homomorphism(B0*random(source B0, (ring B0)^1));
@@ -703,6 +721,7 @@ doc ///
      E = eagon(R,3)
      E === R.cache.EagonData
    SeeAlso
+    eagon
 ///
 
 --doceagon
@@ -1496,12 +1515,11 @@ assert (golodBetti (coker vars R,b) == betti H)
 ///
 
 
+-- TODO: PLACE INTO M2 CORE
 --SOME USEFUL INTERNAL FUNCTIONS
---    "isIsomorphic",
+--    "compositions"
 --    "isDegreeZeroSurjection",
---    "weight", currently not used
-
--- place this into M2 core.
+--    "isIsomorphic"
 -*
 compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
     -- nparts is the number of terms
@@ -1533,7 +1551,8 @@ isDegreeZeroSurjection(Module,Module) := Boolean => (A,B) -> (
     coker f == 0
 )
 
-
+-- the following function works for modules in the graded case.
+-- and produces (only) graded isomorphisms.
 isIsomorphic = method()
 isIsomorphic(Module,Module) := (A,B) -> (
     --tests random degree 0 maps A->B, B->A and returns true
@@ -1548,7 +1567,6 @@ isIsomorphic(Module,Module) := (A,B) -> (
     degreeZeroSurjection(Ap,Bp) =!= null and degreeZeroSurjection(Bp,Ap) =!= null
     )
 *-
-
 
 TEST/// --test of degreeZeroSurjection
 debug needsPackage "EagonResolution"--degreeZeroSurjection is not exported.
@@ -1840,3 +1858,82 @@ kSS(R,6)
 use S
 R= S/(I = ideal"a4,b4,c4")
 torAlgDataPrint( R, {c, e, h, m, n, Class, p, q, r} )
+=======
+
+--SOME USEFUL INTERNAL FUNCTIONS
+--    "isIsomorphic",
+--    "isDegreeZeroSurjection",
+--    "weight", currently not used
+
+-- place this into M2 core.
+-*
+compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
+    -- nparts is the number of terms
+    -- k is the sum of the elements
+    -- each element is between 0 and maxelem.
+     compositionn := (n,k) -> (
+	  if n===0 or k < 0 then {}
+	  else if k===0 then {toList(n:0)}
+	  else (
+          set1 := apply(compositionn(n-1,k), s -> s | {0});
+          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
+          set2 = select(set2, s -> s#(n-1) <= maxelem);
+          join(set1, set2)
+          )
+      );
+     compositionn = memoize compositionn;
+     result := compositionn(nparts,k);
+     compositionn = null;
+     result
+     );
+toMonomialIdeal = method()
+toMonomialIdeal(Ring, List) := Ideal => (S,L) ->(
+    --L should be a list of lists of non-negative integers, each of length numgens S
+    n := numgens S;
+    ideal apply(L, ell -> product(n, i-> S_i^(ell_i)))
+    )
+///
+S = ZZ/101[a,b,c]
+C = compositions(3,4,3)
+C1 = select(C, c-> c == sort c)
+toMonomialIdeal(S,C1)
+ids = subsets (C,3)
+m = ids_0
+M = toMonomialIdeal(S,m)
+sort gens M
+Ms =apply(ids, ell -> toMonomialIdeal(S,ell))
+lastCol = transpose sort gens last Ms
+cols = apply(Ms, I-> transpose sort gens I)
+mat = col ->(
+    m := transpose sort gens last Ms;
+    scan(#col -1, i-> m = (cols_i|m));
+    sort m
+    )
+time m = mat cols;
+///
+isDegreeZeroSurjection := method()
+isDegreeZeroSurjection(Module,Module) := Boolean => (A,B) -> (
+    --tests a random degree 0 map f:A --> B to see whether its a surjection, 
+    --and returns the answer. If "true" and  o.Verbose == true then returns f.
+    H := Hom(A,B);
+    B0 := basis(0,H); -- this seems to be total degree 0 in case of degreeLength>1
+    f := homomorphism(B0*random(source B0, (ring B0)^1));
+    coker f == 0
+)
+
+
+isIsomorphic = method()
+isIsomorphic(Module,Module) := (A,B) -> (
+    --tests random degree 0 maps A->B, B->A and returns true
+    --if both are surjective.
+    if not(isHomogeneous A and isHomogeneous B) then 
+	  error"not implemented for inhomogeneous modules";
+    Ap := prune A;
+    Bp := prune B;
+    dA := set flatten degrees source gens Ap;
+    dB := set flatten degrees source gens Bp;
+    if dA =!= dB then return false;
+    degreeZeroSurjection(Ap,Bp) =!= null and degreeZeroSurjection(Bp,Ap) =!= null
+    )
+*-
+>>>>>>> 61c9d129e56ad31df29c31614a0ccd6f9b1dd6f9
