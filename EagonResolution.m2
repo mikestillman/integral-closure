@@ -1800,3 +1800,43 @@ betti res(coker vars R, LengthLimit=>10, DegreeLimit=>2)
 -- ones above?
 S = ZZ/32003[a,b,c,d,e,f];
 I = ideal"a2,b2,c2,d2,e2,f2,ab,bc,de,ef,ac+3cd-df,cf+ad+df"
+
+-------------
+
+load"~/gitRepos/SocleInSyzygy/DaoSocle.m2"
+S = ZZ/101[a,b,c]
+
+R= S/(I = ideal"a4,b4,c4,a2b2")
+T = torAlgData R
+T#"n" == T#"q"
+kSS(R,4)
+
+cubics = {a2b,abc}
+quartics = {a3b,a2b2,a2bc}
+
+
+listToMonom = L -> product apply(#L,i->S_i^(L_i))
+listToMonomIdeal = L' -> ideal apply(L', ell -> listToMonom ell)
+
+idealList = (n,d) ->(
+    S = ZZ/101[x_1..x_n];
+    I0 = ideal apply(n,i->S_i^d);
+L = (subsets select((partitions (d,d-1)/toList, p-> #p<=n)))/listToMonomIdeal;
+apply(L, I -> I+I0)
+)
+example = L -> apply(L, I -> (
+	R = ring I/I;
+	T = torAlgData R;
+	<<T#"n" == T#"q"<<" "<<	kSS(R,2+numgens R)<<endl))
+example idealList(3,5)
+idealList
+
+I = (idealList(3,3))_2
+R = ring I/I
+torAlgDataPrint( R, {c, e, h, m, n, Class, p, q, r} )
+betti res I
+kSS(R,6)
+
+use S
+R= S/(I = ideal"a4,b4,c4")
+torAlgDataPrint( R, {c, e, h, m, n, Class, p, q, r} )
