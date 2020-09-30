@@ -1846,7 +1846,31 @@ compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
      compositionn = null;
      result
      );
-
+toMonomialIdeal = method()
+toMonomialIdeal(Ring, List) := Ideal => (S,L) ->(
+    --L should be a list of lists of non-negative integers, each of length numgens S
+    n := numgens S;
+    ideal apply(L, ell -> product(n, i-> S_i^(ell_i)))
+    )
+///
+S = ZZ/101[a,b,c]
+C = compositions(3,4,3)
+C1 = select(C, c-> c == sort c)
+toMonomialIdeal(S,C1)
+ids = subsets (C,3)
+m = ids_0
+M = toMonomialIdeal(S,m)
+sort gens M
+Ms =apply(ids, ell -> toMonomialIdeal(S,ell))
+lastCol = transpose sort gens last Ms
+cols = apply(Ms, I-> transpose sort gens I)
+mat = col ->(
+    m := transpose sort gens last Ms;
+    scan(#col -1, i-> m = (cols_i|m));
+    sort m
+    )
+time m = mat cols;
+///
 isDegreeZeroSurjection := method()
 isDegreeZeroSurjection(Module,Module) := Boolean => (A,B) -> (
     --tests a random degree 0 map f:A --> B to see whether its a surjection, 
