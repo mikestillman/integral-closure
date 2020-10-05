@@ -9,7 +9,7 @@ newPackage(
                   Email => "mike@math.cornell.edu", 
                   HomePage => "http://pi.math.cornell.edu/~mike"}},
         Headline => "Compute the Eagon Resolution of the residue field",
-        DebuggingMode => false
+        DebuggingMode => true
         )
 
 
@@ -116,6 +116,26 @@ homologyCover(ZZ, ChainComplex) := List => (b,C) ->
     apply(b, i-> homologyCover(C,i))
 
 homologyCover(ChainComplex) := List => C -> homologyCover(1+length C, C)
+
+--
+--here is a version that works when the homology is NOT necessarily of finite length:
+minimalHomologyCover = method();
+minimalHomologyCover(ChainComplex, ZZ) := Matrix => (K,i) ->(
+    S := ring K;
+    k := coker vars S;
+	    s := syz K.dd_i;
+	    G := source s;
+	    d := K.dd_(i+1)//s;
+	    dbar := k**d;
+	    dtilde := map(G, K_(i+1), matrix dbar);
+	    H := coker dtilde;
+	    Hp := prune H; -- Hp is a free module, H might not be!
+	    p := (Hp.cache.pruningMap)^-1 * inducedMap(H, G);
+	    sp := map(G, Hp, id_Hp//p); --splitting
+--	    p := inducedMap(H, G);
+--	    sp := map(G, H, p//id_H); --splitting
+            phi := s*sp
+	)
 
 homologyIsomorphism = method()
 homologyIsomorphism(Module, ChainComplex, ZZ) := Matrix => (M,C,i) ->(
@@ -245,11 +265,12 @@ eagon(Ring, ZZ) := EagonData => o -> (R,b) ->(
     
     homologyCover' := (K,i) -> (
 	--Returns the map from X(i) to K_i
-        phi := homologyCover(K,i); 
+--        phi := homologyCover(K,i); 
+        phi := minimalHomologyCover(K,i);--version that works without assuming HH_i is finite dim.
         Xi := labeler((0,{i}),source phi); 
         map(K_i, Xi, phi)
         );
-    
+
     ebasis := memoize homologyCover';
     X := i -> if i<=g and (s := source ebasis(K,i))!=0 then  
              labeler((0,{i}),s) else R^0; -- X(i) is the X_i of Gulliksen-Levin.
@@ -569,6 +590,51 @@ degreeZeroSurjection(Module,Module) := Matrix => (A,B) -> ( -- null if no surjec
     t := coker f == 0;
     if t then pruningMapB * f * (pruningMapA)^-1 else null
 )
+
+
+minimalHomologyCovers = method()
+--Given a complex K, produce maps phi_i: X_i \to K_i 
+--from free modules X_i that map into Z_i(K) \subset K_i,
+--and induce a minimal surjection
+--onto H_i(K) 
+minimalHomologyCovers ChainComplex := List => K ->(
+    R := ring K;
+    k := coker vars R;
+    apply(1+length K, i-> (
+	    s := syz K.dd_i;
+	    G := source s;
+	    d := K.dd_(i+1)//s;
+	    dbar := k**d;
+	    dtilde := map(G, K_(i+1), matrix dbar);
+	    H := coker dtilde;
+	    Hp := prune H; -- Hp is a free module, H might not be!
+	    p := (Hp.cache.pruningMap)^-1 * inducedMap(H, G);
+	    sp := map(G, Hp, id_Hp//p); --splitting
+        	    phi := s*sp
+	))
+    )
+TEST ///
+restart
+debug needsPackage "EagonResolution"
+--S = ZZ/101[a,b]
+--R = S/ideal"a2,b2"
+--KR = koszul vars R
+S = ZZ/32003[a,b,c,d]
+M = coker matrix"a,b,c,0;0,a,b,c"
+I = ann M
+R = S/I
+p = map(R,S)
+KR = p res M
+Xmaps = minimalHomologyCovers KR
+netList apply(1+length KR, i-> prune HH_i KR)
+Hmaps = apply(1+length KR, i-> (
+	inK := inducedMap(KR_i,ker KR.dd_i);
+        inKer := Xmaps_i//inK;
+	inducedMap (HH_i KR, ker KR.dd_i)*inKer))
+assert all(Hmaps, h-> prune coker h == 0)
+assert all(Xmaps, f->isFreeModule source f)
+
+///
 
 beginDocumentation()
 
@@ -1907,9 +1973,11 @@ cols = apply(Ms, I-> transpose sort gens I)
 mat = col ->(
     m := transpose sort gens last Ms;
     scan(#col -1, i-> m = (cols_i|m));
-    sort m
+    n =  sort m;
+    
     )
 time m = mat cols;
+m_{0..20}
 ///
 isDegreeZeroSurjection := method()
 isDegreeZeroSurjection(Module,Module) := Boolean => (A,B) -> (
@@ -1936,4 +2004,3 @@ isIsomorphic(Module,Module) := (A,B) -> (
     degreeZeroSurjection(Ap,Bp) =!= null and degreeZeroSurjection(Bp,Ap) =!= null
     )
 *-
->>>>>>> 61c9d129e56ad31df29c31614a0ccd6f9b1dd6f9
