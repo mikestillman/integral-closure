@@ -72,7 +72,6 @@ setupRing(ZZ, ZZ) := (numvars, deg) -> (
     (R, Sn, orbits, B)
     )
 
-setupRing = method()
 setupRing(Ring, List) := List => (S, deg) -> (
     perms := permutations numgens S;
     iB := for d in deg list
@@ -87,12 +86,57 @@ setupRing(Ring, List) := List => (S, deg) -> (
     (Sn, B, IB)
     )
 
+setupRing(Ring,ZZ) := (R,d) -> (
+    if not R.?cache then R.cache = new CacheTable;
+    if not R.cache.?MonomialOrbits then R.cache.MonomialOrbits = new MutableHashTable;
+    H := R.cache.MonomialOrbits;
+    if not H#?"perms" then H#"perms" = permutations numgens R;
+    if not H#?d then(
+       B := sort(basis(d, R), DegreeOrder => Ascending, MonomialOrder => Descending);
+       Gd := for p in H#"perms" list (
+           f := map(R,R, (vars R)_p);
+           sortColumns(f B, DegreeOrder => Ascending, MonomialOrder => Descending)
+           );
+       H#d = (flatten entries B, Gd);
+    ))
+
+sums = method()
+sums(List, List) := (L1, L2) -> (
+    -- L1 is a list of list of integers, L2 is a list of integers
+    -- for each set f in L1, for each a element in L2:
+    --   if a is not in f, then place sort(f,a) on output.
+    sort unique flatten for f in L1 list (
+        sf := set f;
+        for a in L2  list (
+            if not member(a, sf) then sort append(f, a) else continue
+        )
+    )
+)
+sumMonomials = method()
+sumMonomials(List,List) := (L1,L2) -> (
+  --L1 list of monomial ideals
+  --L2 llist of monomials
+  --return list of monomial ideals: an element of L1 
+  --plus an element of L2 which is a minimal generator.
+    unique flatten for I in L1 list (
+	for m in L2 list (
+	    if m % I != 0 then I + monomialIdeal m 
+	    else continue))
+    )
+	       
+	        
+    
 end--
 restart
 needs "monomial-orbits.m2"
+R = ZZ/101[a,b,c]
+setupRing(R,3)
+B = R.cache.MonomialOrbits#3#0
+L1 = B/monomialIdeal
+#sumMonomials(L1, B)
 
 (S, S3, orbs, B) = setupRing(3, 3);
-
+setupRing(S,{2,3})
 d3 = toList(0..9)
 nf1 = addGenerator({{}}, d3, S3)
 nf2 = addGenerator(nf1, d3, S3)
@@ -117,8 +161,9 @@ S = ZZ/2[a,b,c,d]
 nf1 = addGenerator({{}}, IB#2, S4)
 nf2 = addGenerator(nf1, IB#3, S4)
 nf3 = addGenerator(nf2, IB#3, S4)
-nf3/(p -> B_p)/ideal
-
+if3 = nf3/(p -> B_p)/ideal
+#if3
+#(unique \\(if3/(i->betti res i)))
 -- 3 distinct cubics in S
 nf1 = normalForms(addNewMonomial({{}}, toList(0..9)), S3)
   all2 = addNewMonomial(nf1, toList(0..9))
