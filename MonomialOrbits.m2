@@ -16,23 +16,30 @@ export {
     "setupRing", -- eventually will be private?
     "sumMonomials",
     "normalForms",
-    "addGenerator"
+    "orbitRepresentatives",
+    "Group"
     }
 
-setupRing = method()
-setupRing(Ring,ZZ) := (R,d) -> (
+setupRing = method(Options =>{Group => "SymmetricGroup"})
+--Group is either "SymmetricGroup" or a list of ring automorphisms
+setupRing(Ring,List) := o -> (R,degs) -> (
     if not R.?cache then R.cache = new CacheTable;
     if not R.cache.?MonomialOrbits then R.cache.MonomialOrbits = new MutableHashTable;
     H := R.cache.MonomialOrbits;
-    if not H#?"perms" then H#"perms" = permutations numgens R;
-    if not H#?d then(
-       B := sort(basis(d, R), DegreeOrder => Ascending, MonomialOrder => Descending);
-       Gd := for p in H#"perms" list (
-           f := map(R,R, (vars R)_p);
-           sortColumns(f B, DegreeOrder => Ascending, MonomialOrder => Descending)
-           );
-       H#d = (flatten entries B, Gd);
-    ))
+
+    if o.Group == "SymmetricGroup" then(
+	    H#"Group" = "SymmetricGroup";
+	    H#"GroupElements" = for p in permutations numgens R list
+	       map(R,R,(vars R)_p))
+    else (H#"GroupElements" = o.Group;
+	      H#"Group" = "Other");
+	   
+    if not H#?"monomials" then H#"monomials" = new MutableHashTable;
+    for d in degs do
+	if not H#"monomials"#?d then 
+	   H#"monomials"#d = flatten entries sort(basis(d, R), 
+		 DegreeOrder => Ascending, MonomialOrder => Descending);
+    )
 
 sumMonomials = method()
 sumMonomials(List,List) := (L1,L2) -> (
@@ -75,15 +82,27 @@ normalForms(List, List) := (Fs, G) -> (
         )
     )
 
-addGenerator = method()
-addGenerator(List, List, List) := (Ls, L, G) -> normalForms(sumMonomials(Ls, L), G)
-addGenerator(List, ZZ, List) := (Ls, deg, G) -> (
-    S := target first G;
+
+orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup"})
+
+orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
+    setupRing(R,degs,o); -- creates G and a list of lists of monomials in R.cache
+    info := R.cache.MonomialOrbits;
+    G := info#"GroupElements";
+    result := {monomialIdeal 0_R};
+    for d in degs do result = normalForms(sumMonomials(result, info#"monomials"#d), G);
+    result)
+
+-*
+orbitRepresentatives(List, List, List) := List => o->(Ls, L) -> normalForms(sumMonomials(Ls, L), o.Group)
+
+orbitRepresentatives(List, ZZ, List) := List => o->(Ls, deg) -> (
+    S := target first o.Group;
     setupRing(S,deg);
     L := S.cache.MonomialOrbits#deg#0;
-    normalForms(sumMonomials(Ls, L), G)
+    normalForms(sumMonomials(Ls, L), o.G)
     )
-
+*-
 beginDocumentation()
 
 TEST ///
@@ -92,9 +111,10 @@ TEST ///
   needsPackage "MonomialOrbits" 
 *-
   S = ZZ/101[a,b,c,d]
-  G = for p in permutations(toList(0..numgens S-1)) list map(S, S, (vars S)_p)
-  setupRing(S,2)
-  setupRing(S,3)
+  orbitRepresentatives(S,{2,3})
+  setupRing(S,{2})
+  setupRing(S,{2,3})
+
   setupRing(S,5)
   setupRing(S,2)
   assert(S.cache.MonomialOrbits#"perms" == permutations toList(0..numgens S - 1))
@@ -102,7 +122,9 @@ TEST ///
   M1 = addGenerator(M0, 2, G)
   M2 = addGenerator(M1, 2, G)
   M3 = addGenerator(M2, 2, G)
-  M4 = addGenerator(M3, 3, G)
+time  M4 = addGenerator(M3, 3, G)
+time  M5 = addGenerator(M4, 3, G)
+#M5
 
   M1 = addGenerators(M0, S.cache.MonomialOrbits#2#0, G)
   M1 = sumMonomials({monomialIdeal(0_S)}, S.cache.MonomialOrbits#2#0)

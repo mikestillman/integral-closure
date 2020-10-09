@@ -1,4 +1,3 @@
-
 newPackage(
 	"AInfinity",
     	Version => "0.1", 
@@ -9,7 +8,7 @@ newPackage(
 	          {Name => "Mike Stillman", 
                   Email => "mike@math.cornell.edu", 
                   HomePage => "http://pi.math.cornell.edu/~mike"}},
-        Headline => "Compute the Eagon Resolution of the residue field",
+        Headline => "Compute AInfinity structures on free resolutions",
         DebuggingMode => true
     	)
 
@@ -28,34 +27,104 @@ singleDegTP = method();
 singleDegTP(GradedModule, GradedModule, ZZ) := (A, B, n) -> (
     	directSum(apply(0..n, i -> (A_i ** B_(n-i))))
     )
+
+-* The following code is broken, and isn't used anyway.
 singleDegTP(Sequence, Ring, ZZ) := (modSeq, S, n) -> (
-    if( n - (length modSeq) < 2) then 
-        directSum(apply(1..n, 0) => prune coker map( S^1, S^1, 1))
-    else directSum(splice(apply( 2..(n-(length modSeq)), i -> (
+    if( n - (length modSeq) < 2)
+     then directSum(apply(1..n), i -> prune coker map( S^1, S^1, 1))
+
+     else directSum(splice(
+	    apply( 2..(n-(length modSeq)), i -> (
     	    -- the right hand side, missing first component
 	    R := singleDegTP(drop(modSeq, 1), S, n-i);
 	    apply( indices R, seq -> (		    
-		    prepend(i,seq) => ((modSeq#0)_i ** (source R_[seq])))))))))
+		    prepend(i,seq) => ((modSeq#0)_i ** (source R_[seq]))))
+	    ))
+	))
+)
 
--- assuming A, B, C are in nonnegative degrees
--- returns a direct sum with keys indexed by (i,j)
--- the value at key (i,j) is A_i \otimes (B_j \otimes C_(n-i-j)),
--- where n is the degree computed
+
 singleDegTripleTP = method();
 singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) -> (
     directSum( deepSplice(apply(0..n, i -> apply(0..(n-i), j -> (
 		(i,j,n-i-j) => A_i ** (B_j ** C_(n-i-j)))))))
 )
+*-
+-- assuming A, B, C are graded modules in nonnegative degrees
+-- returns a direct sum with keys indexed by (i,j)
+-- the value at key (i,j) is A_i \otimes (B_j \otimes C_(n-i-j)),
+-- where n is the degree computed
+
+--the following is the same as the preceding, but uses a smaller range of i,j, 
+--appropriate since in the application A == B start in degree 2, 
+--while G == C starts in degree 0
+
+singleDegTripleTP = method()
 singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) -> (
     directSum( deepSplice(apply(2..n-4, i -> apply(2..(n-i-2), j -> (
 		(i,j,n-i-j) => A_i ** (B_j ** C_(n-i-j)))))))
 )
 
+aInfinity = method()
+aInfinity(Ring, Module) := HashTable => (R,M) -> (
+    --R should be a factor ring of S
+    --M an R-module
+    --The HashTable returned contains the A-infinity structures on 
+    --S-free resolutions A of R and G of M up to stage n.
+    --CAVEAT: for the moment we only compute 
+    --m1,m2,m3 and  mG1,mG2,mG3.
+    
+    Ai := new MutableHashTable;
+    S := ring presentation R;
+    RS := map(R,S);
+    A := res coker presentation R;
+    B := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+    G := res pushForward(RS,M);
+    m1 := symbol m1;
+    mG1 := symbol mG1;
+    apply(length B , i-> Ai#(m1_(i+3)) = B.dd_(i+3));
+    apply(length G , i-> Ai#(mG1_(i+1)) = G.dd_(i+1));    
 
+    m2 := symbol m2;    
+    mG2 := symbol mG2;    
+
+    A0 := (chainComplex gradedModule (S^1))[-2];
+    d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0)
+    )
+-*    apply(length(, i-> Ai#(m2_i) = (
+	    N = nullhomotopy (d**id_B-id_B**d)
+betti source N
+betti target N
+map(B,(B**B),N[2])
+
+N[2]
+    alpha := map(A0,B_2**B_2, d**id_B-id_B**d)
+
+
+F = map(A0,sAplus, i -> if (i == 2) then A.dd_1 else 0);
+g2 = (F ** id_(sAplus) - id_(sAplus) ** F);
+m2 = nullhomotopy g2;
+	
+	)    
+*-  
+
+///
 restart
 needsPackage "Complexes"
-load "AInfinity.m2"
+loadPackage("AInfinity",Reload => true)
+S = ZZ/101[x,y,z]
+R = S/(ideal gens S)^2
+M = coker vars R
 
+
+X = koszul matrix{{x^2,y^3}}
+Y = koszul matrix{{y^5,z^7}}
+components((X**Y)_2)
+X_0**Y_1 ++ X_1**Y_0 == (X**Y)_1
+betti oo
+betti X
+
+///
 
 beginDocumentation()
 
@@ -132,7 +201,7 @@ end--
 
 restart
 needsPackage "Complexes"
-load "AInfinity.m2"
+loadPackage("AInfinity", Reload =>true)
 installPackage "AInfinity"
 
 
@@ -240,7 +309,6 @@ b ** (b ** b)
 
 prune (coker m3)
 help prune
-
 help rank
 rank(m3 ** id_k)
 m = m3 ** id_k;
@@ -262,3 +330,52 @@ betti oo
 betti (target m)
 rank m3
 m3
+
+
+------tensor associativity
+restart
+S = ZZ/101[x,y]
+K = koszul matrix{{x^2,y^3}}
+assert(K**K**K != K**(K**K))
+assert(K**K**K == (K**K)**K)
+apply(length (K**K**K), i->((K**K)**K).dd_(i+1) - (K**(K**K)).dd_(i+1))
+--tensorAssociativity(1,2,3):1(23)->(12)3
+
+assert(K**K**K**K ==((K**K)**K)**K)
+--1(2(3(4))) -> 1(2,3)4 -> (1,2)3)4 = 1234
+
+for resolutions A of R, G of M, both length 3 , there is one nonzero component of m_3:
+mG_3: B_2**B_2**G_0 ->G_3 == -mG_2(mB_2(B_2,B_2),G_0)-mG_2(B_2, mG_2(B_2,G_0))
+
+
+1(2(3))->(1,2)3
+1(2(3(4))) -> 1(2,3)4->(1,2)3)4
+1(2(3
+
+--why doesn't this work??
+
+tensor List := Module => mods -> (
+    if #mods == 1 then return mods_0;
+    if #mods == 2 then return tensor(mods_0,mods_1);
+    mods' := drop(mods,1);
+    tensor(mods_0,tensor mods')
+    )
+mods = {S^2,S^3,S^4}
+mods = {S^2,S^3}
+tensor mods
+tensor{S^2}
+
+associativity = method()
+associativity(List, List) := Matrix => blocks, mods -> (
+-*
+    blocks = {a,b,..,c} positive integers, 
+    mods = {A_1,..,C_c}
+    returns the map
+    (A_1**..**A_a)**(B_1**..**B_b)**..**(C_1**..**C_c) -> A_1**..**C_c.
+    Note that the built-in tensor product of multiple factors
+    goes from left to right:
+    tensorAssociativity: A*(B*C) -> A*B*C = (A*B)*C; 
+*- 
+    n := sum blocks;
+   if blocks == {n-1,1} then tensorAssociativity(mods_0**;
+   
