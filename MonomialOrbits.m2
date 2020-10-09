@@ -1,3 +1,159 @@
+newPackage(
+        "MonomialOrbits",
+        Version => "0.1", 
+        Date => "8 Oct 2020",
+        Authors => {{Name => "David Eisenbud", 
+                  Email => "de@msri.org", 
+                  HomePage => "http://www.msri.org/~de"},
+	          {Name => "Mike Stillman", 
+                  Email => "mike@math.cornell.edu", 
+                  HomePage => "http://pi.math.cornell.edu/~mike"}},
+        Headline => "enumerate monomial ideals",
+        DebuggingMode => true
+        )
+
+export {
+    "setupRing", -- eventually will be private?
+    "sumMonomials",
+    "normalForms",
+    "addGenerator"
+    }
+
+setupRing = method()
+setupRing(Ring,ZZ) := (R,d) -> (
+    if not R.?cache then R.cache = new CacheTable;
+    if not R.cache.?MonomialOrbits then R.cache.MonomialOrbits = new MutableHashTable;
+    H := R.cache.MonomialOrbits;
+    if not H#?"perms" then H#"perms" = permutations numgens R;
+    if not H#?d then(
+       B := sort(basis(d, R), DegreeOrder => Ascending, MonomialOrder => Descending);
+       Gd := for p in H#"perms" list (
+           f := map(R,R, (vars R)_p);
+           sortColumns(f B, DegreeOrder => Ascending, MonomialOrder => Descending)
+           );
+       H#d = (flatten entries B, Gd);
+    ))
+
+sumMonomials = method()
+sumMonomials(List,List) := (L1,L2) -> (
+  --L1 list of monomial ideals
+  --L2 llist of monomials
+  --return list of monomial ideals: an element of L1 
+  --plus an element of L2 which is a minimal generator.
+    unique flatten for I in L1 list (
+	for m in L2 list (
+	    if m % I != 0 then I + monomialIdeal m 
+	    else continue))
+    )
+
+normalForms = method()
+normalForms(List, List) := (Fs, G) -> (
+    -- Fs is a list of monomial ideals, G a group (list of ring maps)
+    -- G is a permutation group on these indices.
+    -- returns a subset of these that generate all, under the group G.
+    G1 := drop(G,1);  -- remove the identity element.  ASSUMPTION: this is the first element!
+    L := new MutableList from Fs;
+    LH := hashTable for i from 0 to #Fs-1 list Fs#i => i;
+    count := #L;
+    for i from 0 to #L-1 list (
+        if L#i === null then continue;
+        F := L#i;
+        --<< "F = " << F << endl;
+        for f in G1 do (
+            H := monomialIdeal(f F);
+            if LH#?H then (
+                j := LH#H;
+                if j > i and L#j =!= null then (
+                    L#j = null;
+                    count = count - 1;
+                    if count % 1000 == 0 then
+                        << "  count: " << count << endl;
+                    );
+                );
+            );
+        F
+        )
+    )
+
+addGenerator = method()
+addGenerator(List, List, List) := (Ls, L, G) -> normalForms(sumMonomials(Ls, L), G)
+addGenerator(List, ZZ, List) := (Ls, deg, G) -> (
+    S := target first G;
+    setupRing(S,deg);
+    L := S.cache.MonomialOrbits#deg#0;
+    normalForms(sumMonomials(Ls, L), G)
+    )
+
+beginDocumentation()
+
+TEST ///
+-*
+  restart
+  needsPackage "MonomialOrbits" 
+*-
+  S = ZZ/101[a,b,c,d]
+  G = for p in permutations(toList(0..numgens S-1)) list map(S, S, (vars S)_p)
+  setupRing(S,2)
+  setupRing(S,3)
+  setupRing(S,5)
+  setupRing(S,2)
+  assert(S.cache.MonomialOrbits#"perms" == permutations toList(0..numgens S - 1))
+  M0 = {monomialIdeal(0_S)}
+  M1 = addGenerator(M0, 2, G)
+  M2 = addGenerator(M1, 2, G)
+  M3 = addGenerator(M2, 2, G)
+  M4 = addGenerator(M3, 3, G)
+
+  M1 = addGenerators(M0, S.cache.MonomialOrbits#2#0, G)
+  M1 = sumMonomials({monomialIdeal(0_S)}, S.cache.MonomialOrbits#2#0)
+  M1 = normalForms(M1, G)
+  M2 = sumMonomials(M1, S.cache.MonomialOrbits#2#0)
+  M2 = normalForms(M2, G)
+  M3 = sumMonomials(M2, S.cache.MonomialOrbits#3#0)
+  M3 = normalForms(M3, G)
+  G = for p in permutations {0,1,2} list map(S, S, (vars S)_p)
+  M1 = sumMonomials({monomialIdeal(0_S)}, S.cache.MonomialOrbits#2#0)  
+  for g in G list for m in M1 list g m;
+///
+
+end--
+
+beginDocumentation()
+
+doc ///
+Key
+  MonomialOrbits
+Headline
+Description
+  Text
+  Example
+Caveat
+SeeAlso
+///
+
+doc ///
+Key
+Headline
+Usage
+Inputs
+Outputs
+Consequences
+Description
+  Text
+  Example
+  Code
+  Pre
+Caveat
+SeeAlso
+///
+
+TEST ///
+-- test code and assertions here
+-- may have as many TEST sections as needed
+///
+
+
+end--
 
 patterns = (S,deg,num) -> (
     n := numgens S;
