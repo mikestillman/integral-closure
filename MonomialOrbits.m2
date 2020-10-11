@@ -13,36 +13,98 @@ newPackage(
         )
 
 export {
-    "setupRing", -- eventually will be private?
-    "sumMonomials",
-    "normalForms",
+--    "setupRing", -- eventually will be private?
+--    "sumMonomials",
+--    "normalForms",
     "orbitRepresentatives",
-    "Group"
+    "hilbertRepresentatives",
+    "Group",
+    "MonomialType"
+--    "SquareFree"
     }
 
-setupRing = method(Options =>{Group => "SymmetricGroup"})
+orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
+orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
+    setupRing(R,degs,o); -- creates G and a list of lists of monomials in R.cache
+    info := R.cache.MonomialOrbits;
+    G := info#"GroupElements";
+    result := {monomialIdeal 0_R};
+    rawMonsMat := matrix{{}};
+    mons := {};
+      for d in degs do (
+         rawMonsMat = if o.MonomialType === "All" then basis(d,R)
+                     else if o.MonomialType === "SquareFree" then squareFree(d,R);
+	 mons = flatten entries sort(rawMonsMat, 
+		 DegreeOrder => Ascending, MonomialOrder => Descending);
+         result = normalForms(sumMonomials(result, mons), G)
+	     	     );
+      result)
+
+orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
+               orbitRepresentatives(R, toList degs)
+
+hilbertRepresentatives = method(Options=>{Group=>"SymmetricGroup"})
+hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
+    --orbit representatives of all monomial ideals I, if any, such that
+    --hilbertFunction(i,R/I) = h_i for all i = 2,..,#h-2.
+    setupRing(R,toList(2..#h-2));--,Group =>o#"Group"); -- creates G and a list of lists of monomials in R.cache
+    G := R.cache.MonomialOrbits#"GroupElements";
+    result := orbitRepresentatives(R, (hilbertFunction(2,R) - h_0):2);    
+
+    scan(#h-1, i -> (
+         rawMonsMat := basis(i+3,R);
+	 mons := flatten entries sort(rawMonsMat, 
+		 DegreeOrder => Ascending, MonomialOrder => Descending);
+	     
+        result = flatten for I in result list (
+	defect := hilbertFunction(i+3, R/I) -  h_(i+1);
+
+	if defect<0 then continue
+	else (
+	 result1 := {I};
+	 scan(defect, j->(
+         result1 = normalForms(sumMonomials(result1, mons), G);
+ 	     )
+             ));
+     	 result1);
+             ));
+    result)
+
+
+setupRing = method(Options =>{Group => "SymmetricGroup", MonomialType => "all"})
 --Group is either "SymmetricGroup" or a list of ring automorphisms
 setupRing(Ring,List) := o -> (R,degs) -> (
     if not R.?cache then R.cache = new CacheTable;
     if not R.cache.?MonomialOrbits then R.cache.MonomialOrbits = new MutableHashTable;
     H := R.cache.MonomialOrbits;
-
+    if H#?"MonomialType" then oldMonomialType := H#"MonomialType";
+    
     if o.Group == "SymmetricGroup" then(
 	    H#"Group" = "SymmetricGroup";
 	    H#"GroupElements" = for p in permutations numgens R list
 	       map(R,R,(vars R)_p))
     else (H#"GroupElements" = o.Group;
 	      H#"Group" = "Other");
-	   
+    )
+-*	   
     if not H#?"monomials" then H#"monomials" = new MutableHashTable;
     for d in degs do
 	if not H#"monomials"#?d then 
 	   H#"monomials"#d = flatten entries sort(basis(d, R), 
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
-    )
+*-
+
+squareFree = method()
+squareFree(ZZ, Ring) := Matrix => (d,R) -> (
+    R' := coefficientRing R[gens R, SkewCommutative => true];
+    substitute(basis(d,R'),R))
+///
+R = ZZ/101[x_0..x_5]
+squareFree()
+///
 
 sumMonomials = method()
-sumMonomials(List,List) := (L1,L2) -> (
+sumMonomials(List,List) := List => (L1,L2) -> (
   --L1 list of monomial ideals
   --L2 llist of monomials
   --return list of monomial ideals: an element of L1 
@@ -52,11 +114,11 @@ sumMonomials(List,List) := (L1,L2) -> (
 	    if m % I != 0 then I + monomialIdeal m 
 	    else continue))
     )
+sumMonomials(Ideal,List) := List => (I,L2) -> sumMonomials({I}, L2)
 
 normalForms = method()
 normalForms(List, List) := (Fs, G) -> (
     -- Fs is a list of monomial ideals, G a group (list of ring maps)
-    -- G is a permutation group on these indices.
     -- returns a subset of these that generate all, under the group G.
     G1 := drop(G,1);  -- remove the identity element.  ASSUMPTION: this is the first element!
     L := new MutableList from Fs;
@@ -82,63 +144,14 @@ normalForms(List, List) := (Fs, G) -> (
         )
     )
 
-
-orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup"})
-
-orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
-    setupRing(R,degs,o); -- creates G and a list of lists of monomials in R.cache
-    info := R.cache.MonomialOrbits;
-    G := info#"GroupElements";
-    result := {monomialIdeal 0_R};
-    for d in degs do result = normalForms(sumMonomials(result, info#"monomials"#d), G);
-    result)
-
--*
-orbitRepresentatives(List, List, List) := List => o->(Ls, L) -> normalForms(sumMonomials(Ls, L), o.Group)
-
-orbitRepresentatives(List, ZZ, List) := List => o->(Ls, deg) -> (
-    S := target first o.Group;
-    setupRing(S,deg);
-    L := S.cache.MonomialOrbits#deg#0;
-    normalForms(sumMonomials(Ls, L), o.G)
-    )
-*-
-beginDocumentation()
-
-TEST ///
--*
-  restart
-  needsPackage "MonomialOrbits" 
-*-
-  S = ZZ/101[a,b,c,d]
-  orbitRepresentatives(S,{2,3})
-  setupRing(S,{2})
-  setupRing(S,{2,3})
-
-  setupRing(S,5)
-  setupRing(S,2)
-  assert(S.cache.MonomialOrbits#"perms" == permutations toList(0..numgens S - 1))
-  M0 = {monomialIdeal(0_S)}
-  M1 = addGenerator(M0, 2, G)
-  M2 = addGenerator(M1, 2, G)
-  M3 = addGenerator(M2, 2, G)
-time  M4 = addGenerator(M3, 3, G)
-time  M5 = addGenerator(M4, 3, G)
-#M5
-
-  M1 = addGenerators(M0, S.cache.MonomialOrbits#2#0, G)
-  M1 = sumMonomials({monomialIdeal(0_S)}, S.cache.MonomialOrbits#2#0)
-  M1 = normalForms(M1, G)
-  M2 = sumMonomials(M1, S.cache.MonomialOrbits#2#0)
-  M2 = normalForms(M2, G)
-  M3 = sumMonomials(M2, S.cache.MonomialOrbits#3#0)
-  M3 = normalForms(M3, G)
-  G = for p in permutations {0,1,2} list map(S, S, (vars S)_p)
-  M1 = sumMonomials({monomialIdeal(0_S)}, S.cache.MonomialOrbits#2#0)  
-  for g in G list for m in M1 list g m;
 ///
-
-end--
+restart
+loadPackage("MonomialOrbits", Reload => true)
+uninstallPackage "MonomialOrbits"
+restart
+installPackage "MonomialOrbits"
+check "MonomialOrbits"
+///
 
 beginDocumentation()
 
@@ -146,32 +159,26 @@ doc ///
 Key
   MonomialOrbits
 Headline
-Description
-  Text
-  Example
-Caveat
-SeeAlso
+ find orbit representatives of monomial ideals, specified by generator degrees or Hilbert function
 ///
 
-doc ///
-Key
-Headline
-Usage
-Inputs
-Outputs
-Consequences
-Description
-  Text
-  Example
-  Code
-  Pre
-Caveat
-SeeAlso
-///
+TEST///
+  R = ZZ/101[a,b]
+  assert(hilbertRepresentatives(R,{2}) == {monomialIdeal a^2 , monomialIdeal(a*b)})
+  assert(toString\hilbertRepresentatives(R,{2,1,0}) ==
+    {"monomialIdeal(a^2,a*b^2,b^4)", "monomialIdeal(a^2,b^3)", "monomialIdeal(a^3,a*b,b^4)"})
+  assert(hilbertRepresentatives(R,{2,3,0}) == {})
 
-TEST ///
--- test code and assertions here
--- may have as many TEST sections as needed
+ R = ZZ/101[vars(0..3)]
+ L = orbitRepresentatives(R,{2,2,2})
+ assert(#L == 11)
+  assert(#orbitRepresentatives(R,{2,3}) == 11)
+--the following doesn't work, and I don't understand why!
+-*
+  R = ZZ/101[vars(0..5)]
+ orbitRepresentatives(R,{4,5}, MonomialType => "SquareFree")
+ {monomialIdeal (a*b*c*d, a*b*c*e*f)} -- gives an error
+*-
 ///
 
 
