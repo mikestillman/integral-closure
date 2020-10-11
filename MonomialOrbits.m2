@@ -1,26 +1,22 @@
 newPackage(
         "MonomialOrbits",
-        Version => "0.1", 
-        Date => "8 Oct 2020",
+        Version => "0.9", 
+        Date => "10 Oct 2020",
         Authors => {{Name => "David Eisenbud", 
                   Email => "de@msri.org", 
                   HomePage => "http://www.msri.org/~de"},
 	          {Name => "Mike Stillman", 
                   Email => "mike@math.cornell.edu", 
                   HomePage => "http://pi.math.cornell.edu/~mike"}},
-        Headline => "enumerate monomial ideals",
-        DebuggingMode => true
+        Headline => "Orbit representatives of monomial ideals"
+        DebuggingMode => false
         )
 
 export {
---    "setupRing", -- eventually will be private?
---    "sumMonomials",
---    "normalForms",
     "orbitRepresentatives",
     "hilbertRepresentatives",
     "Group",
     "MonomialType"
---    "SquareFree"
     }
 
 orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
@@ -32,8 +28,8 @@ orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
     rawMonsMat := matrix{{}};
     mons := {};
       for d in degs do (
-         rawMonsMat = if o.MonomialType === "All" then basis(d,R)
-                     else if o.MonomialType === "SquareFree" then squareFree(d,R);
+         rawMonsMat = if o.MonomialType === "SquareFree" then squareFree(d,R)
+	              else basis(d,R);
 	 mons = flatten entries sort(rawMonsMat, 
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
          result = normalForms(sumMonomials(result, mons), G)
@@ -41,19 +37,24 @@ orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
       result)
 
 orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
-               orbitRepresentatives(R, toList degs)
+   orbitRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
 
-hilbertRepresentatives = method(Options=>{Group=>"SymmetricGroup"})
+hilbertRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
 hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
     --orbit representatives of all monomial ideals I, if any, such that
     --hilbertFunction(i,R/I) = h_i for all i = 2,..,#h-2.
     setupRing(R,toList(2..#h-2));--,Group =>o#"Group"); -- creates G and a list of lists of monomials in R.cache
     G := R.cache.MonomialOrbits#"GroupElements";
-    result := orbitRepresentatives(R, (hilbertFunction(2,R) - h_0):2);    
-
+    result := if o.MonomialType == "SquareFree" then 
+       orbitRepresentatives(R, (hilbertFunction(2,R) - h_0):2, MonomialType => "SquareFree") else
+       orbitRepresentatives(R, (hilbertFunction(2,R) - h_0):2);	   
+    rawMonsMat := matrix{{}};
+    mons := {};
+    
     scan(#h-1, i -> (
-         rawMonsMat := basis(i+3,R);
-	 mons := flatten entries sort(rawMonsMat, 
+         rawMonsMat = if o.MonomialType === "All" then basis(i+3,R) else
+                      if o.MonomialType === "SquareFree" then squareFree(i+3,R);
+	 mons = flatten entries sort(rawMonsMat, 
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
 	     
         result = flatten for I in result list (
@@ -69,6 +70,8 @@ hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
      	 result1);
              ));
     result)
+hilbertRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
+   hilbertRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
 
 
 setupRing = method(Options =>{Group => "SymmetricGroup", MonomialType => "all"})
@@ -86,13 +89,6 @@ setupRing(Ring,List) := o -> (R,degs) -> (
     else (H#"GroupElements" = o.Group;
 	      H#"Group" = "Other");
     )
--*	   
-    if not H#?"monomials" then H#"monomials" = new MutableHashTable;
-    for d in degs do
-	if not H#"monomials"#?d then 
-	   H#"monomials"#d = flatten entries sort(basis(d, R), 
-		 DegreeOrder => Ascending, MonomialOrder => Descending);
-*-
 
 squareFree = method()
 squareFree(ZZ, Ring) := Matrix => (d,R) -> (
@@ -151,6 +147,7 @@ uninstallPackage "MonomialOrbits"
 restart
 installPackage "MonomialOrbits"
 check "MonomialOrbits"
+viewHelp MonomialOrbits
 ///
 
 beginDocumentation()
@@ -160,6 +157,137 @@ Key
   MonomialOrbits
 Headline
  find orbit representatives of monomial ideals, specified by generator degrees or Hilbert function
+///
+
+doc ///
+   Key
+    orbitRepresentatives
+    (orbitRepresentatives, Ring, List)
+    (orbitRepresentatives, Ring, Sequence)
+    [orbitRepresentatives, Group]
+    [orbitRepresentatives, MonomialType]    
+   Headline
+    find representatives of monomial ideals under variable permutation
+   Usage
+    L = orbitRepresentatives(R,degs)
+   Inputs
+    R:PolynomialRing
+    degs:List 
+     of degrees of generators
+    degs:Sequence
+     of degrees of generators
+   Outputs
+    L:List
+     of monomial ideals
+   Description
+    Text
+     The script creates the ring transformations defined by permuations of variables.
+     If no Group is specified, uses the full symmetric group, but it is also possible
+     to specify an arbitrary list of permutations. It then adds one generator at a time
+     starting with the lowest degrees specified; after each addition it chooses
+     representatives under the group action.
+     
+     If the option @TO MonomialType@ => "SquareFree" is set then only
+     ideals of square-free monomials are considered.
+    Example
+     S = ZZ/101[a..d]
+     L = orbitRepresentatives(S,(2,2,2))
+     #L
+     tally apply(L, m->betti res m)
+     L' = orbitRepresentatives(S,(2,2,2), MonomialType => "SquareFree")
+     #L'
+     tally apply(L', m->betti res m)
+    Text
+     It is possible to specify non-existent types:
+    Example
+     S = ZZ/101[a,b]
+     L = orbitRepresentatives(S,(2,2,2,2))
+   SeeAlso
+    hilbertRepresentatives
+    Group
+    MonomialType
+///
+
+doc ///
+   Key
+    hilbertRepresentatives
+    (hilbertRepresentatives, Ring, List)
+    (hilbertRepresentatives, Ring, Sequence)
+    [hilbertRepresentatives, Group]
+    [hilbertRepresentatives, MonomialType]    
+   Headline
+    find representatives of monomial ideals under variable permutation
+   Usage
+    L = hilbertRepresentatives(R,s)
+   Inputs
+    R:PolynomialRing
+    s:List 
+    s:Sequence
+     of desired values of d->hilbertFunction(R/I,d) for d in (2..1+length s)
+   Outputs
+    L:List
+     of monomial ideals
+   Description
+    Text
+     The script creates the ring transformations defined by permuations of variables.
+     If no Group is specified, uses the full symmetric group, but it is also possible
+     to specify an arbitrary list of permutations. Starting with orbit representatives
+     of monomial ideals generated
+     by s_0 quadrics, it successively adds to each as many forms of degree d in (3..1+length s)
+     as necessary to achieve the desired Hilbert function.
+     After each addition it chooses
+     representatives under the group action.
+     
+     If the option @TO MonomialType@ => "SquareFree" is set then only
+     ideals of square-free monomials are considered.
+    Example
+     S = ZZ/101[a..d]
+     L = hilbertRepresentatives(S,{7,10,13,16,19,22,25})
+     apply(L, m-> hilbertPolynomial m)
+     #L
+     tally apply(L, m->betti res m)
+     #unique apply(L, m->primaryDecomposition m)
+     L = hilbertRepresentatives(S,{3},MonomialType =>"SquareFree")     
+    Text
+     It is possible to specify non-existent types:
+    Example
+     S = ZZ/101[a,b]
+     L = hilbertRepresentatives(S,{4})
+   SeeAlso
+    orbitRepresentatives
+    Group
+    MonomialType
+///
+
+doc ///
+   Key
+    Group
+   Headline
+    Group => "SymmetricGroup" or {f_1..f_t}
+   Description
+    Text
+     This option specifies a group of permutations of variables.
+     Group => "SymmetricGroup" or Group => GG, 
+     where GG is a list of permutations of the variables as maps S -> S.
+     The default, "SymmetricGroup" uses the full symmetric group.
+///
+doc ///
+   Key
+    MonomialType
+   Headline
+    MonomialType => "SquareFree" or "All"
+   Usage
+    orbitRepresentatives(S,degs,MonomialType => "SquareFree")
+   Description
+    Text
+     The default is "All" (anything other than "SquareFree" is equivalent to "All").
+///
+
+///
+uninstallPackage "MonomialOrbits"
+restart
+installPackage "MonomialOrbits"
+viewHelp MonomialOrbits
 ///
 
 TEST///
