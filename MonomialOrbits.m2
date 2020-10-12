@@ -21,7 +21,7 @@ export {
 
 orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
 orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
-    setupRing(R,degs,o); -- creates G and a list of lists of monomials in R.cache
+    setupRing(R,o); -- creates G and a list of lists of monomials in R.cache
     info := R.cache.MonomialOrbits;
     G := info#"GroupElements";
     result := {monomialIdeal 0_R};
@@ -42,33 +42,33 @@ orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) ->
 hilbertRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
 hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
     --orbit representatives of all monomial ideals I, if any, such that
-    --hilbertFunction(i,R/I) = h_i for all i = 2,..,#h-2.
-    setupRing(R,toList(2..#h-2));--,Group =>o#"Group"); -- creates G and a list of lists of monomials in R.cache
+    --hilbertFunction(i,R/I) = h_(i-1) for all i = 1,..,#h.
+    setupRing (R,o);--,Group =>o#"Group"); -- creates G and a list of lists of monomials in R.cache
     G := R.cache.MonomialOrbits#"GroupElements";
     result := if o.MonomialType == "SquareFree" then 
-       orbitRepresentatives(R, (hilbertFunction(2,R) - h_0):2, MonomialType => "SquareFree") else
-       orbitRepresentatives(R, (hilbertFunction(2,R) - h_0):2);	   
+       orbitRepresentatives(R, (hilbertFunction(1,R) - h_0):1, MonomialType => "SquareFree") else
+       orbitRepresentatives(R, (hilbertFunction(1,R) - h_0):1);	   
     rawMonsMat := matrix{{}};
     mons := {};
     
-    scan(#h-1, i -> (
-         rawMonsMat = if o.MonomialType === "All" then basis(i+3,R) else
-                      if o.MonomialType === "SquareFree" then squareFree(i+3,R);
+    for i from 2 to #h do (
+         rawMonsMat = if o.MonomialType === "All" then basis(i,R) else
+                      if o.MonomialType === "SquareFree" then squareFree(i,R);
 	 mons = flatten entries sort(rawMonsMat, 
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
 	     
         result = flatten for I in result list (
-	defect := hilbertFunction(i+3, R/I) -  h_(i+1);
+ 	  defect := hilbertFunction(i, R^1/I) -  h_(i-1);
 
-	if defect<0 then continue
-	else (
-	 result1 := {I};
-	 scan(defect, j->(
-         result1 = normalForms(sumMonomials(result1, mons), G);
- 	     )
-             ));
+	  if defect<0 then continue
+	  else (
+	   result1 := {I};
+	   scan(defect, j->(
+           result1 = normalForms(sumMonomials(result1, mons), G);
+ 	                   ))
+             );
      	 result1);
-             ));
+             );
     result)
 hilbertRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
    hilbertRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
@@ -76,7 +76,7 @@ hilbertRepresentatives(Ring, Sequence) := List => o->(R, degs) ->
 
 setupRing = method(Options =>{Group => "SymmetricGroup", MonomialType => "all"})
 --Group is either "SymmetricGroup" or a list of ring automorphisms
-setupRing(Ring,List) := o -> (R,degs) -> (
+setupRing Ring := o -> R -> (
     if not R.?cache then R.cache = new CacheTable;
     if not R.cache.?MonomialOrbits then R.cache.MonomialOrbits = new MutableHashTable;
     H := R.cache.MonomialOrbits;
@@ -160,9 +160,11 @@ Key
   MonomialOrbits
 Headline
  find orbit representatives of monomial ideals under the symmetric group action
- on the variables of a polynomial ring. The set of monomials is specified by 
- generator degrees in @TO orbitRepresentatives @ or Hilbert function in @TO hilbertRepresentatives@.
- If the option MonomialType => "SquareFree" is given, then only square-free monomials are considered.
+Description
+ Text
+  on the variables of a polynomial ring. The set of monomials is specified by 
+  generator degrees in @TO orbitRepresentatives @ or Hilbert function in @TO hilbertRepresentatives@.
+  If the option MonomialType => "SquareFree" is given, then only square-free monomials are considered.
 ///
 
 doc ///
@@ -229,7 +231,7 @@ doc ///
     R:PolynomialRing
     s:List 
     s:Sequence
-     of desired values of d->hilbertFunction(R/I,d) for d in (2..1+length s)
+     of desired values of d->hilbertFunction(R/I,d) for d in (1..length s)
    Outputs
     L:List
      of monomial ideals
@@ -248,17 +250,20 @@ doc ///
      ideals of square-free monomials are considered.
     Example
      S = ZZ/101[a..d]
-     L = hilbertRepresentatives(S,{7,10,13,16,19,22,25})
-     apply(L, m-> hilbertPolynomial m)
+     L = hilbertRepresentatives(S,{4,4,1,0})
      #L
+     L = hilbertRepresentatives(S,{4,7,10,13,16,0})
+     LP = apply(L, m-> hilbertPolynomial m)
+     #L
+     #unique LP
      tally apply(L, m->betti res m)
      #unique apply(L, m->primaryDecomposition m)
-     L = hilbertRepresentatives(S,{3},MonomialType =>"SquareFree")     
+     L = hilbertRepresentatives(S,{4,7},MonomialType =>"SquareFree")     
     Text
      It is possible to specify non-existent types:
     Example
      S = ZZ/101[a,b]
-     L = hilbertRepresentatives(S,{4})
+     hilbertRepresentatives(S,{1,4}) == {}
    SeeAlso
     orbitRepresentatives
     Group
@@ -293,6 +298,7 @@ doc ///
 uninstallPackage "MonomialOrbits"
 restart
 installPackage "MonomialOrbits"
+check "MonomialOrbits"
 viewHelp MonomialOrbits
 ///
 
