@@ -73,30 +73,49 @@ aInfinity(Ring, Module) := HashTable => (R,M) -> (
     --S-free resolutions A of R and G of M up to stage n.
     --CAVEAT: for the moment we only compute 
     --m1,m2,m3 and  mG1,mG2,mG3.
+Ai := new MutableHashTable;
+S := ring presentation R;
+RS := map(R,S);
+A := res coker presentation R;
+B := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+G := res pushForward(RS,M);
+
+m1 := symbol m1;
+  apply(length B , i-> Ai#(m1_(i+3)) = B.dd_(i+3));
+
+mG1 := symbol mG1;
+  apply(length G , i-> Ai#(mG1_(i+1)) = G.dd_(i+1));    
+
+m2 := symbol m2;    
+  A0 := (chainComplex gradedModule (S^1))[-2];
+  d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
+  N := nullhomotopy (d**id_B-id_B**d);
+  apply(length B, i-> Ai#(m2_(i+4)) = N_(i+4));
+
+mG2 := symbol mG2;        
+  NG := nullhomotopy(d**G);
+  apply(length G, i-> Ai#(mG2_(i+2)) = NG_(i+2));
+
+mG3 := symbol mG3;
+  sour = directSum components (source Ai#(mG2_3));
+  Ai#(mG2_3) = map(G_2, sour, matrix Ai#(mG2_3));
+  toLift =  map(G_2, B_2**B_2**G_0, 
+  #(mG2_3)*(source Ai#(mG2_3))_[1]*(Ai#(m2_4)**id_(G_0))*t^-1 --m2(m2**1)
+  #(mG2_3)*(source Ai#(mG2_3))_[0]*(id_(B_2)**Ai#(mG2_2)) --m2(1**m2)
+             );
+  Ai#(mG3_4) := toLift//(Ai#(mG1_3));
+hashTable pairs Ai
+)
+
     
-    Ai := new MutableHashTable;
-    S := ring presentation R;
-    RS := map(R,S);
-    A := res coker presentation R;
-    B := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
-    G := res pushForward(RS,M);
-    m1 := symbol m1;
-    mG1 := symbol mG1;
-    apply(length B , i-> Ai#(m1_(i+3)) = B.dd_(i+3));
-    apply(length G , i-> Ai#(mG1_(i+1)) = G.dd_(i+1));    
+-*   
+phi = extend(A, A**A, map (A_0,A_0**A_0, id_(A_0)))
 
-    m2 := symbol m2;    
-    mG2 := symbol mG2;    
-
-    A0 := (chainComplex gradedModule (S^1))[-2];
-    d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0)
-    )
--*    apply(length(, i-> Ai#(m2_i) = (
-	    N = nullhomotopy (d**id_B-id_B**d)
 betti source N
 betti target N
 map(B,(B**B),N[2])
 
+betti res G
 N[2]
     alpha := map(A0,B_2**B_2, d**id_B-id_B**d)
 
