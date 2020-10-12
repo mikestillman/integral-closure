@@ -13,11 +13,14 @@ newPackage(
     	)
 
 export {
-    "singleDegTP",
-    "singleDegTripleTP"
-    }
+    "aInfinity",
+    "golodBetti"
     
----Jesse Burke's code
+--    "singleDegTP",
+--    "singleDegTripleTP"
+    }
+-*    
+---Jesse Burke's code------------
 
 -- assuming both A and B are in nonnegative degrees
 -- returns a direct sum with keys indexed by i
@@ -27,43 +30,64 @@ singleDegTP = method();
 singleDegTP(GradedModule, GradedModule, ZZ) := (A, B, n) -> (
     	directSum(apply(0..n, i -> (A_i ** B_(n-i))))
     )
-
--* The following code is broken, and isn't used anyway.
-singleDegTP(Sequence, Ring, ZZ) := (modSeq, S, n) -> (
-    if( n - (length modSeq) < 2)
-     then directSum(apply(1..n), i -> prune coker map( S^1, S^1, 1))
-
-     else directSum(splice(
-	    apply( 2..(n-(length modSeq)), i -> (
-    	    -- the right hand side, missing first component
-	    R := singleDegTP(drop(modSeq, 1), S, n-i);
-	    apply( indices R, seq -> (		    
-		    prepend(i,seq) => ((modSeq#0)_i ** (source R_[seq]))))
-	    ))
-	))
-)
-
-
-singleDegTripleTP = method();
-singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) -> (
-    directSum( deepSplice(apply(0..n, i -> apply(0..(n-i), j -> (
-		(i,j,n-i-j) => A_i ** (B_j ** C_(n-i-j)))))))
-)
-*-
 -- assuming A, B, C are graded modules in nonnegative degrees
 -- returns a direct sum with keys indexed by (i,j)
 -- the value at key (i,j) is A_i \otimes (B_j \otimes C_(n-i-j)),
 -- where n is the degree computed
-
---the following is the same as the preceding, but uses a smaller range of i,j, 
---appropriate since in the application A == B start in degree 2, 
---while G == C starts in degree 0
-
 singleDegTripleTP = method()
 singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) -> (
     directSum( deepSplice(apply(2..n-4, i -> apply(2..(n-i-2), j -> (
 		(i,j,n-i-j) => A_i ** (B_j ** C_(n-i-j)))))))
 )
+---end of Burke's code-----------
+
+---Code from EagonResolution.m2---------------
+labeler = (L,F) -> directSum(1:(L=>F));
+tensorL = (R,L) -> (if L === {} then return R^1;
+                              if #L === 1 then return L_0;
+			      L_0**tensorL(R,drop(L,1)))
+tensorWithComponents = method()
+tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
+    if F == 0 or G == 0 then return (ring F)^0;
+    (compsF, indicesF) := componentsAndIndices F;
+    (compsG, indicesG) := componentsAndIndices G;
+    comps := flatten for f from 0 to #compsF-1 list (
+        for g from 0 to #compsG-1 list (
+            newindex := if indicesF#f === null or indicesG#g === null
+	       then null else combineIndices(indicesF#f, indicesG#g);
+            newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
+            )
+        );
+    if #comps == 0 then (ring F)^0 else directSum comps
+    )
+tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
+tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
+                          src :=  tensorWithComponents(source phi, G, combineIndices);
+                          tar :=  tensorWithComponents(target phi, G, combineIndices);			  
+			  map(tar,src,phi**G))
+
+eTensor = method()
+eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
+eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
+
+golodBetti = method()
+golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
+    --case where M is a module over a factor ring R = S/I,
+    --MS is the same module over S
+    --F = res I
+    --K = res MS
+    R := ring M;
+    p := presentation R;
+    S := ring p;
+    phi1 := substitute(presentation M, S);
+    phi := phi1 | target phi1 ** p;
+    MS := prune coker phi;
+    K := res MS;
+    F := res coker p;
+    golodBetti(F,K,b)
+    )
+*-
+---End of Code from EagonResolution.m2---------------
 
 aInfinity = method()
 aInfinity(Ring, Module) := HashTable => (R,M) -> (
@@ -79,6 +103,7 @@ RS := map(R,S);
 A := res coker presentation R;
 B := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
 G := res pushForward(RS,M);
+t := tensorAssociativity;
 
 m1 := symbol m1;
   apply(length B , i-> Ai#(m1_(i+3)) = B.dd_(i+3));
@@ -97,35 +122,17 @@ mG2 := symbol mG2;
   apply(length G, i-> Ai#(mG2_(i+2)) = NG_(i+2));
 
 mG3 := symbol mG3;
-  sour = directSum components (source Ai#(mG2_3));
+  sour := directSum components (source Ai#(mG2_3));
   Ai#(mG2_3) = map(G_2, sour, matrix Ai#(mG2_3));
-  toLift =  map(G_2, B_2**B_2**G_0, 
-  #(mG2_3)*(source Ai#(mG2_3))_[1]*(Ai#(m2_4)**id_(G_0))*t^-1 --m2(m2**1)
-  #(mG2_3)*(source Ai#(mG2_3))_[0]*(id_(B_2)**Ai#(mG2_2)) --m2(1**m2)
-             );
-  Ai#(mG3_4) := toLift//(Ai#(mG1_3));
+  toLift :=  map(G_2, B_2**B_2**G_0, 
+  Ai#(mG2_3)*(source Ai#(mG2_3))_[1]*(Ai#(m2_4)**id_(G_0))--*t^-1 --m2(m2**1)
+  - Ai#(mG2_3)*(source Ai#(mG2_3))_[0]*(id_(B_2)**Ai#(mG2_2)) --m2(1**m2)
+                 );
+  Ai#(mG3_4) = toLift//(Ai#(mG1_3));
 hashTable pairs Ai
 )
 
     
--*   
-phi = extend(A, A**A, map (A_0,A_0**A_0, id_(A_0)))
-
-betti source N
-betti target N
-map(B,(B**B),N[2])
-
-betti res G
-N[2]
-    alpha := map(A0,B_2**B_2, d**id_B-id_B**d)
-
-
-F = map(A0,sAplus, i -> if (i == 2) then A.dd_1 else 0);
-g2 = (F ** id_(sAplus) - id_(sAplus) ** F);
-m2 = nullhomotopy g2;
-	
-	)    
-*-  
 
 ///
 restart
@@ -134,8 +141,9 @@ loadPackage("AInfinity",Reload => true)
 S = ZZ/101[x,y,z]
 R = S/(ideal gens S)^2
 M = coker vars R
-
-
+aInfinity(R,M)
+peek Ai
+(source Ai#(mG2_3))_[0]
 X = koszul matrix{{x^2,y^3}}
 Y = koszul matrix{{y^5,z^7}}
 components((X**Y)_2)
@@ -398,3 +406,4 @@ associativity(List, List) := Matrix => blocks, mods -> (
     n := sum blocks;
    if blocks == {n-1,1} then tensorAssociativity(mods_0**;
    
+viewHelp tensorAssociativity
