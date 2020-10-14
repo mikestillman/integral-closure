@@ -1,6 +1,14 @@
 -*
-TODO: replace ** with eTensor
+TODO: 
+have aInfinity Ring return a hashTable "m"; similarly aInfinity Module; get rid of the global symbols, get rid
+of "Ai".
+
+Make Ai ring use the commutative multiplication. Is there an analogue for the higher products?
+
+replace ** with eTensor
+
 add associativities
+
 construct the resolution
 -*
 
