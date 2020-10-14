@@ -1,3 +1,5 @@
+--todo: add stabilizer of an ideal, methods for Ideal+ monomial ideal.
+
 newPackage(
         "MonomialOrbits",
         Version => "0.9", 
