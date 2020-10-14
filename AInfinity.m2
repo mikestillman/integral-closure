@@ -1,3 +1,9 @@
+-*
+TODO: replace ** with eTensor
+add associativities
+construct the resolution
+-*
+
 newPackage(
 	"AInfinity",
     	Version => "0.1", 
@@ -16,8 +22,8 @@ export {
     "aInfinity",
     "golodBetti",
     --symbols
-    "mA",
-    "mG"
+    "mR",
+    "mM"
 --    "singleDegTP",
 --    "singleDegTripleTP"
     }
@@ -151,7 +157,7 @@ aInfinity(Ring, Module) := HashTable => (R,M) -> (
     --The HashTable returned contains the A-infinity structures on 
     --S-free resolutions A of R and G of M up to stage n.
     --CAVEAT: for the moment we only compute 
-    --mA_{1,i},mA_{2,i} and  mG_{i,j} for i = 1,2,3.
+    --mR_{1,i},mR_{2,i} and  mM_{i,j} for i = 1,2,3.
 Ai := new MutableHashTable;
 S := ring presentation R;
 RS := map(R,S);
@@ -172,30 +178,30 @@ G := chainComplex(for i from 1 to length G0 list
 t := tensorAssociativity;
 
 --m1 := symbol m1;-- these are now global;
-  apply(length B , i-> Ai#(mA_{1,i+3}) = B.dd_(i+3));
+  apply(length B , i-> Ai#(mR_{1,i+3}) = B.dd_(i+3));
 
---mG := symbol mG; -- these are now global;
-  apply(length G , i-> Ai#(mG_{1,i+1}) = G.dd_(i+1));    
+--mM := symbol mM; -- these are now global;
+  apply(length G , i-> Ai#(mM_{1,i+1}) = G.dd_(i+1));    
 
---mA := symbol mA;    -- these are now global;
+--mR := symbol mR;    -- these are now global;
   A0 := (chainComplex gradedModule (S^1))[-2];
   d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
   N := nullhomotopy (d**id_B-id_B**d);
-  apply(length B, i-> Ai#(mA_{2,i+4}) = N_(i+4));
+  apply(length B, i-> Ai#(mR_{2,i+4}) = N_(i+4));
 
---mG2 := symbol mG2;        
+--mM2 := symbol mM2;        
 NG := nullhomotopy(G**d); 
 --  NG := nullhomotopy(d**G);  
-  apply(length G, i-> Ai#(mG_{2,i+2}) = NG_(i+2));
+  apply(length G, i-> Ai#(mM_{2,i+2}) = NG_(i+2));
 
---mG3 := symbol mG3;
-  sour := directSum components (source Ai#(mG_{2,3}));
-  Ai#(mG_{2,3}) = map(G_2, sour, matrix Ai#(mG_{2,3}));
+--mM3 := symbol mM3;
+  sour := directSum components (source Ai#(mM_{2,3}));
+  Ai#(mM_{2,3}) = map(G_2, sour, matrix Ai#(mM_{2,3}));
   toLift :=  map(G_2, B_2**B_2**G_0, 
-  Ai#(mG_{2,3})*(source Ai#(mG_{2,3}))_[0]*(Ai#(mA_{2,4}))**id_(G_0))--*t^-1 --mA2(mA2**1)
-  - Ai#(mG{2,3})*(source Ai#(mG_{2,3})_[1]*(id_(B_2)**Ai#(mG_{2,2})) --mG2(1**mG2)
+  Ai#(mM_{2,3})*(source Ai#(mM_{2,3}))_[0]*(Ai#(mR_{2,4}))**id_(G_0))--*t^-1 --mR2(mR2**1)
+  - Ai#(mM{2,3})*(source Ai#(mM_{2,3})_[1]*(id_(B_2)**Ai#(mM_{2,2})) --mM2(1**mM2)
                  );
-  Ai#(mG_{3,4}) = toLift//(Ai#(mG_{1,3}));
+  Ai#(mM_{3,4}) = toLift//(Ai#(mM_{1,3}));
 hashTable pairs Ai
 )
 
@@ -223,11 +229,11 @@ R = S/(ideal gens S)^2
 M = coker vars R
 Ai = aInfinity(R,M);
 keys Ai
-Ai#(mA_{1,3})
-Ai#(mG_{2,3})
+Ai#(mR_{1,3})
+Ai#(mM_{2,3})
 
 keys Ai
-componentsAndIndices source Ai#(mA_{1,3})
+componentsAndIndices source Ai#(mR_{1,3})
 
 
 ///
@@ -247,7 +253,7 @@ Description
    
    The A-infinity structure  is a sequence of degree -1 maps m_n: B^(**n) \to B such that
    m_1 is the differential, 
-   mA2 is the multiplication (which is a homotopy B**B \to B lifting the degree -2 map
+   mR2 is the multiplication (which is a homotopy B**B \to B lifting the degree -2 map
    d**1 - 1**d: B_2**B_2 \to B_1 (which induces 0)
        
    m_n for n>2 is a homotopy for the negative of the sum of degree -2 maps of the form
@@ -301,7 +307,7 @@ assert(K**K**K**K ==((K**K)**K)**K)
 --1(2(3(4))) -> 1(2,3)4 -> (1,2)3)4 = 1234
 
 for resolutions A of R, G of M, both length 3 , there is one nonzero component of m_3:
-mG_3: B_2**B_2**G_0 ->G_3 == -mG_2(mB_2(B_2,B_2),G_0)-mG_2(B_2, mG_2(B_2,G_0))
+mM_3: B_2**B_2**G_0 ->G_3 == -mM_2(mB_2(B_2,B_2),G_0)-mM_2(B_2, mM_2(B_2,G_0))
 
 
 1(2(3))->(1,2)3
