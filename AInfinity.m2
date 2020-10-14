@@ -14,8 +14,10 @@ newPackage(
 
 export {
     "aInfinity",
-    "golodBetti"
-    
+    "golodBetti",
+    --symbols
+    "mA",
+    "mG"
 --    "singleDegTP",
 --    "singleDegTripleTP"
     }
@@ -40,12 +42,45 @@ singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) 
 		(i,j,n-i-j) => A_i ** (B_j ** C_(n-i-j)))))))
 )
 ---end of Burke's code-----------
-
+*-
 ---Code from EagonResolution.m2---------------
 labeler = (L,F) -> directSum(1:(L=>F));
-tensorL = (R,L) -> (if L === {} then return R^1;
-                              if #L === 1 then return L_0;
-			      L_0**tensorL(R,drop(L,1)))
+
+
+tensor(Ring, List) := o -> (R,L) -> (
+    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..d}).
+    --The order matters for chain complexes; maybe not for modules.
+    if L === {} then return R^1;
+    if #L === 1 then return L_0;
+    tensor(R,drop(L,-1))**last L
+    )
+
+TEST///
+S = ZZ/101[a,b]
+A = koszul vars S
+B = koszul matrix{{a^2,b^3}}
+C = koszul matrix{{b^4,a^5}}
+assert(A**B**C == tensor(S,{A,B,C}))
+assert(tensor(S,{C,B,A}) != tensor(S,{A,B,C}))
+///
+
+componentsAndIndices = (F) -> (
+    if not F.cache.?components then (
+        -- F has no components
+        ({F}, {null})
+        )
+    else if #F.cache.components == 1 then (
+        if F.cache.?indices then 
+            ({F}, F.cache.indices)
+        else 
+            ({F}, {null})
+        )
+    else (
+        a := for f in F.cache.components list componentsAndIndices f;
+        (flatten(a/first), flatten(a/last))
+        )
+    )
+
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
@@ -70,6 +105,26 @@ eTensor = method()
 eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
 eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
 
+eTensor(ChainComplex, ChainComplex) := ChainComplex => (A,B) -> ( --TODO
+  C0 := A**B;
+  C := chainComplex( for i from 1+min C0 to max C0 list 
+	      map(directSum(for j from min A to i list A_j**B_(i-1-j)),
+		  directSum(for j from min A to i list A_j**B_(i-j)),
+    	          matrix(C0.dd_i)));
+  C[-min C0])
+
+eTensor(ChainComplex, ChainComplexMap) := (G,d) -> 
+    map(eTensor(G,target d), eTensor (G, source d), i-> eTensor(id_(G_i), d_i))
+     
+	      
+eTensor(Ring, List) := (R,L) -> (
+    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..d}).
+    --The order matters for chain complexes; maybe not for modules.
+    if L === {} then return R^1;
+    if #L === 1 then return L_0;
+    eTensor(R,drop(L,-1))**last L
+    )
+
 golodBetti = method()
 golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
     --case where M is a module over a factor ring R = S/I,
@@ -86,7 +141,7 @@ golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
     F := res coker p;
     golodBetti(F,K,b)
     )
-*-
+
 ---End of Code from EagonResolution.m2---------------
 
 aInfinity = method()
@@ -96,60 +151,84 @@ aInfinity(Ring, Module) := HashTable => (R,M) -> (
     --The HashTable returned contains the A-infinity structures on 
     --S-free resolutions A of R and G of M up to stage n.
     --CAVEAT: for the moment we only compute 
-    --m1,m2,m3 and  mG1,mG2,mG3.
+    --mA_{1,i},mA_{2,i} and  mG_{i,j} for i = 1,2,3.
 Ai := new MutableHashTable;
 S := ring presentation R;
 RS := map(R,S);
+
 A := res coker presentation R;
-B := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
-G := res pushForward(RS,M);
+B0 := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+B1 := chainComplex(for i from 3 to length B0+2 list 
+	map(labeler((,{i-1}), B0_(i-1)),
+	    labeler((i,{}), B0_i),
+	    B0.dd_i));
+B := B1[-2];
+G0 := res pushForward(RS,M);
+G := chainComplex(for i from 1 to length G0 list 
+	map(labeler((i-1,{}), G0_(i-1)),
+	    labeler((i,{}), G0_(i)),
+	    G0.dd_i));
+
 t := tensorAssociativity;
 
-m1 := symbol m1;
-  apply(length B , i-> Ai#(m1_(i+3)) = B.dd_(i+3));
+--m1 := symbol m1;-- these are now global;
+  apply(length B , i-> Ai#(mA_{1,i+3}) = B.dd_(i+3));
 
-mG1 := symbol mG1;
-  apply(length G , i-> Ai#(mG1_(i+1)) = G.dd_(i+1));    
+--mG := symbol mG; -- these are now global;
+  apply(length G , i-> Ai#(mG_{1,i+1}) = G.dd_(i+1));    
 
-m2 := symbol m2;    
+--mA := symbol mA;    -- these are now global;
   A0 := (chainComplex gradedModule (S^1))[-2];
   d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
   N := nullhomotopy (d**id_B-id_B**d);
-  apply(length B, i-> Ai#(m2_(i+4)) = N_(i+4));
+  apply(length B, i-> Ai#(mA_{2,i+4}) = N_(i+4));
 
-mG2 := symbol mG2;        
-  NG := nullhomotopy(d**G);
-  apply(length G, i-> Ai#(mG2_(i+2)) = NG_(i+2));
+--mG2 := symbol mG2;        
+NG := nullhomotopy(G**d); 
+--  NG := nullhomotopy(d**G);  
+  apply(length G, i-> Ai#(mG_{2,i+2}) = NG_(i+2));
 
-mG3 := symbol mG3;
-  sour := directSum components (source Ai#(mG2_3));
-  Ai#(mG2_3) = map(G_2, sour, matrix Ai#(mG2_3));
+--mG3 := symbol mG3;
+  sour := directSum components (source Ai#(mG_{2,3}));
+  Ai#(mG_{2,3}) = map(G_2, sour, matrix Ai#(mG_{2,3}));
   toLift :=  map(G_2, B_2**B_2**G_0, 
-  Ai#(mG2_3)*(source Ai#(mG2_3))_[1]*(Ai#(m2_4)**id_(G_0))--*t^-1 --m2(m2**1)
-  - Ai#(mG2_3)*(source Ai#(mG2_3))_[0]*(id_(B_2)**Ai#(mG2_2)) --m2(1**m2)
+  Ai#(mG_{2,3})*(source Ai#(mG_{2,3}))_[0]*(Ai#(mA_{2,4}))**id_(G_0))--*t^-1 --mA2(mA2**1)
+  - Ai#(mG{2,3})*(source Ai#(mG_{2,3})_[1]*(id_(B_2)**Ai#(mG_{2,2})) --mG2(1**mG2)
                  );
-  Ai#(mG3_4) = toLift//(Ai#(mG1_3));
+  Ai#(mG_{3,4}) = toLift//(Ai#(mG_{1,3}));
 hashTable pairs Ai
 )
 
+labeledProducts = method()
+labeledProducts(ChainComplex, ChainComplex, ZZ) := Sequence => (A,G,n) ->(
+-*    returns a pair of lists of lengths n,n+1; the first element is a list
+    {A,A**A,..,(A**..**A)}; the second is a list
+    {G, A**G, A**A**G..} with <= n factors, where each
+    component of each product is is labeled:
+    {j_1..j_s} => A_(j_1)**..**A_(j_s)  while
+    (i,{j_1..j_s}) => G_i**A_(j_1)**..**A_(j_s) 
+*-
+    AA := apply(n, i-> eTensor(ring A, toList(i+1:A)));
+    GA := apply(n+1, i-> eTensor(ring A, {G}|toList(i:A)));
+    (AA,GA)
+    )
     
 
 ///
 restart
 needsPackage "Complexes"
-loadPackage("AInfinity",Reload => true)
+debug loadPackage("AInfinity",Reload => true)
 S = ZZ/101[x,y,z]
 R = S/(ideal gens S)^2
 M = coker vars R
-aInfinity(R,M)
-peek Ai
-(source Ai#(mG2_3))_[0]
-X = koszul matrix{{x^2,y^3}}
-Y = koszul matrix{{y^5,z^7}}
-components((X**Y)_2)
-X_0**Y_1 ++ X_1**Y_0 == (X**Y)_1
-betti oo
-betti X
+Ai = aInfinity(R,M);
+keys Ai
+Ai#(mA_{1,3})
+Ai#(mG_{2,3})
+
+keys Ai
+componentsAndIndices source Ai#(mA_{1,3})
+
 
 ///
 
@@ -168,7 +247,7 @@ Description
    
    The A-infinity structure  is a sequence of degree -1 maps m_n: B^(**n) \to B such that
    m_1 is the differential, 
-   m2 is the multiplication (which is a homotopy B**B \to B lifting the degree -2 map
+   mA2 is the multiplication (which is a homotopy B**B \to B lifting the degree -2 map
    d**1 - 1**d: B_2**B_2 \to B_1 (which induces 0)
        
    m_n for n>2 is a homotopy for the negative of the sum of degree -2 maps of the form
@@ -183,39 +262,9 @@ Description
    
    A = res M; betti A
    B = (chainComplex apply(length A - 1, i -> -A.dd_(i+2)))[-2];
-   
-  Text
-   We can compute the multiplication map on B as a homotopy:
-  Example   
-   A0 = (chainComplex gradedModule (S^1))[-2];
-   F = map(A0,B, i -> if (i == 2) then A.dd_1 else 0);
-   g2 = (F ** id_B - id_B ** F);
-   m2 = nullhomotopy g2;
-   betti source m2
-   betti target m2
-  Text
-   Next we compute m_3:
-  Example
-   P = singleDegTripleTP(B, B, B, 8);
-   BtB5 = singleDegTP(B, B, 5);
-   BtB4 = singleDegTP(B, B, 4);
-   t = tensorAssociativity(B_2, B_2, B_2);
-   b = betti B
-   a1 = BtB5_[3] * map(source BtB5_[3], source t, (m2#4 ** id_(B_2)) * (BtB4_[2] **
-       id_(B_2)) * t);
-   a2 = BtB5_[2] * map(source BtB5_[2], source t, (id_(B_2) ** (m2#4)) * (id_(B_2) **
-       BtB4_[2]));
-   a = m2#5 * (a1 + a2);
-   m3 = a // B.dd_5;
-   prune coker m3
-   betti m3
 SeeAlso
 ///
 
--*
-restart
-load("AInfinity.m2", Reload => true)
-*-
 
 TEST ///
 -- test code and assertions here
@@ -232,131 +281,11 @@ loadPackage("AInfinity", Reload =>true)
 installPackage "AInfinity"
 
 
-----------------------------------------
--- following is an example
-n = 6
-S = ZZ/32003[x_0..x_n]
-
--- makes the presentation matrix
-M = matrix(apply( splice{0..(n-1)}, i -> {x_i, x_(i+1)}))
-
-I = minors(2,M)
-A = res I
-betti A
-----------------------------------------
-
--- input: chain complex A, assumed to be in nonnegative degrees
--- (the following is not a function, but it should be)
-
---e = max B
-
--- split A into two pieces
-sAplus = (chainComplex apply(length A - 1, i -> -A.dd_(i+2)))[-2];
-A0 = (chainComplex gradedModule (S^1))[-2];
-
--- shorthand
-B = sAplus
---e = max B 
-e = 6
-
-temphhA1 = new HashTable from apply(toList(3..e), i -> (i => B.dd_i));
-hhA = new HashTable from {1 => temphhA1};
-
--- calculate m2, by lift b`ing the multiplication map on R \otimes R \to R to A,
--- where R = S/I (quick check that what is below is equivalent to such a lifting)
-
-F = map(A0,sAplus, i -> if (i == 2) then A.dd_1 else 0);
-g2 = (F ** id_(sAplus) - id_(sAplus) ** F);
-m2 = nullhomotopy g2;
-class(m2)
-source m2
-
-
-
-P = singleDegTripleTP(B, B, B, 8);
-BtB5 = singleDegTP(B, B, 5);
-BtB4 = singleDegTP(B, B, 4);
-
-t = tensorAssociativity(B_2, B_2, B_2);
-
--- can make following more clear by defining the matrices seperately and doing one call to 'map'
-a1 = BtB5_[3] * map(source BtB5_[3], source t, (m2#4 ** id_(B_2)) * (BtB4_[2] **
-	id_(B_2)) * t);
-a2 = BtB5_[2] * map(source BtB5_[2], source t, (id_(B_2) ** (m2#4)) * (id_(B_2)
-	** BtB4_[2]));
-a = m2#5 * (a1 + a2);
-m3 = a // B.dd_5;
-betti m3
-betti sAplus
-----------------------------------------
-
-
-betti source m2
-
-
-indices 0
-w = directSum(prune coker map( S^1, S^1, 1))
-indices w
-length (P,P,P)
-class (P,P,P)
-test = singleDegTP((B, B, B), S, 8);
-
-
-betti ((B,B,B)#0)_4
-components BtB5
-BtB5^[1]
-
-BtB5^[6]
-class BtB5
-indices BtB5
-
-B = sAplus
-P = singleDegTripleTP(B, B, B, 8);
-BtB5 = singleDegTP(B, B, 5);
-BtB4 = singleDegTP(B, B, 4);
-
-
 t = tensorAssociativity(B_2, B_2, B_2);
 b = betti B
 b ** b
 (b ** b) ** b 
 ((b ** b) ** b ) ** b
-
-a1 = (id_(B_2) ** (m2#4)) * (id_(B_2) ** BtB4_[2]);
-a2 = (m2#4 ** id_(B_2)) * (BtB4_[2] ** id_(B_2)) * t;
-
-
-
-betti source m3
-betti target m3
-prune coker m3
-
-b = betti B
-b ** (b ** b)
-
-prune (coker m3)
-help prune
-help rank
-rank(m3 ** id_k)
-m = m3 ** id_k;
-class ker m
-rank ker m
-m
-
-n = matrix{{1,1},{1,0}}
-rank n
-rank m
-m === 0
-betti source m
-betti target m
-target m3 === source (B.dd_5)
-betti (source B.dd_5)
-betti target m    
-target m3
-betti oo
-betti (target m)
-rank m3
-m3
 
 
 ------tensor associativity
