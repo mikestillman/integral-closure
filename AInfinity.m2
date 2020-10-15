@@ -1,16 +1,16 @@
 -*
 TODO: 
-have aInfinity Ring return a hashTable "m"; similarly aInfinity Module; get rid of the global symbols, get rid
-of "Ai".
 
-Make Ai ring use the commutative multiplication. Is there an analogue for the higher products?
+Make aInfinity(Ring,ZZ) use the commutative multiplication. 
+Is there an analogue for the higher products?
+can we call SchurComplexes?
 
 replace ** with eTensor
 
 add associativities
 
 construct the resolution
--*
+*-
 
 newPackage(
 	"AInfinity",
@@ -28,12 +28,7 @@ newPackage(
 
 export {
     "aInfinity",
-    "golodBetti",
-    --symbols
-    "mR",
-    "mM"
---    "singleDegTP",
---    "singleDegTripleTP"
+    "golodBetti"
     }
 -*    
 ---Jesse Burke's code------------
@@ -158,17 +153,20 @@ golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
 
 ---End of Code from EagonResolution.m2---------------
 
+
 aInfinity = method()
-aInfinity(Ring, Module) := HashTable => (R,M) -> (
-    --R should be a factor ring of S
-    --M an R-module
-    --The HashTable returned contains the A-infinity structures on 
-    --S-free resolutions A of R and G of M up to stage n.
-    --CAVEAT: for the moment we only compute 
-    --mR_{1,i},mR_{2,i} and  mM_{i,j} for i = 1,2,3.
-Ai := new MutableHashTable;
+
+aInfinity (Ring,ZZ) := HashTable => (R,n) -> (
+    --R should be a factor ring of a polynomial ring S
+    --The HashTable returned contains the A-infinity structure on an
+    --S-free resolution A of R up to stage n.
+    --CAVEAT: for the moment n = 3 is fixed! 
+
+m := new MutableHashTable;
+
 S := ring presentation R;
 RS := map(R,S);
+
 
 A := res coker presentation R;
 B0 := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
@@ -177,41 +175,68 @@ B1 := chainComplex(for i from 3 to length B0+2 list
 	    labeler((i,{}), B0_i),
 	    B0.dd_i));
 B := B1[-2];
+
+--m#{1,i}
+apply(length B , i-> m#{1,i+3} = B.dd_(i+3));
+
+--m#{2,i}
+A0 := (chainComplex gradedModule (S^1))[-2];
+d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
+m#"res" = d;
+N := nullhomotopy (d**id_B-id_B**d);
+apply(length B, i-> m#{2,i+4} = N_(i+4));
+
+hashTable pairs m)
+
+    
+aInfinity(HashTable, Module, ZZ) := HashTable => (mR, M,n) -> (
+    --R = ring M should be a factor ring of a polynomial ring S
+    --mR = aInfinity (R,n) an AInfinity structure on a resolution A of R
+    --M an R-module
+    --The HashTable returned contains the A-infinity structure on 
+    --an S-free resolution of M up to stage n.
+    --CAVEAT: for the moment n = 3, and we compute only
+    --m#{i,j} for i = 1,2,3.
+m := new MutableHashTable;
+R := ring M;
+S := ring presentation R;
+RS := map(R,S);
+
+-*
+A := res coker presentation R;
+B0 := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+B1 := chainComplex(for i from 3 to length B0+2 list 
+	map(labeler((,{i-1}), B0_(i-1)),
+	    labeler((i,{}), B0_i),
+	    B0.dd_i));
+B := B1[-2];
+*-
+B := source mR#"res";
+
 G0 := res pushForward(RS,M);
 G := chainComplex(for i from 1 to length G0 list 
 	map(labeler((i-1,{}), G0_(i-1)),
 	    labeler((i,{}), G0_(i)),
 	    G0.dd_i));
+--m#{1,i}
+  apply(length G , i-> m#{1,i+1} = G.dd_(i+1));    
 
-t := tensorAssociativity;
+--m#{2,i} 
+--A0 := (chainComplex gradedModule (S^1))[-2];
+--d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
+NG := nullhomotopy(G**mR#"res"); --mR#"res" = d
+apply(length G, i-> m#{2,i+2} = NG_(i+2));
 
---m1 := symbol m1;-- these are now global;
-  apply(length B , i-> Ai#(mR_{1,i+3}) = B.dd_(i+3));
-
---mM := symbol mM; -- these are now global;
-  apply(length G , i-> Ai#(mM_{1,i+1}) = G.dd_(i+1));    
-
---mR := symbol mR;    -- these are now global;
-  A0 := (chainComplex gradedModule (S^1))[-2];
-  d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
-  N := nullhomotopy (d**id_B-id_B**d);
-  apply(length B, i-> Ai#(mR_{2,i+4}) = N_(i+4));
-
---mM2 := symbol mM2;        
-NG := nullhomotopy(G**d); 
---  NG := nullhomotopy(d**G);  
-  apply(length G, i-> Ai#(mM_{2,i+2}) = NG_(i+2));
-
---mM3 := symbol mM3;
-  sour := directSum components (source Ai#(mM_{2,3}));
-  Ai#(mM_{2,3}) = map(G_2, sour, matrix Ai#(mM_{2,3}));
+--m#{3,4}
+  sour := directSum components source m#{2,3};
+  m#{2,3} = map(G_2, sour, matrix m#{2,3});
   toLift :=  map(G_2, B_2**B_2**G_0, 
-  Ai#(mM_{2,3})*(source Ai#(mM_{2,3}))_[0]*(Ai#(mR_{2,4}))**id_(G_0))--*t^-1 --mR2(mR2**1)
-  - Ai#(mM{2,3})*(source Ai#(mM_{2,3})_[1]*(id_(B_2)**Ai#(mM_{2,2})) --mM2(1**mM2)
+  - m#{2,3}*(source m#{2,3})_[0]*mR#{2,4}**id_(G_0) --*t^-1 --mR#{2,-}(mR#{2,-}**1)
+  - m#{2,3}*(source m#{2,3})_[1]*(id_(B_2)**m#{2,2}) --m(1**m#{2,-})
                  );
-  Ai#(mM_{3,4}) = toLift//(Ai#(mM_{1,3}));
-hashTable pairs Ai
-)
+  m#{3,4} = toLift//m#{1,3};
+hashTable pairs m)
+
 
 labeledProducts = method()
 labeledProducts(ChainComplex, ChainComplex, ZZ) := Sequence => (A,G,n) ->(
@@ -235,15 +260,12 @@ debug loadPackage("AInfinity",Reload => true)
 S = ZZ/101[x,y,z]
 R = S/(ideal gens S)^2
 M = coker vars R
-Ai = aInfinity(R,M);
-keys Ai
-Ai#(mR_{1,3})
-Ai#(mM_{2,3})
-
-keys Ai
-componentsAndIndices source Ai#(mR_{1,3})
-
-
+mR = aInfinity(R,3);
+pairs mR
+mM = aInfinity(mR,M,3);
+pairs mM
+componentsAndIndices source mR#{1,3}
+componentsAndIndices target mM#{3,4}
 ///
 
 beginDocumentation()
@@ -291,7 +313,9 @@ end--
 
 restart
 needsPackage "Complexes"
-loadPackage("AInfinity", Reload =>true)
+--loadPackage("AInfinity", Reload =>true)
+uninstallPackage "AInfinity"
+restart
 installPackage "AInfinity"
 
 
@@ -350,3 +374,11 @@ associativity(List, List) := Matrix => blocks, mods -> (
    if blocks == {n-1,1} then tensorAssociativity(mods_0**;
    
 viewHelp tensorAssociativity
+
+S = ZZ/101[a,b,c]
+G = res coker vars S
+E = extend(G,schurComplex({2},G),id_(G_0))
+
+components (source E)_2
+code methods schurComplex
+viewHelp SchurComplexes
