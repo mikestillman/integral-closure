@@ -66,6 +66,7 @@ hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
 	  else (
 	   result1 := {I};
 	   scan(defect, j->(
+		   <<(i,j)<<endl;
            result1 = normalForms(sumMonomials(result1, mons), G);
  	                   ))
              );
@@ -145,9 +146,38 @@ normalForms(List, List) := (Fs, G) -> (
         )
     )
 
+stabilizer = method()
+stabilizer(List,Ideal) := List => (G,I) -> (
+--    I and ideal in S
+--    G is a list of automorphisms S->S
+--    ouput is a list of those maps in G that fix I
+      select(G, f-> gens f I % I == 0)
+)
+cosets = method()
+cosets(List, List) := List => (G,H) -> (
+    H' := set H;
+    G' := set G;
+    representatives := {G_0}; -- should be the identity of G
+    while G' - H' =!= set{} do (
+	g := (toList(G'-H'))_0;
+	representatives = append(representatives, g);
+	H' = H' + set for h in H list g*h;
+	);
+    representatives
+)    
+
+TEST///
+S = ZZ/101[a,b,c,d]
+setupRing S	
+G = S.cache.MonomialOrbits#"GroupElements"
+H = {G_0,G_1}
+C = cosets(G,H)
+assert(24 ==#unique flatten for h in H list for c in C list (c*h))
+///
+
 ///
 restart
-loadPackage("MonomialOrbits", Reload => true)
+debug loadPackage("MonomialOrbits", Reload => true)
 uninstallPackage "MonomialOrbits"
 restart
 installPackage "MonomialOrbits"
@@ -252,9 +282,9 @@ doc ///
      ideals of square-free monomials are considered.
     Example
      S = ZZ/101[a..d]
-     L = hilbertRepresentatives(S,{4,4,1,0})
+     L = hilbertRepresentatives(S,{4,4,1,0});
      #L
-     L = hilbertRepresentatives(S,{4,7,10,13,16,0})
+     L = hilbertRepresentatives(S,{4,7,10,13,16,0});
      LP = apply(L, m-> hilbertPolynomial m)
      #L
      #unique LP
