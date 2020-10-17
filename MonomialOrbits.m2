@@ -18,10 +18,11 @@ export {
     "orbitRepresentatives",
     "hilbertRepresentatives",
     "Group",
-    "MonomialType"
+    "MonomialType",
+    "Stabilizers"
     }
 
-orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
+orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All", Stabilizers => true})
 orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
     setupRing(R,o); -- creates G and a list of lists of monomials in R.cache
     info := R.cache.MonomialOrbits;
@@ -34,9 +35,37 @@ orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
 	              else basis(d,R);
 	 mons = flatten entries sort(rawMonsMat, 
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
+         result = normalForms(sumMonomials(result, mons), G, Stabilizers => o.Stabilizers)
+	     	     );
+      result)
+
+orbitRepresentatives(Ring,Ideal,List) := List => o -> (R,I,degs) ->(
+    setupRing(R,o); -- creates G and a list of lists of monomials in R.cache
+    info := R.cache.MonomialOrbits;
+    G0 := info#"GroupElements";
+    G := stabilizer(G0, I);
+    result := I;
+    rawMonsMat := matrix{{}};
+    mons := {};
+      for d in degs do (
+         rawMonsMat = if o.MonomialType === "SquareFree" then squareFree(d,R)
+	              else basis(d,R);
+	 mons = flatten entries sort(rawMonsMat, 
+		 DegreeOrder => Ascending, MonomialOrder => Descending);
          result = normalForms(sumMonomials(result, mons), G)
 	     	     );
       result)
+
+
+///
+restart
+debug loadPackage("MonomialOrbits", Reload => true)
+///
+TEST///
+S = ZZ/101[a,b,c]
+I = ideal"a3,b3,c3"
+orbitRepresentatives(S,I,{3,3,3})
+///    
 
 orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
    orbitRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
@@ -105,8 +134,8 @@ R = ZZ/101[x_0..x_5]
 squareFree(3,R)
 ///
 
-sumMonomials = method()
-sumMonomials(List,List) := List => (L1,L2) -> (
+sumMonomials = method(Options => {Group => "SymmetricGroup"})
+sumMonomials(List,List) := List => o -> (L1,L2) -> (
   --L1 list of monomial ideals
   --L2 llist of monomials
   --return list of monomial ideals: an element of L1 
@@ -118,10 +147,12 @@ sumMonomials(List,List) := List => (L1,L2) -> (
     )
 sumMonomials(Ideal,List) := List => (I,L2) -> sumMonomials({I}, L2)
 
-normalForms = method()
-normalForms(List, List) := (Fs, G) -> (
-    -- Fs is a list of monomial ideals, G a group (list of ring maps)
-    -- returns a subset of these that generate all, under the group G.
+normalForms = method(Options => {"Stabilizers" => true})
+normalForms(List, List) := o -> (Fs, G) -> (
+    -- Fs is a list of monomial ideals, G a list of ring maps
+    -- returns a subset of these that generate all, under the action of G.
+    -- G should be the set of coset representatives (beginning with the identity
+    -- of the stabilizer of the ideal already found.
     G1 := drop(G,1);  -- remove the identity element.  ASSUMPTION: this is the first element!
     L := new MutableList from Fs;
     LH := hashTable for i from 0 to #Fs-1 list Fs#i => i;
@@ -129,6 +160,7 @@ normalForms(List, List) := (Fs, G) -> (
     for i from 0 to #L-1 list (
         if L#i === null then continue;
         F := L#i;
+	if o#"Stabilizers" then G1 = drop(1, stabilizer(G,F)); 
         --<< "F = " << F << endl;
         for f in G1 do (
             H := monomialIdeal(f F);
@@ -165,6 +197,8 @@ cosets(List, List) := List => (G,H) -> (
 	);
     representatives
 )    
+
+
 
 TEST///
 S = ZZ/101[a,b,c,d]
