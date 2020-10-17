@@ -11,18 +11,21 @@ newPackage(
                   Email => "mike@math.cornell.edu", 
                   HomePage => "http://pi.math.cornell.edu/~mike"}},
         Headline => "Orbit representatives of monomial ideals",
-        DebuggingMode => false
+	PackageExports =>{"Truncations"},
+	DebuggingMode => true
+
         )
 
 export {
     "orbitRepresentatives",
     "hilbertRepresentatives",
     "Group",
-    "MonomialType",
-    "Stabilizers"
+    "MonomialType"
     }
 
-orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All", Stabilizers => true})
+orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})--, Stabilizers => true})
+--don't use the stabilizers! Even if you want to keep the ideal you started with
+
 orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
     setupRing(R,o); -- creates G and a list of lists of monomials in R.cache
     info := R.cache.MonomialOrbits;
@@ -35,16 +38,16 @@ orbitRepresentatives(Ring, List) := List => o->(R, degs) -> (
 	              else basis(d,R);
 	 mons = flatten entries sort(rawMonsMat, 
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
-         result = normalForms(sumMonomials(result, mons), G, Stabilizers => o.Stabilizers)
+         result = normalForms(sumMonomials(result, mons), G)
 	     	     );
       result)
 
-orbitRepresentatives(Ring,Ideal,List) := List => o -> (R,I,degs) ->(
+orbitRepresentatives(Ring,MonomialIdeal,List) := List => o -> (R,I,degs) ->(
     setupRing(R,o); -- creates G and a list of lists of monomials in R.cache
     info := R.cache.MonomialOrbits;
-    G0 := info#"GroupElements";
-    G := stabilizer(G0, I);
-    result := I;
+    G := info#"GroupElements";
+--    G := stabilizer(G0, I);
+    result := {I};
     rawMonsMat := matrix{{}};
     mons := {};
       for d in degs do (
@@ -63,8 +66,11 @@ debug loadPackage("MonomialOrbits", Reload => true)
 ///
 TEST///
 S = ZZ/101[a,b,c]
-I = ideal"a3,b3,c3"
+I = monomialIdeal"a3,b3,c3"
+assert(#orbitRepresentatives(S,{3,3,3}) == 25)
 orbitRepresentatives(S,I,{3,3,3})
+orbitRepresentatives(S,I,{3})
+
 ///    
 
 orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
@@ -76,26 +82,39 @@ hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
     --hilbertFunction(i,R/I) = h_(i-1) for all i = 1,..,#h.
     setupRing (R,o);--,Group =>o#"Group"); -- creates G and a list of lists of monomials in R.cache
     G := R.cache.MonomialOrbits#"GroupElements";
-    result := if o.MonomialType == "SquareFree" then 
-       orbitRepresentatives(R, (hilbertFunction(1,R) - h_0):1, MonomialType => "SquareFree") else
-       orbitRepresentatives(R, (hilbertFunction(1,R) - h_0):1);	   
+    
+    if h_0>numgens R then error "not enough variables";
+    if min h < numgens R and o.MonomialType == "SquareFree" then return {};
+    
+    result := if h_0 == numgens R then {monomialIdeal 0_R} else
+                                       {monomialIdeal((gens R)_{0..numgens R - h_0-1})};
     rawMonsMat := matrix{{}};
     mons := {};
     
     for i from 2 to #h do (
          rawMonsMat = if o.MonomialType === "All" then basis(i,R) else
                       if o.MonomialType === "SquareFree" then squareFree(i,R);
-	 mons = flatten entries sort(rawMonsMat, 
+	  mons = flatten entries sort(rawMonsMat,
 		 DegreeOrder => Ascending, MonomialOrder => Descending);
-	     
-        result = flatten for I in result list (
+--<<result<<endl;	     
+      result = flatten for I in result list (
+	  mons = flatten entries sort(compress(rawMonsMat % truncate(i,I)),
+		 DegreeOrder => Ascending, MonomialOrder => Descending);
+	  
+--if i ==4 then error();	  
+	 
+	
  	  defect := hilbertFunction(i, R^1/I) -  h_(i-1);
 
-	  if defect<0 then continue
+	  if defect<0 then continue;
+	  if h_(i-1) == 0  then (
+	         if mons == {} then result1 := {I}
+		 else result1 = {monomialIdeal trim (I+ideal mons)}
+		 )
 	  else (
-	   result1 := {I};
+	   result1 = {I};
 	   scan(defect, j->(
-		   <<(i,j)<<endl;
+--		   <<(i,j)<<endl;
            result1 = normalForms(sumMonomials(result1, mons), G);
  	                   ))
              );
@@ -104,6 +123,26 @@ hilbertRepresentatives(Ring, List) := List => o -> (R,h) -> (
     result)
 hilbertRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
    hilbertRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
+
+///
+restart
+debug loadPackage("MonomialOrbits", Reload => true)
+///
+TEST///
+R = ZZ/101[a,b]
+      hilbertRepresentatives(R,{2,2,1}) 
+      hilbertRepresentatives(R,{2,2,1,0}) 
+
+R = ZZ/101[a,b,c]
+assert(#hilbertRepresentatives(R,{2}) == 1)
+assert(#hilbertRepresentatives(R,{2,0}) == 1)
+
+assert(#hilbertRepresentatives(R,{2,2,1})  == 3)
+assert(#hilbertRepresentatives(R,{2,2,1,0}) == #hilbertRepresentatives(R,{2,2,1}))
+
+assert(#hilbertRepresentatives(R,{3,4,5}) == 2)
+assert(#hilbertRepresentatives(R,{3,4,0}) == 4)
+///    
 
 
 setupRing = method(Options =>{Group => "SymmetricGroup", MonomialType => "all"})
@@ -147,9 +186,9 @@ sumMonomials(List,List) := List => o -> (L1,L2) -> (
     )
 sumMonomials(Ideal,List) := List => (I,L2) -> sumMonomials({I}, L2)
 
-normalForms = method(Options => {"Stabilizers" => true})
-normalForms(List, List) := o -> (Fs, G) -> (
-    -- Fs is a list of monomial ideals, G a list of ring maps
+normalForms = method()
+normalForms(List, List) := (Fs, G) -> (
+    -- Fs is a list of MonomialIdeal s, G a list of ring maps
     -- returns a subset of these that generate all, under the action of G.
     -- G should be the set of coset representatives (beginning with the identity
     -- of the stabilizer of the ideal already found.
@@ -160,7 +199,6 @@ normalForms(List, List) := o -> (Fs, G) -> (
     for i from 0 to #L-1 list (
         if L#i === null then continue;
         F := L#i;
-	if o#"Stabilizers" then G1 = drop(1, stabilizer(G,F)); 
         --<< "F = " << F << endl;
         for f in G1 do (
             H := monomialIdeal(f F);
@@ -201,6 +239,7 @@ cosets(List, List) := List => (G,H) -> (
 
 
 TEST///
+debug needsPackage"MonomialOrbits"
 S = ZZ/101[a,b,c,d]
 setupRing S	
 G = S.cache.MonomialOrbits#"GroupElements"
@@ -316,11 +355,14 @@ doc ///
      ideals of square-free monomials are considered.
     Example
      S = ZZ/101[a..d]
-     L = hilbertRepresentatives(S,{4,4,1,0});
+     L = hilbertRepresentatives(S,{4,4,1,0})
      #L
-     L = hilbertRepresentatives(S,{4,7,10,13,16,0});
+     L = hilbertRepresentatives(S,{4,7,10,13,16}); 
+     #L
+     L0 = hilbertRepresentatives(S,{4,7,10,13,16,0}); -- with a 1 instead of a 0 this is too slow
+     #L0
      LP = apply(L, m-> hilbertPolynomial m)
-     #L
+     #LP
      #unique LP
      tally apply(L, m->betti res m)
      #unique apply(L, m->primaryDecomposition m)
@@ -370,16 +412,14 @@ viewHelp MonomialOrbits
 
 TEST///
   R = ZZ/101[a,b]
-  assert(hilbertRepresentatives(R,{2}) == {monomialIdeal a^2 , monomialIdeal(a*b)})
-  assert(toString\hilbertRepresentatives(R,{2,1,0}) ==
-    {"monomialIdeal(a^2,a*b^2,b^4)", "monomialIdeal(a^2,b^3)", "monomialIdeal(a^3,a*b,b^4)"})
-  assert(hilbertRepresentatives(R,{2,3,0}) == {})
+  assert(hilbertRepresentatives(R,{2,2}) == {monomialIdeal a^2 , monomialIdeal(a*b)})
+  assert(toString\hilbertRepresentatives(R,{2,2,1,0}) =={"monomialIdeal(a^2,a*b^2,b^4)", "monomialIdeal(a^2,b^3)", "monomialIdeal(a^3,a*b,b^4)"})
+  assert(hilbertRepresentatives(R,{2,3,0}) =={monomialIdeal(a^3,a^2*b,a*b^2,b^3)})
 
  R = ZZ/101[vars(0..3)]
  L = orbitRepresentatives(R,{2,2,2})
  assert(#L == 11)
   assert(#orbitRepresentatives(R,{2,3}) == 11)
---the following doesn't work, and I don't understand why!
   R = ZZ/101[vars(0..5)]
  orbitRepresentatives(R,{4,5}, MonomialType => "SquareFree") == {monomialIdeal (a*b*c*d, a*b*c*e*f)}
 ///
