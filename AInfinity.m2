@@ -5,6 +5,8 @@ Make aInfinity(Ring,ZZ) use the commutative multiplication.
 Is there an analogue for the higher products?
 can we call SchurComplexes?
 
+add the maps B -> G 
+
 replace ** with eTensor
 
 add associativities
@@ -28,6 +30,7 @@ newPackage(
 
 export {
     "aInfinity",
+    "burck",
     "golodBetti"
     }
 -*    
@@ -175,14 +178,14 @@ B1 := chainComplex(for i from 3 to length B0+2 list
 	    labeler((i,{}), B0_i),
 	    B0.dd_i));
 B := B1[-2];
-
+m#"resolution" = B;
 --m#{1,i}
 apply(length B , i-> m#{1,i+3} = B.dd_(i+3));
 
 --m#{2,i}
 A0 := (chainComplex gradedModule (S^1))[-2];
 d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
-m#"res" = d;
+m#"Bmap" = d;
 N := nullhomotopy (d**id_B-id_B**d);
 apply(length B, i-> m#{2,i+4} = N_(i+4));
 
@@ -211,20 +214,21 @@ B1 := chainComplex(for i from 3 to length B0+2 list
 	    B0.dd_i));
 B := B1[-2];
 *-
-B := source mR#"res";
+B := source mR#"Bmap";
 
 G0 := res pushForward(RS,M);
 G := chainComplex(for i from 1 to length G0 list 
 	map(labeler((i-1,{}), G0_(i-1)),
 	    labeler((i,{}), G0_(i)),
 	    G0.dd_i));
+m#"resolution" = G;
 --m#{1,i}
   apply(length G , i-> m#{1,i+1} = G.dd_(i+1));    
 
 --m#{2,i} 
 --A0 := (chainComplex gradedModule (S^1))[-2];
 --d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
-NG := nullhomotopy(G**mR#"res"); --mR#"res" = d
+NG := nullhomotopy(G**mR#"Bmap"); --mR#"Bmap" = d
 apply(length G, i-> m#{2,i+2} = NG_(i+2));
 
 --m#{3,4}
@@ -236,6 +240,18 @@ apply(length G, i-> m#{2,i+2} = NG_(i+2));
                  );
   m#{3,4} = toLift//m#{1,3};
 hashTable pairs m)
+
+burck = method()
+burck(HashTable,HashTable,ZZ) := ChainComplex => (mR,mM,n) ->(
+    --mR,mM are A-infinity structures on a ring R and an R-module M
+    --computed at least to homological degree n.
+    --construct the Golod-type resolution up to length n, using
+    --Jessie Burck's recipe.
+G := mM#"resolution";
+B := mR#"resolution";
+d := new MutableHashTable;
+for i from 1 to length G do  d#(i,{0}) = G.dd_i); --mM#{1,i}
+d#(0,{2})
 
 
 labeledProducts = method()
