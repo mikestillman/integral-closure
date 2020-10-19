@@ -56,11 +56,16 @@ singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) 
 ---end of Burke's code-----------
 *-
 ---Code from EagonResolution.m2---------------
-labeler = (L,F) -> directSum(1:(L=>F));
+LabeledModule = new Type of Module
 
+labeler = method()
+labeler(List,Module) := LabeledModule => (L,F) -> directSum(1:(L=>F))
+
+tensor(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> eTensor(F,G)
+A**B := (LabeledModule, LabeledModule) -> tensor(A,B)
 
 tensor(Ring, List) := o -> (R,L) -> (
-    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..d}).
+    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
     --The order matters for chain complexes; maybe not for modules.
     if L === {} then return R^1;
     if #L === 1 then return L_0;
