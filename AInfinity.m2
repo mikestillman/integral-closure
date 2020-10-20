@@ -33,71 +33,16 @@ export {
     "burck",
     "golodBetti"
     }
--*    
----Jesse Burke's code------------
-
--- assuming both A and B are in nonnegative degrees
--- returns a direct sum with keys indexed by i
--- the value at key i is A_i \otimes B_{n-i},
--- where n is the degree computed
-singleDegTP = method();
-singleDegTP(GradedModule, GradedModule, ZZ) := (A, B, n) -> (
-    	directSum(apply(0..n, i -> (A_i ** B_(n-i))))
-    )
--- assuming A, B, C are graded modules in nonnegative degrees
--- returns a direct sum with keys indexed by (i,j)
--- the value at key (i,j) is A_i \otimes (B_j \otimes C_(n-i-j)),
--- where n is the degree computed
-singleDegTripleTP = method()
-singleDegTripleTP(GradedModule, GradedModule, GradedModule, ZZ) := (A, B, C, n) -> (
-    directSum( deepSplice(apply(2..n-4, i -> apply(2..(n-i-2), j -> (
-		(i,j,n-i-j) => A_i ** (B_j ** C_(n-i-j)))))))
-)
----end of Burke's code-----------
-*-
----Code from EagonResolution.m2---------------
 LabeledModule = new Type of Module
 
-labeler = method()
-labeler(List,Module) := LabeledModule => (L,F) -> directSum(1:(L=>F))
+labeledModule = method()
+labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> directSum(1:(L=>F))
+--for eTensor to work, the label must be of the form {ZZ,List}, representing
+--an element of G**B**B**B...
+--then eTensor adds the first components, concatenates the second components.
+--note that this is associative but NOT commutative.
 
-tensor(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> eTensor(F,G)
-A**B := (LabeledModule, LabeledModule) -> tensor(A,B)
-
-tensor(Ring, List) := o -> (R,L) -> (
-    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
-    --The order matters for chain complexes; maybe not for modules.
-    if L === {} then return R^1;
-    if #L === 1 then return L_0;
-    tensor(R,drop(L,-1))**last L
-    )
-
-TEST///
-S = ZZ/101[a,b]
-A = koszul vars S
-B = koszul matrix{{a^2,b^3}}
-C = koszul matrix{{b^4,a^5}}
-assert(A**B**C == tensor(S,{A,B,C}))
-assert(tensor(S,{C,B,A}) != tensor(S,{A,B,C}))
-///
-
-componentsAndIndices = (F) -> (
-    if not F.cache.?components then (
-        -- F has no components
-        ({F}, {null})
-        )
-    else if #F.cache.components == 1 then (
-        if F.cache.?indices then 
-            ({F}, F.cache.indices)
-        else 
-            ({F}, {null})
-        )
-    else (
-        a := for f in F.cache.components list componentsAndIndices f;
-        (flatten(a/first), flatten(a/last))
-        )
-    )
-
+---Code from EagonResolution.m2---------------
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
@@ -112,6 +57,7 @@ tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndice
         );
     if #comps == 0 then (ring F)^0 else directSum comps
     )
+
 tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
 tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
                           src :=  tensorWithComponents(source phi, G, combineIndices);
@@ -141,6 +87,64 @@ eTensor(Ring, List) := (R,L) -> (
     if #L === 1 then return L_0;
     eTensor(R,drop(L,-1))**last L
     )
+
+tensor(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
+    ans := eTensor(F,G);
+    ans.cache.factors = {F,G};
+    ans)
+    
+
+LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
+
+tensor(Ring, List) := o -> (R,L) -> (
+    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
+    --The order matters for chain complexes; maybe not for modules.
+    if L === {} then return labeledModule{(),R^1};
+    if #L === 1 then return L_0;
+    tensor(R,drop(L,-1))**last L
+    )
+
+///
+--every module should have a components and a factors cache;
+--only one non-empty
+--the ring should have a method for transforming the label of F into F^*.
+--a tensor product or direct has a list of labeled modules as its summand/factors.
+--S^k has trivial label null by default;
+--but user gets to label any module created
+
+
+restart
+loadPackage"AInfinity"
+tensorAssociativity := (k,n,
+///
+
+
+TEST///
+S = ZZ/101[a,b]
+A = koszul vars S
+B = koszul matrix{{a^2,b^3}}
+C = koszul matrix{{b^4,a^5}}
+assert(A**B**C == tensor(S,{A,B,C}))
+assert(tensor(S,{C,B,A}) != tensor(S,{A,B,C}))
+///
+
+componentsAndIndices = (F) -> (
+    if not F.cache.?components then (
+        -- F has no components
+        ({F}, {null})
+        )
+    else if #F.cache.components == 1 then (
+        if F.cache.?indices then 
+            ({F}, F.cache.indices)
+        else 
+            ({F}, {null})
+        )
+    else (
+        a := for f in F.cache.components list componentsAndIndices f;
+        (flatten(a/first), flatten(a/last))
+        )
+    )
+
 
 golodBetti = method()
 golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
@@ -179,8 +183,8 @@ RS := map(R,S);
 A := res coker presentation R;
 B0 := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
 B1 := chainComplex(for i from 3 to length B0+2 list 
-	map(labeler((,{i-1}), B0_(i-1)),
-	    labeler((i,{}), B0_i),
+	map(labeledModule((,{i-1}), B0_(i-1)),
+	    labeledModule((i,{}), B0_i),
 	    B0.dd_i));
 B := B1[-2];
 m#"resolution" = B;
@@ -214,8 +218,8 @@ RS := map(R,S);
 A := res coker presentation R;
 B0 := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
 B1 := chainComplex(for i from 3 to length B0+2 list 
-	map(labeler((,{i-1}), B0_(i-1)),
-	    labeler((i,{}), B0_i),
+	map(labeledModule((,{i-1}), B0_(i-1)),
+	    labeledModule((i,{}), B0_i),
 	    B0.dd_i));
 B := B1[-2];
 *-
@@ -223,8 +227,8 @@ B := source mR#"Bmap";
 
 G0 := res pushForward(RS,M);
 G := chainComplex(for i from 1 to length G0 list 
-	map(labeler((i-1,{}), G0_(i-1)),
-	    labeler((i,{}), G0_(i)),
+	map(labeledModule((i-1,{}), G0_(i-1)),
+	    labeledModule((i,{}), G0_(i)),
 	    G0.dd_i));
 m#"resolution" = G;
 --m#{1,i}
@@ -246,6 +250,7 @@ apply(length G, i-> m#{2,i+2} = NG_(i+2));
   m#{3,4} = toLift//m#{1,3};
 hashTable pairs m)
 
+-*
 burck = method()
 burck(HashTable,HashTable,ZZ) := ChainComplex => (mR,mM,n) ->(
     --mR,mM are A-infinity structures on a ring R and an R-module M
@@ -257,7 +262,7 @@ B := mR#"resolution";
 d := new MutableHashTable;
 for i from 1 to length G do  d#(i,{0}) = G.dd_i); --mM#{1,i}
 d#(0,{2})
-
+*-
 
 labeledProducts = method()
 labeledProducts(ChainComplex, ChainComplex, ZZ) := Sequence => (A,G,n) ->(
