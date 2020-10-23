@@ -31,7 +31,9 @@ newPackage(
 export {
     "aInfinity",
     "burck",
-    "golodBetti"
+    "golodBetti",
+    --symbols
+    "factors"
     }
 LabeledModule = new Type of Module
 
@@ -99,12 +101,39 @@ LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
 tensor(Ring, List) := o -> (R,L) -> (
     --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
     --The order matters for chain complexes; maybe not for modules.
+    --
     if L === {} then return labeledModule{(),R^1};
     if #L === 1 then return L_0;
-    tensor(R,drop(L,-1))**last L
+    ans1 := tensor(R,drop(L,-1))
+    ans := ans1**last L;
+    ans.cache.factors = {ans1,last L}
     )
 
+tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := LabeledModule => (M0,M1,M1) ->(
+    --produces the map from (M0**(M1**M2) to M0**M1**M2 = (M0**M1)**M2
+    t := tensorAssociativity(M0,M1,M2);
+    M := target source t;
+    M.cache.factors = {M_0, M_1**M_2)
+    directSum(1:({}=>M))
+    map(M0**M1**M2, M)
+    )
+
+
+resassociate1 = method()
+reassociate1 (LabeledModule, ZZ,ZZ) := LabeledModule => (M,ZZ,ZZ) ->(
+    M0 := ((M.cache.factors)_0).cache.factors_0;
+    M1 := ((M.cache.factors)_0).cache.factors_1;
+    M2 := (M.cache.factors)_1;
+    t := tensorAssociativity(M0,M1,M2);
+    M := target t;
+    M.cache.factors
 ///
+
+--tensorAssociativity(1,2,3):1(23)->(12)3
+
+assert(K**K**K**K ==((K**K)**K)**K)
+--1(2(3(4))) -> 1(2,3)4 -> (1,2)3)4 = 1234
+//////
 --every module should have a components and a factors cache;
 --only one non-empty
 --the ring should have a method for transforming the label of F into F^*.
@@ -115,7 +144,13 @@ tensor(Ring, List) := o -> (R,L) -> (
 
 restart
 loadPackage"AInfinity"
-tensorAssociativity := (k,n,
+
+S = ZZ/101[x,y]
+K = koszul matrix{{x^2,y^3}}
+assert(K**K**K != K**(K**K))
+assert(K**K**K == (K**K)**K)
+apply(length (K**K**K), i->((K**K)**K).dd_(i+1) - (K**(K**K)).dd_(i+1))
+
 ///
 
 
@@ -345,6 +380,7 @@ restart
 installPackage "AInfinity"
 
 
+
 t = tensorAssociativity(B_2, B_2, B_2);
 b = betti B
 b ** b
@@ -353,16 +389,6 @@ b ** b
 
 
 ------tensor associativity
-restart
-S = ZZ/101[x,y]
-K = koszul matrix{{x^2,y^3}}
-assert(K**K**K != K**(K**K))
-assert(K**K**K == (K**K)**K)
-apply(length (K**K**K), i->((K**K)**K).dd_(i+1) - (K**(K**K)).dd_(i+1))
---tensorAssociativity(1,2,3):1(23)->(12)3
-
-assert(K**K**K**K ==((K**K)**K)**K)
---1(2(3(4))) -> 1(2,3)4 -> (1,2)3)4 = 1234
 
 for resolutions A of R, G of M, both length 3 , there is one nonzero component of m_3:
 mM_3: B_2**B_2**G_0 ->G_3 == -mM_2(mB_2(B_2,B_2),G_0)-mM_2(B_2, mM_2(B_2,G_0))
