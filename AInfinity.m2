@@ -39,6 +39,7 @@ LabeledModule = new Type of Module
 
 labeledModule = method()
 labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> directSum(1:(L=>F))
+labeledModule(Module) := LabeledModule => F -> directSum(1:({}=>F))
 --for eTensor to work, the label must be of the form {ZZ,List}, representing
 --an element of G**B**B**B...
 --then eTensor adds the first components, concatenates the second components.
@@ -109,31 +110,28 @@ tensor(Ring, List) := o -> (R,L) -> (
     ans.cache.factors = {ans1,last L}
     )
 
-tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := LabeledModule => (M0,M1,M1) ->(
+tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := Matrix => (M0,M1,M1) ->(
     --produces the map from (M0**(M1**M2) to M0**M1**M2 = (M0**M1)**M2
     t := tensorAssociativity(M0,M1,M2);
-    M := target source t;
-    M.cache.factors = {M_0, M_1**M_2)
-    directSum(1:({}=>M))
+    M := labeledModule(source t,{});
+    M.cache.factors = {M_0, M_1**M_2};
+    M
     map(M0**M1**M2, M)
     )
 
 
 resassociate1 = method()
-reassociate1 (LabeledModule, ZZ,ZZ) := LabeledModule => (M,ZZ,ZZ) ->(
+reassociate1 (LabeledModule, ZZ,ZZ) := Matrix => (M,p) ->(
+    map from new association to current
     M0 := ((M.cache.factors)_0).cache.factors_0;
     M1 := ((M.cache.factors)_0).cache.factors_1;
     M2 := (M.cache.factors)_1;
     t := tensorAssociativity(M0,M1,M2);
     M := target t;
-    M.cache.factors
+    M.cache.factors)
+
+
 ///
-
---tensorAssociativity(1,2,3):1(23)->(12)3
-
-assert(K**K**K**K ==((K**K)**K)**K)
---1(2(3(4))) -> 1(2,3)4 -> (1,2)3)4 = 1234
-//////
 --every module should have a components and a factors cache;
 --only one non-empty
 --the ring should have a method for transforming the label of F into F^*.
@@ -149,7 +147,33 @@ S = ZZ/101[x,y]
 K = koszul matrix{{x^2,y^3}}
 assert(K**K**K != K**(K**K))
 assert(K**K**K == (K**K)**K)
+assert (source tensorAssociativity(K,K,K) == K**(K**K))
+assert (not source tensorAssociativity(K,K,K) == (K**K)**K)
+
 apply(length (K**K**K), i->((K**K)**K).dd_(i+1) - (K**(K**K)).dd_(i+1))
+
+t = (A,B,C) -> tensorAssociativity(A,B,C)
+s = (A,B,C) -> ( -- fix me!
+    C0 = A**B**C;
+    C1 = A**(B**C);
+    F0 := tensorAssociativity(A_0,B_0,C_0);
+    extend(id_C0//F0, C1)
+
+    
+    
+
+(K**K)**((K**K)**K) == (K**K)**(K**K**K)
+(K**K)**((K**K)**K) != (K**K)**K**K**K
+Goal = (K**(K**K)**K) 
+G1 = (K**K)**(K**K) 
+G1 == (K**K**(K**K))
+G2 = K**(K**(K**K))
+Start = (((K**K)**K)**K) 
+target t(K**K,K,K) == Start
+source t(K**K,K,K) == G1
+target t(K,K,K**K) == G1
+source t(K,K,K**K) == G2
+target (id_K**s(K,K,K)) == G2
 
 ///
 
@@ -161,6 +185,13 @@ B = koszul matrix{{a^2,b^3}}
 C = koszul matrix{{b^4,a^5}}
 assert(A**B**C == tensor(S,{A,B,C}))
 assert(tensor(S,{C,B,A}) != tensor(S,{A,B,C}))
+
+(((A**B)**C)**D) <-(A**B)**(C**D)<-A*(B*(C**D)) <- A*((B*C)*D)
+tensorAssociativity(A*B,C,D)
+tensorAssociativity(A,B,C**D)
+id_A**tensorAssociativity(B,C,D)
+
+A1*A2*....*An -- (A1*..*Ap)*((Ap'*..Aq)*(Aq..An)) = (A1*..*Ap)*(Ap'*..Aq*Aq'*..*An)
 ///
 
 componentsAndIndices = (F) -> (
