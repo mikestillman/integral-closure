@@ -26,7 +26,8 @@ export {
     "labeledChainComplex",
     --symbols
     "label",
-    "factors"
+    "factors",
+    "module"
     }
 
 
@@ -42,52 +43,95 @@ labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> (
     F'.cache.label = L;
     F'.cache.factors = {F'};--singleton means not a tensor product module
     directSum(1:F'); -- singleton means not a direct sum module
+    F'.cache.module = F;
     F'
     )
+
+module = method()
+module LabeledModule := Module => M -> new Module from M
+
 
 labeledModule(Module) := LabeledModule => F -> labeledModule({},F)
 
 getLabel = method()
-getLabel LabeledModule := VisibleList => F -> F.cache.label
+--getLabel LabeledModule := VisibleList => F -> F.cache.label
+--getLabel LabeledComplex := VisibleList => F -> F.cache.label
+--getLabel LabeledChainComplex := VisibleList => F -> F.cache.label
+getLabel Thing := VisibleList => F -> if (F.?cache and F.cache.?label)
+                    then F.cache.label else
+		    error"Not a labeled object"
 
 labeledComplex = method()
 labeledComplex(VisibleList, Complex) := LabeledComplex => (L,C) -> (
-    C' = new LabeledComplex from C;
-    for i from min C to max C do if class C_i = labeledModule 
-       then C'_i = C_i continue else 
+    C' := new LabeledComplex from C;
+    for i from min C to max C do if class C_i === labeledModule 
+       then C'_i = C_i else 
        C'_i = labeledModule({},C_i);
-    complex for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i)
-)
-labeledComplex = method()
-labeledComplex(VisibleList, ChainComplex) := LabeledChainComplex => (L,C) -> (
-    C' = new LabeledChainComplex from C;
-    for i from min C to max C do if class C_i = labeledModule 
-       then C'_i = C_i continue else 
-       C'_i = labeledModule({},C_i);
-    for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i)
+    for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i);
+    C'.cache = new CacheTable;
+    C'.cache.label = L;
+    C'
 )
 
+labeledChainComplex = method()
+labeledChainComplex(VisibleList, ChainComplex) := LabeledChainComplex => (L,C) -> (
+    C' := new LabeledChainComplex from C;
+    for i from min C to max C do if class C_i === labeledModule 
+       then C'_i = C_i else 
+       C'_i = labeledModule({},C_i);
+    for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i);
+    C'.cache = new CacheTable;
+    C'.cache.label = L;
+    C'
+)
+
+tensor(LabeledModule, LabeledModule) := LabeledModule => o -> (F,G) -> (
+    ans := new LabeledModule from (module F ** module G);
+    ans.cache.module = (module F ** module G);
+    ans.cache.factors = {F,G};
+    ans.cache.components = flatten apply(components F, M -> apply(components G, N -> 
+	    module M ** module N));
+    ans.cache.label = {getLabel F, getLabel G};
+    ans)
+
+LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
+
+directSum(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
+    ans := new LabeledModule from (module F ++ module G);
+    ans.cache.module = module F ++ module G;
+    ans.cache.factors = {module F ++ module G};
+    ans.cache.components = {F,G};
+    ans.cache.label = {getLabel F, getLabel G};
+    ans)
+
+--this doesn't work. Is it because 
+--"directSum" has class "MethodFunctionSingle" instead of "MethodFunction"?
+
+LabeledModule++LabeledModule := (A,B) -> directSum(A,B)
 ///
-restart
 uninstallPackage "AInfinity"
 restart
 installPackage "AInfinity"
+///
 
+///
+restart
 loadPackage("AInfinity", Reload => true)
 
 kk = ZZ/101
 S = kk[a,b,c]
 k = labeledModule({}, coker vars S)
 getLabel k
+K = labeledChainComplex({KK}, koszul vars S)
+getLabel K_1
+getLabel K
+class K_1
+class module K_1
+tensor(K_1, K_1)
+class(K_1**K_1)
+class(K_1 ++ K_1)
+class directSum(K_1, K_1)
 
-
-
-
-tensor(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
-    ans := eTensor(F,G);
-    ans.cache.factors = {F,G};
-    ans)
-LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
 ///
 
 ---Code from EagonResolution.m2---------------
