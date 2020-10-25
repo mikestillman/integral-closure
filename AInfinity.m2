@@ -1,19 +1,3 @@
--*
-TODO: 
-
-Make aInfinity(Ring,ZZ) use the commutative multiplication. 
-Is there an analogue for the higher products?
-can we call SchurComplexes?
-
-add the maps B -> G 
-
-replace ** with eTensor
-
-add associativities
-
-construct the resolution
-*-
-
 newPackage(
 	"AInfinity",
     	Version => "0.1", 
@@ -24,28 +8,97 @@ newPackage(
 	          {Name => "Mike Stillman", 
                   Email => "mike@math.cornell.edu", 
                   HomePage => "http://pi.math.cornell.edu/~mike"}},
+	PackageExports => {"Complexes"},
         Headline => "Compute AInfinity structures on free resolutions",
         DebuggingMode => true
-    	)
+	)
 
 export {
+    "LabeledModule",
+    "LabeledComplex",
+    "LabeledChainComplex",
     "aInfinity",
     "burck",
     "golodBetti",
+    "labeledModule",
+    "getLabel",
+    "labeledComplex",
+    "labeledChainComplex",
     --symbols
+    "label",
     "factors"
     }
+
+
 LabeledModule = new Type of Module
+print class LabeledModule
+LabeledChainComplex = new Type of ChainComplex
+LabeledComplex = new Type of Complex
 
 labeledModule = method()
-labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> directSum(1:(L=>F))
-labeledModule(Module) := LabeledModule => F -> directSum(1:({}=>F))
+labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> (
+    F':=new LabeledModule from F;
+    if not F'.?cache then F'.cache = new CacheTable;
+    F'.cache.label = L;
+    F'.cache.factors = {F'};--singleton means not a tensor product module
+    directSum(1:F'); -- singleton means not a direct sum module
+    F'
+    )
+
+labeledModule(Module) := LabeledModule => F -> labeledModule({},F)
+
+getLabel = method()
+getLabel LabeledModule := VisibleList => F -> F.cache.label
+
+labeledComplex = method()
+labeledComplex(VisibleList, Complex) := LabeledComplex => (L,C) -> (
+    C' = new LabeledComplex from C;
+    for i from min C to max C do if class C_i = labeledModule 
+       then C'_i = C_i continue else 
+       C'_i = labeledModule({},C_i);
+    complex for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i)
+)
+labeledComplex = method()
+labeledComplex(VisibleList, ChainComplex) := LabeledChainComplex => (L,C) -> (
+    C' = new LabeledChainComplex from C;
+    for i from min C to max C do if class C_i = labeledModule 
+       then C'_i = C_i continue else 
+       C'_i = labeledModule({},C_i);
+    for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i)
+)
+
+///
+restart
+uninstallPackage "AInfinity"
+restart
+installPackage "AInfinity"
+
+loadPackage("AInfinity", Reload => true)
+
+kk = ZZ/101
+S = kk[a,b,c]
+k = labeledModule({}, coker vars S)
+getLabel k
+
+
+
+
+tensor(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
+    ans := eTensor(F,G);
+    ans.cache.factors = {F,G};
+    ans)
+LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
+///
+
+---Code from EagonResolution.m2---------------
+
 --for eTensor to work, the label must be of the form {ZZ,List}, representing
 --an element of G**B**B**B...
 --then eTensor adds the first components, concatenates the second components.
 --note that this is associative but NOT commutative.
 
----Code from EagonResolution.m2---------------
+
+
 tensorWithComponents = method()
 tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
     if F == 0 or G == 0 then return (ring F)^0;
@@ -91,13 +144,6 @@ eTensor(Ring, List) := (R,L) -> (
     eTensor(R,drop(L,-1))**last L
     )
 
-tensor(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
-    ans := eTensor(F,G);
-    ans.cache.factors = {F,G};
-    ans)
-    
-
-LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
 
 tensor(Ring, List) := o -> (R,L) -> (
     --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
@@ -105,30 +151,29 @@ tensor(Ring, List) := o -> (R,L) -> (
     --
     if L === {} then return labeledModule{(),R^1};
     if #L === 1 then return L_0;
-    ans1 := tensor(R,drop(L,-1))
+    ans1 := tensor(R,drop(L,-1));
     ans := ans1**last L;
     ans.cache.factors = {ans1,last L}
     )
 
-tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := Matrix => (M0,M1,M1) ->(
+tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := Matrix => (M0,M1,M2) ->(
     --produces the map from (M0**(M1**M2) to M0**M1**M2 = (M0**M1)**M2
     t := tensorAssociativity(M0,M1,M2);
-    M := labeledModule(source t,{});
+    M := labeledModule(source t);
     M.cache.factors = {M_0, M_1**M_2};
-    M
     map(M0**M1**M2, M)
     )
 
-
-resassociate1 = method()
+reassociate1 = method()
 reassociate1 (LabeledModule, ZZ,ZZ) := Matrix => (M,p) ->(
-    map from new association to current
     M0 := ((M.cache.factors)_0).cache.factors_0;
     M1 := ((M.cache.factors)_0).cache.factors_1;
     M2 := (M.cache.factors)_1;
     t := tensorAssociativity(M0,M1,M2);
-    M := target t;
-    M.cache.factors)
+    N := target t;
+    N.cache.factors = {M0,M1**M2};
+    )
+    
 
 
 ///
@@ -144,7 +189,12 @@ restart
 loadPackage"AInfinity"
 
 S = ZZ/101[x,y]
-K = koszul matrix{{x^2,y^3}}
+K = complex koszul matrix{{x^2,y^3}}
+
+K**K
+(components (K**K**K)_3)_2
+components oo
+
 assert(K**K**K != K**(K**K))
 assert(K**K**K == (K**K)**K)
 assert (source tensorAssociativity(K,K,K) == K**(K**K))
@@ -153,7 +203,14 @@ assert (not source tensorAssociativity(K,K,K) == (K**K)**K)
 apply(length (K**K**K), i->((K**K)**K).dd_(i+1) - (K**(K**K)).dd_(i+1))
 
 t = (A,B,C) -> tensorAssociativity(A,B,C)
-s = (A,B,C) -> ( -- fix me!
+s = method()
+s(Module, Module, Module) := Matrix => (A,B,C) -> (tensorAssociativity(A,B,C)^-1
+s(ChainComplex, ChainComplex, ChainComplex) := ChainComplexMap => (A,B,C) -> (
+    D := (A**B)**C;
+    E := A**(B**C);
+    ta := tensorAssociativity(A,B,C);
+    map(D,E,for i from min D to max D do 
+	for 
     C0 = A**B**C;
     C1 = A**(B**C);
     F0 := tensorAssociativity(A_0,B_0,C_0);
@@ -465,3 +522,34 @@ E = extend(G,schurComplex({2},G),id_(G_0))
 components (source E)_2
 code methods schurComplex
 viewHelp SchurComplexes
+
+
+-*
+TODO: 
+
+Make aInfinity(Ring,ZZ) use the commutative multiplication. 
+Is there an analogue for the higher products?
+can we call SchurComplexes?
+
+add the maps B -> G 
+
+replace ** with eTensor
+
+add associativities
+
+construct the resolution
+
+
+
+
+Note: from "Grammarly":
+"Labeled and labelled are both correct spellings, 
+and they mean the same thing. 
+How you spell the word depends on your audience. 
+If you are writing for American readers, labeled is the preferred spelling. 
+In other places, such as Great Britain and Canada, 
+labelled is a more common spelling than labeled."
+
+also: labeled gets 5X more hits in google than labelled.
+
+*-
