@@ -16,11 +16,23 @@ newPackage(
         )
 
 -- TODO:
+--  rename multiplication --> multiplicationMap
+--  rename getBasis --> noetherBasis (different for ring, and for the field?)
+--  remove some functions from the export list
+--  clean up use of NoetherInfo, NoetherField, NoetherRing.
+--    this is mainly used in trace, multiplicationMap, traceForm...
+--  remove old bracketed code
+--  get noetherForm(RingMap) to work with the other methods.
+--  place into NoetherNormalization
+--  call the functions here noetherNormalization?
+
+
+-- TODO:
 --  getBasis: bad name, perhaps noetherBasis?
 --    also, should allow the situation where noetherForm has not been called?
 --    perhaps only present the matrix, not the list?
 --  noetherForm:
---    if the linear forms are variables, do not rename them (at leat by default).
+--    if the linear forms are variables, do not rename them (at least by default).
 --    if the linear forms are not variables, we must give them new names, but then
 --      also remove the variables from the larger ring B.
 --      one way: consider all of the elements of the list, which are affine linear forms.
@@ -53,18 +65,19 @@ newPackage(
 -- how to get the isomorphism from B to R?
 
 export {
-    "isFiniteOverCoefficientRing",
-    "checkNoetherNormalization",
+    "isFiniteOverCoefficientRing", -- TODO: get this to work
+--    "checkNoetherNormalization", -- TODO: get this to work
     "noetherForm",
-    "makeFrac",
-    "getBasis",
-    "getBasisMatrix",
+--    "makeFrac",
+    "noetherBasis",
+    "noetherBasisMatrix",
     "inNoetherForm",
-    "multiplication",
+    "multiplicationMap",
     "traceForm",
+    "noetherMap",
     -- keys used:
-    "noetherField",
-    "noetherRing",
+--    "noetherField",
+--    "noetherRing",
     "NoetherInfo",
     "Remove"
     }
@@ -117,6 +130,14 @@ noetherRing Ring := Ring => (R) -> (
       else R
     )
 
+noetherMap = method()
+noetherMap Ring := Ring => (B) -> (
+    if not B#?"NoetherMap" then 
+        error "expected a ring created with `noetherForm`"
+    else
+        B#"NoetherMap"
+    )
+
 -- The following sets (or gets, if already computed) the
 -- basis of the ring over its coefficient ring, assuming that
 -- the ring has been placed in Noether normal form.
@@ -147,16 +168,16 @@ basisOfRing Ring := (R) -> (
     NI#"basis"
     )
 
-getBasis = method()
-getBasis Ring := List => (R) -> first entries (basisOfRing R)
+noetherBasis = method()
+noetherBasis Ring := List => (R) -> first entries (basisOfRing R)
 
-getBasisMatrix = method()
-getBasisMatrix Ring := Matrix => (R) -> basisOfRing R
+noetherBasisMatrix = method()
+noetherBasisMatrix Ring := Matrix => (R) -> basisOfRing R
 
-multiplication = method()
-multiplication RingElement := (m) -> (
+multiplicationMap = method()
+multiplicationMap RingElement := (m) -> (
      R := ring m;
-     S := getBasisMatrix R;
+     S := noetherBasisMatrix R;
      (mn, cf) := coefficients(m * S, Monomials => S);
      lift(cf,coefficientRing R)
      )
@@ -167,9 +188,9 @@ setTraces = (R) -> (
      -- R should be a Noether field
     H := noetherInfo R;
     if not H#?"traces" then (
-        B := getBasis R;
+        B := noetherBasis R;
         traces := for b in B list (
-	    m := multiplication b;
+	    m := multiplicationMap b;
 	    --numerator lift(trace m, coefficientRing R)
 	    t := lift(trace m, coefficientRing R);
 	    tdenom := lift(denominator t, coefficientRing ring t);
@@ -180,15 +201,18 @@ setTraces = (R) -> (
     )
 
 trace RingElement := (f) -> (
+    R := ring f;
+    -- if not placedInNoetherForm R
+    --   then place it, or give an error.
+    -- RK = frac R;
      -- R = ring f should be a noetherRing or noetherField
      -- result is in the coefficient ring of R.
-     R := ring f;
      RK := noetherField R;
      NI := noetherInfo RK;
      if not NI#?"traces" then setTraces RK;
      traces := NI#"traces";
      f = sub(f,RK);
-     M := last coefficients(f, Monomials => getBasisMatrix RK);
+     M := last coefficients(f, Monomials => noetherBasisMatrix RK);
      g := (traces * M)_(0,0);
      g = lift(g, coefficientRing RK);
      --stopgap for lifts from frac QQ[x] to QQ[x] not working 5-26-11
@@ -202,10 +226,13 @@ trace RingElement := (f) -> (
 
 traceForm = method()
 traceForm Ring := (R) -> (
+    -- if not placedInNoetherForm R
+    --   then place it, or give an error.
+    -- RK = frac R;
     RK := noetherField R;
     NI := noetherInfo RK;
     if not NI#?"trace form" then NI#"trace form" = (
-        S := getBasis RK;
+        S := noetherBasis RK;
         K := coefficientRing RK;
         M := mutableMatrix(K, #S, #S);
         for i from 0 to #S-1 do
@@ -270,6 +297,7 @@ isFiniteOverCoefficientRing Ring := Boolean => (R) -> (
     else true
     )    
 
+-- TODO
 checkNoetherNormalization = method()
 checkNoetherNormalization RingMap := Boolean => (phi) -> (
     -- phi : A --> R
@@ -280,6 +308,7 @@ checkNoetherNormalization RingMap := Boolean => (phi) -> (
     --   R is finite over A.
     )
 
+-- TODO
 checkNoetherNormalization Ring := Boolean => (B) -> (
     -- check that 
     --   B is a ring of the form A[x's]/I
@@ -291,34 +320,12 @@ checkNoetherNormalization Ring := Boolean => (B) -> (
     then error "ring is not in the proper form (set 'debugLevel>0' for details)";
     )
 
-findComplement = method()
-findComplement RingMap := phi -> (
-    -- find a set of variables which is independent of the images of the variables under phi.
-    -- assumption: phi(x) = affine linear function, for all variables x.
-    -- phi : A --> S, A is a polynomial ring, R = S/I, S polynomial ring
-    L := flatten entries phi.matrix;
-    linears := select(L, f -> all(exponents f, e -> sum e <= 1));
-    keep := compress((vars target phi) % leadTerm ideal linears);
-    rsort flatten entries keep
-    )
-
-///
-  restart
-  needsPackage "NoetherNormalForm"
-  R = ZZ/101[x,y,z,u,v,w]
-  A = ZZ/101[s,t,w,a]
-  use R
-  phi = map(R, A, {x-y, x-2*y+z+1, w, w^2-u})
-  findComplement phi
-  L = {x-y, x-2*y+z+1}
-  -- Will get A = k[s,t], B = [z,w]/...
-  
-///
 
 makeFrac = method()
 makeFrac Ring := Ring => (B) -> (
-    if not isFiniteOverCoefficientRing B
-    then error "expected the ring to be finite over the chosen polynomial ring";
+-- TODO: put this back in once it is working...
+--    if not isFiniteOverCoefficientRing B
+--    then error "expected the ring to be finite over the chosen polynomial ring";
     A := coefficientRing B; -- ASSUME: a polynomial ring over a field.
     KA := frac A;
     kk := coefficientRing A; -- must be a field, but not a fraction field.
@@ -368,6 +375,8 @@ makeFrac Ring := Ring => (B) -> (
     )
 
 noetherForm = method(Options => {Remove => null, Variable => getSymbol "t"})
+
+--------- Code below to be removed ---------------------------------------------------------------
 noetherForm RingMap := Ring => opts -> (f) -> (
     A := source f;
     R := target f;
@@ -471,16 +480,6 @@ noetherForm List := Ring => opts -> (xv) -> (
     )
 *-
 
-noetherForm Ring := Ring => opts -> R -> (
-    (F, J, xv) := noetherNormalization R;
-    kk := coefficientRing R;
-    t := opts.Variable;
-    A := kk[t_0..t_(#xv-1)];
-    phi := map(R,A,for x in xv list F^-1 x);
-    noetherForm (phi, Remove => opts.Remove)
-    )
-
--- version I'm working on 29 Sep 2020.
 noetherForm List := Ring => opts -> (xv) -> (
     -- R should be a quotient of a polynomial ring,
     -- xv a list of algebraically independent polynomials in R
@@ -562,6 +561,7 @@ workAroundInverse RingMap := (phi) -> (
     --assert(phi * phi^-1 === id_R); -- TODO: same
     )
 
+--------- Code above to be removed ---------------------------------------------------------------
 
   -- This one we would like to have the base be A = kk[t_0, t_1],
   -- and B = A[c,d], know that t_0 --> a+b, t_1 --> a+d.
@@ -581,10 +581,10 @@ workAroundInverse RingMap := (phi) -> (
   --   
 
 
-createCoefficientRing = method(Options => {Variable => "t"})
+createCoefficientRing = method(Options => {Variable => getSymbol "t"})
 createCoefficientRing(Ring, List) := RingMap => opts -> (R, L) -> (
     count := -1;
-    t := getSymbol opts.Variable;
+    t := opts.Variable;
     coeffVarNames := for f in L list (
         if index f  =!= null then 
             f 
@@ -662,22 +662,298 @@ noetherForm List := Ring => opts -> (xv) -> (
     -- First we create the rings A --> ambientB, without regard to I.
     ambientR := ring I;
     xvAmbientR := for x in xv list lift(x, ambientR);
-    f := createCoefficientRing(ambientR, xvAmbientR);
+    f := createCoefficientRing(ambientR, xvAmbientR, Variable => opts.Variable);
     F := createRingPair f;
     G := inverse F;
     -- now we need to descend this to R --> B = ambientB/(image of I)
-    B := (target G)/(G I);
+    J := trim (G I); 
+    B := (target G)/J;
     GR := map(B, R, G.matrix);
     FR := map(R, B, F.matrix);
     GR.cache.inverse = FR;
     FR.cache.inverse = GR;
-    B.cache#"NoetherMap" = GR; -- stash which map?
+    B#"NoetherMap" = FR; -- stash the map B --> R, but the other can be obtained via 'inverse'
     L := makeFrac B;
     B
     )
 
+-- Input: a ring map F : A --> R such that:
+--   (a) A is a polynomial ring over a field
+--   (b) R is a quotient of a polynomial ring over the same field
+--   (c) R is a finite A-module
+-- Output:
+--   A ring B = A[vars]/I
+--     which is isomorphic to R (the isomorphism is available as `noetherMap B`)
+-- Notes
+--   (a) the `noetherMap B` is stored in B, not the original R.
+--   (b) if the image of a variable is a variable, that variable is not in `vars`
+--   (c) if the image of a variable is a linear polynomial, one of the variables present will not be 
+--        placed into the vars of B.
+noetherForm RingMap := Ring => opts -> (f) -> (
+    A := source f;
+    R := target f;
+    kk := coefficientRing R;
+    if not isCommutative A then 
+        error "expected source of ring map to be a commutative ring";
+    if A === kk then return R;
+    if not isAffineRing R then 
+        error "expected an affine ring";
+    if not isAffineRing A then 
+        error "expected an affine ring";
+    if not ( kk === coefficientRing A) then 
+        error "expected polynomial rings over the same ring";
+    gensk := generators(kk, CoefficientRing => ZZ);
+    if not all(gensk, x -> promote(x,R) == f promote(x,A)) then 
+        error "expected ring map to be identity on coefficient ring";
+ -- AAA    
+
+    ambientB := A[gens R, MonomialOrder => (monoid R).Options.MonomialOrder,
+        Degrees => apply(degrees R, f.cache.DegreeMap)
+        ]; 
+    f' := map(ambientB, A, sub(f.matrix, ambientB));
+    J1 := ideal for x in gens A list f' x - x; 
+      -- todo: if opts.Remove, take lead terms of these (if they are linear?)
+      -- reduce them (in ambient ring?)
+      -- the lead terms which are variables in ambientB:
+      --   create new ambientB' which leaves these variables out.
+      -- then take J2 below, which should not involve the variables removed.
+      --   perhaps check that.
+      -- is the answer B = ambientB'/J2? (J2 after %J1, moving this to ambientB')
+    J2 := sub(ideal R, vars ambientB);
+    J2 = trim ideal((gens J2) % J1);
+    B := ambientB/(J1 + J2);
+    L := makeFrac B;
+    B)
+
+noetherForm Ring := Ring => opts -> R -> (
+    (F, J, xv) := noetherNormalization R;
+    kk := coefficientRing R;
+    t := opts.Variable;
+    A := kk[t_0..t_(#xv-1)];
+    phi := map(R,A,for x in xv list F^-1 x);
+    noetherForm (phi, Remove => opts.Remove)
+    )
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- Simple test
+  R = ZZ/101[x,y]/(x^4-y^5-x*y^3)
+  B = noetherForm {x}
+  describe B
+  f = noetherMap B
+  g = f^-1
+  assert(f*g === id_R)
+  assert(g*f === id_B)
+
+  A = coefficientRing B
+  L = frac B
+
+  assert(coefficientRing B === A) -- automatic, by def of A
+  assert(frac B === L) -- automatic, by def of L
+  assert(coefficientRing L === frac A) -- needs checking
+  assert(ring numerator 1_L === B) -- needs checking
+  
+--  R = ZZ/101[x,y]/(x^4-y^5-x*y^7)
+--  B = noetherForm {x} -- fails... actually, this is not finite over the base...
 ///
 
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- Simple test
+  S = ZZ/101[a..d]
+  I = monomialCurveIdeal(S, {1,3,4})
+  R = S/I
+
+  B = noetherForm {a,d}
+  describe B
+  f = noetherMap B
+  g = f^-1
+  assert(f*g === id_R)
+  assert(g*f === id_B)
+
+  A = coefficientRing B
+  L = frac B
+
+  assert(coefficientRing B === A) -- automatic, by def of A
+  assert(frac B === L) -- automatic, by def of L
+  assert(coefficientRing L === frac A) -- needs checking
+  assert(ring numerator 1_L === B) -- needs checking
+///
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- Simple test
+  S = ZZ/101[a..d]
+  I = monomialCurveIdeal(S, {1,3,4})
+  R = S/I
+
+  B = noetherForm({a+d,a+c+d}, Variable => {s,t})
+  describe B
+  assert(#gens B === 2) -- make sure it removes 2 of the variables of a,b,c,d
+
+  f = noetherMap B
+  g = f^-1
+  assert(f*g === id_R)
+  assert(g*f === id_B)
+
+  A = coefficientRing B
+  L = frac B
+
+  assert(coefficientRing L === frac A) -- needs checking
+  assert(ring numerator 1_L === B) -- needs checking
+///
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- Simple test
+  S = ZZ/101[a..d]
+  I = monomialCurveIdeal(S, {1,3,4})
+  R = S/I
+
+  B = noetherForm({a, a+c+d}, Variable => {s,t})
+  assert(#gens B === 2) -- make sure it removes 2 of the variables of a,b,c,d
+  use coefficientRing B
+  assert(gens coefficientRing B === {a,s})
+  use B
+  assert(gens B === {b,d})
+  
+  f = noetherMap B
+  g = f^-1
+  assert(f*g === id_R)
+  assert(g*f === id_B)
+
+  A = coefficientRing B
+  L = frac B
+
+  assert(coefficientRing L === frac A) -- needs checking
+  assert(ring numerator 1_L === B) -- needs checking
+///
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- Test to make sure that degrees in R don't mess up what happens in B.
+-- Currently: B is set to have the standard grading.  How should we really handle this?
+  S = ZZ/101[a..d]
+  I = monomialCurveIdeal(S, {1,3,4})
+  S = ZZ/101[a..d, Degrees => {1,3,2,4}, MonomialOrder => {2,2}]
+  I = sub(I, S)
+  R = S/I
+
+  B = noetherForm {a,d}
+  degrees B
+  degrees coefficientRing B
+
+  use R  
+  B = noetherForm({a+d,a+c+d}, Variable => {s,t})
+  describe B
+  assert(#gens B === 2) -- make sure it removes 2 of the variables of a,b,c,d
+
+  f = noetherMap B
+  g = f^-1
+  assert(f*g === id_R)
+  assert(g*f === id_B)
+
+  A = coefficientRing B
+  L = frac B
+
+  assert(coefficientRing L === frac A) -- needs checking
+  assert(ring numerator 1_L === B) -- needs checking
+///
+
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- CURRENT PROBLEM: degrees are not preserved.
+-- Test: what if the original ring has a multi-grading?
+-- TODO: current problem is that the maps f,g below are not 
+--   degree preserving.  Should they be? Can they be?
+  S = ZZ/101[a..d]
+  I = monomialCurveIdeal(S, {1,3,4})
+  S = ZZ/101[a..d, DegreeRank => 4, MonomialOrder => {2,2}]
+  I = sub(I, S)
+  R = S/I
+
+  B = noetherForm {a,d}
+  degrees B
+  degrees coefficientRing B
+
+  f = noetherMap B
+  g = f^-1
+--TODO  assert(f*g === id_R)
+--TODO  assert(g*f === id_B)
+  -- The maps are correct, except for grading?
+  assert(flatten entries (g*f).matrix == generators(B, CoefficientRing => ZZ/101))
+  assert(flatten entries (f*g).matrix == generators(R, CoefficientRing => ZZ/101))
+
+  use R  
+  B = noetherForm({a+d,a+c+d}, Variable => {s,t})
+  describe B
+  assert(#gens B === 2) -- make sure it removes 2 of the variables of a,b,c,d
+
+  f = noetherMap B
+  g = f^-1
+  --assert(f*g === id_R)
+  --assert(g*f === id_B)
+  assert(flatten entries (g*f).matrix == generators(B, CoefficientRing => ZZ/101))
+  assert(flatten entries (f*g).matrix == generators(R, CoefficientRing => ZZ/101))
+
+  A = coefficientRing B
+  L = frac B
+
+  assert(coefficientRing L === frac A) -- needs checking
+  assert(ring numerator 1_L === B) -- needs checking
+///
+
+
+-- AAA
+TEST ///
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+-- Test: what if the original ring is a tower of rings?
+-- CURRENT PROBLEM: original ring cannot be a tower.  Need to flatten it first.
+  S = ZZ/101[a..d]
+  I = monomialCurveIdeal(S, {1,3,4})
+  S = ZZ/101[c,d][a,b, Join => false]
+  I = sub(I, S)
+  R = S/I
+  
+  -- the following fails
+  (flatR, fR) = flattenRing R
+  use R; use coefficientRing R
+  elems = flatten entries matrix{{a,d}}
+  elems = (elems/fR) 
+  assert all(elems, a -> ring a === flatR)
+--TODO  B = noetherForm elems -- STILL FAILS...
+
+  -- Why does this work, but the above one fails?
+  S = ZZ/101[a..d, MonomialOrder=>{2,Position=>Up,2}]
+  I = monomialCurveIdeal(S, {1,3,4})
+  R = S/I
+  B = noetherForm {a,d}
+///
+
+
+-- todo: clean up tests below this.
+///
 -*
   restart
   debug needsPackage "NoetherNormalForm"
@@ -840,7 +1116,7 @@ doc ///
     (noetherForm, RingMap)
     (noetherForm, Ring)
   Headline
-    place the target of a ring map into Noether normal form, via the map
+    create a polynomial ring in Noether normal form
   Usage
     B = noetherForm phi
     B = noetherForm xv
@@ -886,12 +1162,12 @@ doc ///
 
 doc ///
   Key
-    multiplication
-    (multiplication, RingElement)
+    multiplicationMap
+    (multiplicationMap, RingElement)
   Headline
     matrix of multiplication by an element
   Usage
-    multiplication f
+    multiplicationMap f
   Inputs
     f:RingElement
   Outputs
@@ -904,7 +1180,7 @@ doc ///
   SeeAlso
     noetherForm
     (inNoetherForm, Ring)
-    (getBasis, Ring)
+    (noetherBasis, Ring)
 ///
 
 doc ///
@@ -926,8 +1202,8 @@ doc ///
   SeeAlso
     noetherForm
     (inNoetherForm, Ring)
-    (getBasis, Ring)
-    (multiplication, RingElement)
+    (noetherBasis, Ring)
+    (multiplicationMap, RingElement)
 ///
 
 doc ///
@@ -953,12 +1229,12 @@ doc ///
 
 doc ///
   Key
-    getBasis
-    (getBasis, Ring)
+    noetherBasis
+    (noetherBasis, Ring)
   Headline
     basis over coefficient ring of ring in Noether form
   Usage
-    getBasis R
+    noetherBasis R
   Inputs
     R:Ring
   Outputs
@@ -970,8 +1246,8 @@ doc ///
   SeeAlso
     noetherForm
     (inNoetherForm, Ring)
-    (getBasis, Ring)
-    (multiplication, RingElement)
+    (noetherBasis, Ring)
+    (multiplicationMap, RingElement)
 ///
 
 TEST ///
@@ -1006,15 +1282,15 @@ TEST ///
   L = frac B
   describe B
   describe L
-  getBasis B
-  getBasis L
-  multiplication B_0
-  (getBasis B)/multiplication/trace
-  (getBasis L)/multiplication/trace
+  noetherBasis B
+  noetherBasis L
+  multiplicationMap B_0
+  (noetherBasis B)/multiplicationMap/trace
+  (noetherBasis L)/multiplicationMap/trace
   trace y
-  trace multiplication y == trace y
-  trace multiplication y_L == trace y_L
-  M = multiplication y_L
+  trace multiplicationMap y == trace y
+  trace multiplicationMap y_L == trace y_L
+  M = multiplicationMap y_L
   trace M
   trace(y_L)
   trace y
@@ -1026,6 +1302,8 @@ TEST ///
   restart
   debug needsPackage "NoetherNormalForm"
 *-
+  -- teat of the internal function 'makeFrac'
+  debug needsPackage "NoetherNormalForm"
   kk = ZZ/101
   A = kk[x];
   B = A[y, Join => false]/(y^4-x*y^3-(x^2+1)*y-x^6)
@@ -1061,11 +1339,11 @@ TEST ///
   describe B
   L = frac B
   describe L
-  getBasis B
-  getBasis L
+  noetherBasis B
+  noetherBasis L
 
-  multmaps = for x in getBasis B list pushFwd(map(B,A), map(B^1, B^1, {{x}}))
-  multmaps2 = for x in getBasis B list multiplication x
+  multmaps = for x in noetherBasis B list pushFwd(map(B,A), map(B^1, B^1, {{x}}))
+  multmaps2 = for x in noetherBasis B list multiplicationMap x
 -- TODO: should we try to insure that these matrices use the same bases?
 --  assert(multmaps === multmaps2) -- NOT EQUAL.  pushFwd uses different basis for B?
 --                                  -- would be nice: to have this play well with pushFwd... if possible.
@@ -1122,10 +1400,10 @@ TEST ///
   L = frac B
 describe B
 describe L
-getBasis B
-getBasis L
-  multmaps = for x in getBasis L list multiplication x
-  multmapsB = for x in getBasis B list multiplication x
+noetherBasis B
+noetherBasis L
+  multmaps = for x in noetherBasis L list multiplicationMap x
+  multmapsB = for x in noetherBasis B list multiplicationMap x
 
   traces = multmaps/trace
   traces = multmapsB/trace
@@ -1134,7 +1412,7 @@ getBasis L
 -*
   -- pushFwd doesn't currently work if the coeff ring is a fraction field.
   needsPackage "PushForward"
-  --multmaps2 = for x in getBasis L list pushFwd(map(L,frac A), map(L^1, L^1, {{x}}))
+  --multmaps2 = for x in noetherBasis L list pushFwd(map(L,frac A), map(L^1, L^1, {{x}}))
   --assert(multmaps === multmaps2)
   MB = pushFwd(map(B,A), B^1) -- dim 4, free
   map(A^1, MB, {traces}) -- traces as a map of modules
@@ -1150,9 +1428,9 @@ getBasis L
   phi = map(R,A,{R_0+R_1+R_2})
   B = noetherForm phi
   L = frac B
-  getBasis B
-  getBasis L
-  (getBasis L)/multiplication/trace
+  noetherBasis B
+  noetherBasis L
+  (noetherBasis L)/multiplicationMap/trace
   traceForm L
 ///
 
@@ -1206,11 +1484,11 @@ TEST ///
   assert(ring numerator h === B)
   assert(ring denominator h === A)
   
-  getBasis B
-  getBasis L
+  noetherBasis B
+  noetherBasis L
 
-  multiplication b
-  multiplication L_0
+  multiplicationMap b
+  multiplicationMap L_0
   traceForm L
 
   R = QQ[a..d]/(b^2-a, b*c-d)
