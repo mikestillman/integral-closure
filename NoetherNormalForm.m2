@@ -15,6 +15,32 @@ newPackage(
         DebuggingMode => true
         )
 
+-- TODO:
+--  getBasis: bad name, perhaps noetherBasis?
+--    also, should allow the situation where noetherForm has not been called?
+--    perhaps only present the matrix, not the list?
+--  noetherForm:
+--    if the linear forms are variables, do not rename them (at leat by default).
+--    if the linear forms are not variables, we must give them new names, but then
+--      also remove the variables from the larger ring B.
+--      one way: consider all of the elements of the list, which are affine linear forms.
+--        find a complement: a set of variables which combined with these linear forms span the 
+--          set of all variables?  Well, hmmm, not quite.
+--    need an optional argument about this.
+--
+--  need a function that takes B, and determines if it has been placed into this form?
+--    inNoetherForm -- change name?
+--  test noetherForm for all kinds of rings/gradings.
+--  remove internal functions from export list: makeFrac, getBasis, 
+--  functions to keep:
+--    noetherForm
+--    inNoetherForm (call it something else?  This is true if it was created via noetherForm)
+--    multiplicationMap
+--    traceForm
+--    trace? of an element in B or L = frac B.
+--    noetherBasis (getBasisMatrix) (of frac B, of B?)
+--    discriminant?
+
 -- creates A --> B, B isomorphic to the original affine ring R/
 --   where B is finite over A.
 -- frac B --> L
@@ -61,7 +87,7 @@ setNoetherInfo(Ring, Ring) := (B, KB) -> (
       -- this one should contain:
       --   map B --> R (original ring)
       --   map R --> B
-      --   map B --> KB
+      --   map B --> KB (not needed?)
     )
 
 -- private routine
@@ -269,7 +295,25 @@ findComplement = method()
 findComplement RingMap := phi -> (
     -- find a set of variables which is independent of the images of the variables under phi.
     -- assumption: phi(x) = affine linear function, for all variables x.
+    -- phi : A --> S, A is a polynomial ring, R = S/I, S polynomial ring
+    L := flatten entries phi.matrix;
+    linears := select(L, f -> all(exponents f, e -> sum e <= 1));
+    keep := compress((vars target phi) % leadTerm ideal linears);
+    rsort flatten entries keep
     )
+
+///
+  restart
+  needsPackage "NoetherNormalForm"
+  R = ZZ/101[x,y,z,u,v,w]
+  A = ZZ/101[s,t,w,a]
+  use R
+  phi = map(R, A, {x-y, x-2*y+z+1, w, w^2-u})
+  findComplement phi
+  L = {x-y, x-2*y+z+1}
+  -- Will get A = k[s,t], B = [z,w]/...
+  
+///
 
 makeFrac = method()
 makeFrac Ring := Ring => (B) -> (
@@ -358,6 +402,44 @@ noetherForm RingMap := Ring => opts -> (f) -> (
     B := ambientB/(J1 + J2);
     L := makeFrac B;
     B)
+
+-* MES working on this.
+noetherForm RingMap := Ring => opts -> (f) -> (
+    A := source f;
+    R := target f;
+    kk := coefficientRing R;
+    if not isCommutative A then 
+        error "expected source of ring map to be a commutative ring";
+    if A === kk then return R;
+    if not isAffineRing R then 
+        error "expected an affine ring";
+    if not isAffineRing A then 
+        error "expected an affine ring";
+    if not ( kk === coefficientRing A) then 
+        error "expected polynomial rings over the same ring";
+    gensk := generators(kk, CoefficientRing => ZZ);
+    if not all(gensk, x -> promote(x,R) == f promote(x,A)) then 
+        error "expected ring map to be identity on coefficient ring";
+
+    S := ambient R;
+    keep := findComplement lift(f.matrix, S); -- FIX.
+    ambientB := A[keep, Degrees => apply(keep/degree, f.cache.DegreeMap), Join => false
+        ];  -- IS CORRECT?
+    f' := map(ambientB, A, sub(f.matrix, ambientB)); -- FIX
+    J1 := ideal for x in gens A list f' x - x; 
+      -- todo: if opts.Remove, take lead terms of these (if they are linear?)
+      -- reduce them (in ambient ring?)
+      -- the lead terms which are variables in ambientB:
+      --   create new ambientB' which leaves these variables out.
+      -- then take J2 below, which should not involve the variables removed.
+      --   perhaps check that.
+      -- is the answer B = ambientB'/J2? (J2 after %J1, moving this to ambientB')
+    J2 := sub(ideal R, vars ambientB);
+    J2 = trim ideal((gens J2) % J1);
+    B := ambientB/(J1 + J2);
+    L := makeFrac B;
+    B)
+*-
 
 -*
 noetherForm List := Ring => opts -> (xv) -> (
@@ -479,26 +561,225 @@ workAroundInverse RingMap := (phi) -> (
     --assert(phi^-1 * phi === id_B); -- TODO: make sure these are the same?  The matrices are different sometimes only with degrees.
     --assert(phi * phi^-1 === id_R); -- TODO: same
     )
+
+
+  -- This one we would like to have the base be A = kk[t_0, t_1],
+  -- and B = A[c,d], know that t_0 --> a+b, t_1 --> a+d.
+  --                  a = d - t_1
+  --   therefore that b = d + t_0 - t_1.  How do we get this?
+  -- we have seversal sets of variables:
+  --  newA -- from linear equations, or higer degree elements of R.
+  --  oldA -- from B itself, these are variables in the list.
+  --  rewriteB -- these are variables we don't need, but we do need to know how to write them
+  --        in the new ring.
+  --  keepB -- these are the variables of B.  A subset of the current set of variables of R.
+  --
+  -- we are given the list L of polynomials (in ambient ring of R) that will form the variables of A
+  --   if L_i is a variable in ambientR, then use that name, remove from list of keepB, otherwise use a new name.
+  --   at this point, we can form the subring A.
+  -- now, we need the variables we will use in B
+  --   
+
+
+createCoefficientRing = method(Options => {Variable => "t"})
+createCoefficientRing(Ring, List) := RingMap => opts -> (R, L) -> (
+    count := -1;
+    t := getSymbol opts.Variable;
+    coeffVarNames := for f in L list (
+        if index f  =!= null then 
+            f 
+        else (
+            count = count+1;
+            t_count
+            )
+        );
+    A := (coefficientRing R)(monoid [coeffVarNames]);
+    map(R, A, L)
+    )
+
+  -- The following is currently hideous code to do something simple.
+  createRingPair = method()
+  createRingPair(RingMap) := RingMap => (f) -> (
+      -- Given f : A --> R (R a polynomial ring) (A,R polynomial rings)
+      -- create a ring B = A[new vars]/I, and an isomorphism R --> B.
+      --   preferably, the ideal I has no linear forms of the "new vars".
+      -- Return a ring map phi: R --> B
+      A := source f;
+      kk := coefficientRing A;
+      R := target f;
+      nR := numgens R;
+      lins := positions(flatten entries f.matrix, g -> (exponents g)/sum//max == 1);
+      -- create the matrix over the base: of size #elems of A x (numgens R + numgens A)
+      monsR := reverse append(gens R, 1_R);
+      (mons, cfs) := coefficients(f.matrix, Monomials => monsR);
+      M1 := -id_(kk^#lins) || lift(cfs_lins, kk);
+      M := gens gb M1;
+      inM := leadTerm M;
+      inM0 := submatrix(inM, {#lins+1 .. numrows M - 1},);
+      -- keepIndices: indices of variables in R we will keep in B
+      -- removeIndices: indices of variables in R that we will map to a linear poly.
+      --   for i, the variable (in R) with index removeIndices#i will map to newlins#i (in B)
+      removeIndices := apply(transpose entries inM0, x -> nR - 1 - position(x, x1 -> x1 != 0));
+      keepIndices := sort toList ((set(0..nR-1)) - set removeIndices);
+      B := A[(gens R)_keepIndices, Join => false];
+      monsB := (vars A)_lins | matrix{{1_B}} | matrix {reverse for i from 0 to nR-1 list (
+          if member(i, keepIndices) then B_((position(keepIndices, a -> a == i))) else 0_B
+          )};
+      newlins := flatten entries(monsB * (inM - M));
+      images := new MutableList from gens R;
+      for i from 0 to numgens B - 1 do images#(keepIndices#i) = B_i;
+      for i from 0 to #newlins-1 do images#(removeIndices#i) = newlins#i;
+      -- now make the map R --> B
+      RtoB := map(B, R, toList images);
+      BtoR := map(R, B, ((vars R)_keepIndices | f.matrix)); -- TODO: these are not quite inverses if f.matrix has non-linear terms...
+      RtoB.cache.inverse = BtoR;
+      BtoR.cache.inverse = RtoB;
+      BtoR
+      )
+
+noetherForm List := Ring => opts -> (xv) -> (
+    -- R should be a quotient of a polynomial ring,
+    -- xv a list of algebraically independent polynomials in R
+    -- result: a ring over the sub-poly ring or subfield generated by
+    --  the xv.
+    -- More detail:
+    --   If {f0, ..., fr} are the algebraically indep polynomials.
+    --   if any is a variable: use that name, remove from list of variables from ambientR
+    --          has lead term which is a variable: use a variable t_i, but remove the var from the ambientR vars
+    --          is a polynomial whose lead term is not linear: use a variable t_i.
+    --   This function constructs a polynomial ring A, and with the remaining set of variables
+    --      a quotient A[remaining vars]/I, isomorphic to R.
+    
+    -- TODO: allow the xv to be linear forms, or even perhaps higher degree polynomials.
+    --   for this part:
+    --     make a polynomial ring A with #xv variables.
+    --     make a ring map A --> (ring xv's), sending i-th var to xv#i.
+    --     call noetherForm Ringmap.
+    if #xv === 0 then error "expected non-empty list of ring elements";
+    R := ring xv#0;
+    if any(xv, x -> ring x =!= R) then error "expected elements all in the same ring";
+    I := ideal R;
+    -- First we create the rings A --> ambientB, without regard to I.
+    ambientR := ring I;
+    xvAmbientR := for x in xv list lift(x, ambientR);
+    f := createCoefficientRing(ambientR, xvAmbientR);
+    F := createRingPair f;
+    G := inverse F;
+    -- now we need to descend this to R --> B = ambientB/(image of I)
+    B := (target G)/(G I);
+    GR := map(B, R, G.matrix);
+    FR := map(R, B, F.matrix);
+    GR.cache.inverse = FR;
+    FR.cache.inverse = GR;
+    B.cache#"NoetherMap" = GR; -- stash which map?
+    L := makeFrac B;
+    B
+    )
+
 ///
+
 -*
   restart
-  needsPackage "NoetherNormalForm"
+  debug needsPackage "NoetherNormalForm"
+  S = ZZ/101[a..e]
+  g = createCoefficientRing(S, {b+d, b+e})
+  createRingPair g  
+
+  restart
+  debug needsPackage "NoetherNormalForm"
+  S = ZZ/101[a..e]
+  g = createCoefficientRing(S, {b+d, b+e, c^3-d^3})
+  F = createRingPair g  
+  G = F^-1
+F*G
+G*F
 *-
   -- working on noetherForm {list of polys"
   S = ZZ/101[a..d]
   I = monomialCurveIdeal(S, {1,3,4})
   R = S/I
+  B = noetherForm({a+b, a+d})
+  describe B  
 
-T = ZZ/101[a..d,s,t,MonomialOrder=>{4,2}]
-IT = sub(I,T)
-J = IT+ideal(s-(a+b), t-(c+d))
-radical ideal leadTerm gens gb J
+  use R
+  B = noetherForm({a, d})
+  describe B  
+  B.cache#"NoetherMap"
+
+  use R
+  B = noetherForm({a, c+d})
+  describe B  
+  F = B.cache#"NoetherMap"
+  F(c)
+  F^-1(b)
+  
+  phi = createRingPair(S, {})
+  assert isWellDefined phi
+  phi = createRingPair(S, {a, d})
+  assert isWellDefined phi
+
+  g = createCoefficientRing(S, {a,d})
+  isWellDefined g
+  source g 
+  target g === S
+  h = createRingPair g
+  isWellDefined h
+  source h
+  target h
+  h.matrix -- This is not correct...
+  use S
+  g = createCoefficientRing(S, {a,d+c})
+  h = createRingPair g
+  createCoefficientRing(S, {a+b,d+c})
+  
+  use S
+  g = createCoefficientRing(S, {a+b,a+d})
+  createRingPair g  
+  
+  -- of the elements L:
+  --  if element is a variable in S
+  --    then var in A is the same
+    --  if element is linear (affine linear), 
+    --  then var is a new t_i.
+  --  if it not linear, then have a new t_i.
+  --  in the polynomial ring A[gens S]
+  --  
+  
+  -- in this last case:
+  -- A = kk[t_0, t_1]
+  -- A --> S, given by t_0 --> a+b, t_1 --> a+d
+  -- want ambientB = A[c,d] and a ring map phi: ambientR --> ambientB
+  -- which is an isomorphism, i.e. 
+  --   a -> t_1 - d
+  --   b -> t_0 - t_1 + d
+  --   c -> c
+  --   d -> d
+  -- 
+  -- After that, we let B = ambientB/(phi I), if I = ideal of R.
+  
+  -- what if the elements have higer degree?
+  -- e.g. {a+b, a+d, c^3-d^3}
+  -- want A = kk[t_0, t_1, t_2]
+  -- B = A[c,d]/(t_2 - (c^3-d^3))
+  -- R --> B
+  -- B --> R
+  
+  
+  R = S/I
+
+  T = ZZ/101[a..d,s,t,MonomialOrder=>{4,2}]
+  IT = sub(I,T)
+  J = IT+ideal(s-(a+b), t-(c+d))
+  radical ideal leadTerm gens gb J
 
   use R; noetherForm {a,d}
   use R; noetherForm {a,d+c}
   use R; noetherForm {a+b,d+c} -- this one is NOT finite
   use R; B = noetherForm {a+b,a+d}
   describe B
+    
+  
+
   describe ambient B
   use R; noetherForm {a^2, d^2}
 
