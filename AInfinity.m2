@@ -27,10 +27,17 @@ export {
     --symbols
     "label",
     "factors",
-    "module"
+    "module",
+    "symbolPairs"
     }
 
+///
+--given a resolution A of R over S, and G or M over S, form tensor products
+--G_i**A_u**A_v**..**A_w. Reconstruct the label (i,{u,v..w})? We'd need to know the names of the components.
 
+wrote "targets", symbolPairs, the latter giving the source,target of the maps defined from m^A and m^G.
+
+///
 LabeledModule = new Type of Module
 print class LabeledModule
 LabeledChainComplex = new Type of ChainComplex
@@ -42,14 +49,15 @@ labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> (
     if not F'.?cache then F'.cache = new CacheTable;
     F'.cache.label = L;
     F'.cache.factors = {F'};--singleton means not a tensor product module
-    directSum(1:F'); -- singleton means not a direct sum module
-    F'.cache.module = F;
+    F'.cache.components = {F'};
+    F'.cache.indices = {L};
+    F'.cache.indexComponents = new HashTable from {L=>0};
+--    F'.cache.module = F;
     F'
     )
-
+-*
 module = method()
 module LabeledModule := Module => M -> new Module from M
-
 
 labeledModule(Module) := LabeledModule => F -> labeledModule({},F)
 
@@ -97,12 +105,23 @@ tensor(LabeledModule, LabeledModule) := LabeledModule => o -> (F,G) -> (
 LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
 
 directSum(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
-    ans := new LabeledModule from (module F ++ module G);
-    ans.cache.module = module F ++ module G;
-    ans.cache.factors = {module F ++ module G};
-    ans.cache.components = {F,G};
-    ans.cache.label = {getLabel F, getLabel G};
-    ans)
+    F':= new LabeledModule from (module F ++ module G);
+    F'.cache.label = {getLabel F,getLabel G};
+    F'.cache.factors = {F'};--singleton means not a tensor product module
+    F'.cache.components = {F,G};
+    F'.cache.indices = {getLabel F,getLabel G};
+    F'.cache.indexComponents = new HashTable from {getLabel F=>0,getLabel G => 1};
+    F')
+
+LabeledModule.directSum = (F,G)->(
+    F':= new LabeledModule from (module F ++ module G);
+    F'.cache.label = {getLabel F,getLabel G};
+    F'.cache.factors = {F'};--singleton means not a tensor product module
+    F'.cache.components = {F,G};
+    F'.cache.indices = {getLabel F,getLabel G};
+    F'.cache.indexComponents = new HashTable from {getLabel F=>0,getLabel G => 1};
+    F')
+
 
 --this doesn't work. Is it because 
 --"directSum" has class "MethodFunctionSingle" instead of "MethodFunction"?
@@ -113,15 +132,34 @@ uninstallPackage "AInfinity"
 restart
 installPackage "AInfinity"
 ///
+*-
 
+-*
 ///
 restart
-loadPackage("AInfinity", Reload => true)
+debug loadPackage("AInfinity", Reload => true)
 
 kk = ZZ/101
 S = kk[a,b,c]
+
+aSymbols(3,3,5)
+aSymbols 5
+
+
+
+km = coker vars S
 k = labeledModule({}, coker vars S)
+k1 = labeledModule({L1}, coker vars S)
+k2 = labeledModule({L2}, coker vars S)
+keys k1
 getLabel k
+getLabel k1
+keys k.cache
+k' = k++k
+class k'
+keys (k').cache
+
+
 K = labeledChainComplex({KK}, koszul vars S)
 getLabel K_1
 getLabel K
@@ -131,9 +169,45 @@ tensor(K_1, K_1)
 class(K_1**K_1)
 class(K_1 ++ K_1)
 class directSum(K_1, K_1)
+*-
+
+
 
 ///
+uninstallPackage "AInfinity"
+restart
+installPackage "AInfinity"
+///
 
+///
+restart
+debug loadPackage("AInfinity", Reload => true)
+
+kk = ZZ/101
+S = kk[a,b,c]
+
+R1 = S^1/(ideal vars S)^2
+M = coker vars S
+A = res R1
+G = res M
+
+R = S/(ideal vars S)^2
+AFrees = new MutableHashTable
+for n from 0 to 4 do (
+    lenA := length A;
+    lenG := length G;
+    apply(bSymbols(lenA,lenG,n), s -> 
+	    AFrees#s = tensor(R,apply(#s, t->(
+			if t<#s-1 then A_(s_t) else G_(s_t)))))
+	)
+pairs AFrees
+
+AMaps = new MutableHashTable
+for n from 1 to 4 do
+ for 
+targets((2,2,0),1)
+
+///
 ---Code from EagonResolution.m2---------------
 
 --for eTensor to work, the label must be of the form {ZZ,List}, representing
@@ -141,6 +215,118 @@ class directSum(K_1, K_1)
 --then eTensor adds the first components, concatenates the second components.
 --note that this is associative but NOT commutative.
 
+bSymbols = method()
+bSymbols(ZZ,ZZ,ZZ) := List => (pdR,pdM,d) ->(
+--    lists of non-negative integers s_0..s_k that sum to d
+--    such that 2 <= s_i <= maxA for i<k and 0<=s_k<=maxG.
+    lb := apply(1+d//2, i-> toList(i:2)|{0});
+    C := for k from 1 to d//2 + 1 list compositions(k, d-2*(k-1));
+    B' := flatten apply(d//2+1, i -> C_i/(L-> L+lb_i));
+    select(B', s -> all(#s-1, i-> s_i <= pdR+1) and s_(#s-1) <= pdM)
+    )
+    
+///
+restart
+debug loadPackage("AInfinity", Reload =>true)
+time bSymbols(10,10,20);
+
+
+pdR = 3;pdM=3
+d =5
+///
+
+targets = method()
+targets (VisibleList, ZZ) := List => (s,j) -> (
+    --s is a bSymbol, j>=1.
+    --output is a list of targets of maps collapsing j indices in the A-infinity structure.
+    len := #s;
+    if j > len then return {} else
+    if j == 1 then (
+	L' := apply(len, i->apply(#s, k-> if k == i then s_k-1 else s_k));
+        L := select(L', t -> all(len - 1, i -> t_i >= 2) and last t >= 0)
+	  ) else
+        L = for i from 0 to len-j list 
+          s_(toList(0..i-1))|{-1+sum(j, k -> s_(i+k))}|s_(toList(i+j..len-1));
+	L
+	 )
+     
+///
+s = (2,2,0)
+j = 2
+targets(s,1)
+targets(s,2)
+targets(s,3)
+///
+
+
+symbolPairs = method()
+symbolPairs (ZZ,ZZ,ZZ,ZZ) := List => (pdA, pdM, n, j) -> (
+    --list of lists {p,q,s,t} such that s = (i,u), t = (j,v) are symbols; degree s = n, degree t = n-1; 
+    --and s,t are equal in the places <p and >q, and q-p+1 = j.
+    for s in bSymbols(pdA, pdM, n) list targets(s,j)/(t -> {s,t}))
+
+///
+bSymbols(3,3,7)
+targets({2,4,0},2)
+targets({2,0},2)
+symbolPairs(3,3,5,2)
+///
+
+compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
+    -- nparts is the number of terms
+    -- k is the sum of the elements
+    -- each element is between 0 <= maxelem.
+     compositionn := (n,k) -> (
+	  if n===0 or k < 0 then {}
+	  else if k===0 then {toList(n:0)}
+	  else (
+          set1 := apply(compositionn(n-1,k), s -> s | {0});
+          set2 := apply(compositionn(n,k-1), s -> s + (toList(n-1:0) | {1}));
+          set2 = select(set2, s -> s#(n-1) <= maxelem);
+          join(set1, set2)
+          )
+      );
+     compositionn = memoize compositionn;
+     result := compositionn(nparts,k);
+     compositionn = null;
+     result
+     );
+
+
+eagonSymbols = method()
+eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
+    --symbol of the module Y^n_i, as a list of pairs, defined inductively from n-1,i+1 and n-1,0
+    --assumes large number of vars and pd.
+    if n === 0 then return {(i,{})};
+    if i === 0 then return eagonSymbols(n-1,1);
+    e' := eagonSymbols (n-1,0);
+    e'1 := apply (e', L -> L_1|{i});
+    eagonSymbols(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
+    )
+ -*
+
+bSymbols ZZ := List => n -> (
+    --these are indexed with the module resolution component last, 
+    --and the ring resolution component indexed as in the B complex: A_i = B_(i+1) for i>= 1.
+    --note that the symbol is now a single list
+    L :=eagonSymbols(n,0);
+    apply(L, ell -> toList flatten(ell_1/(i->i+1), ell_0))
+)
+
+    if n === 0 then return {0};
+    bS' := bSymbols n-1;
+    apply(bS', s -> toList flatten
+
+	)
+
+bSymbols(ZZ,ZZ,ZZ) := List => (pdA,pdM,n) -> (
+    L := bSymbols n;
+    select(L, ell -> (
+	    ell' := drop(ell, -1);
+	    all(ell', u -> u <= pdA+1) and last ell <= pdM))
+    )
+*-
+	  
 
 
 tensorWithComponents = method()
@@ -193,11 +379,10 @@ tensor(Ring, List) := o -> (R,L) -> (
     --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
     --The order matters for chain complexes; maybe not for modules.
     --
-    if L === {} then return labeledModule{(),R^1};
+    if L === {} then return R^1;
     if #L === 1 then return L_0;
     ans1 := tensor(R,drop(L,-1));
-    ans := ans1**last L;
-    ans.cache.factors = {ans1,last L}
+    ans1**last L
     )
 
 tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := Matrix => (M0,M1,M2) ->(
@@ -504,6 +689,7 @@ TEST ///
 
 end--
 
+
 restart
 needsPackage "Complexes"
 --loadPackage("AInfinity", Reload =>true)
@@ -511,12 +697,15 @@ uninstallPackage "AInfinity"
 restart
 installPackage "AInfinity"
 
-
+uninstallPackage "Complexes"
+restart
+installPackage "Complexes"
+viewHelp Complexes
 
 t = tensorAssociativity(B_2, B_2, B_2);
 b = betti B
 b ** b
-(b ** b) ** b 
+(b ** b) ** b  ==
 ((b ** b) ** b ) ** b
 
 
@@ -597,3 +786,10 @@ labelled is a more common spelling than labeled."
 also: labeled gets 5X more hits in google than labelled.
 
 *-
+S = ZZ/101[a,b,c]
+B = apply(4, i-> S^{1+i:i})
+A = B_0**B_1**(B_2++B_3)
+formation (A.cache.formation#1#1)
+oo.cache.indices
+A.cache.indices 
+

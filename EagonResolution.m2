@@ -437,7 +437,8 @@ resolution EagonData := opts->E -> eagonResolution E
 
 ///
 restart
-loadPackage("EagonResolution", Reload=>true)
+debug loadPackage("EagonResolution", Reload=>true)
+eagonSymbols(5,0)
 S = ZZ/101[a,b,c]
 I = ideal"a3,b3,c3"
 R = S/I

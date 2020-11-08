@@ -430,3 +430,17 @@ TEST///
 
 end--
 
+--Conjecture(d,n) = any binomial(d+n-1,d)-binomial(d+n-2,d)-1 of monomials defines an ideal of depth 0.
+--verified for n = 3, d <= 4 and n = 4,d <= 3.
+n = 4
+S = ZZ/101[vars(0..n-1)]
+d = 4
+binomial(d+n-1,d)
+crit =  binomial(d+n-1,d)-binomial(d+n-2,d)-1
+time L = orbitRepresentatives(S,crit:d);
+mm = (ideal vars S)^d;
+time L' = for I in L list I' = ideal compress (gens mm%I);
+all(length\res\L',ell -> ell == n)
+#L 
+binomial(binomial(d+n-1,d),crit)//(product apply(n,i->i+1))
+
