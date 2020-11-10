@@ -569,7 +569,7 @@ createCoefficientRing(Ring, List) := RingMap => opts -> (R, L) -> (
       (mons, cfs) := coefficients(f.matrix, Monomials => monsR);
       cfs = map((ring cfs)^(numrows cfs),,cfs); -- clear out the degree information so 'lift' 
         -- in this next line succeeds.
-      M1 := -id_(kk^#lins) || lift(cfs_lins, kk)
+      M1 := -id_(kk^#lins) || lift(cfs_lins, kk);
       M := gens gb M1;
       inM := leadTerm M;
       inM0 := submatrix(inM, {#lins+1 .. numrows M - 1},);
@@ -1601,3 +1601,32 @@ doc ///
   SeeAlso
 ///
 
+kk= ZZ/101
+S = kk[a,b, Degrees =>{2:{-2,3}}, Join => false]
+I = ideal(a^2,b^2)
+R = reesAlgebra(I,a)
+A = first flattenRing R
+B = ambient R
+C = first flattenRing B
+M = matrix{{1_S,2_S},{1_S,2_S}}
+MR = sub(M, R)
+MA = sub(M, A)
+MB = sub(M, B)
+MC = sub(M, C)
+
+lift(M,kk)
+lift(MR,kk)
+lift(MA,kk)
+lift(MB,kk)
+lift(MC,kk) -- error
+
+describe S
+describe kk
+
+monoid ring oo26
+options oo
+
+options monoid A
+methods flattenRing
+code 2
+code 

@@ -1,3 +1,4 @@
+
 newPackage(
 	"AInfinity",
     	Version => "0.1", 
@@ -182,30 +183,30 @@ installPackage "AInfinity"
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
-
 kk = ZZ/101
 S = kk[a,b,c]
-
 R1 = S^1/(ideal vars S)^2
 M = coker vars S
 A = res R1
+freesA = AFrees(A,5)
+X = freesA#{2}++freesA#{3,2}
+methods tensor
+
+indices((components X)_1)
+indices X -- just the numbers
+componentsAndIndices X -- gives the labels
 G = res M
+G2 = G**G
+componentsAndIndices (G2_1)
+frees = AFrees(A,G,4)
+M = frees#{3,1}
+M^[{3,1}]
 
-R = S/(ideal vars S)^2
-AFrees = new MutableHashTable
-for n from 0 to 4 do (
-    lenA := length A;
-    lenG := length G;
-    apply(bSymbols(lenA,lenG,n), s -> 
-	    AFrees#s = tensor(R,apply(#s, t->(
-			if t<#s-1 then A_(s_t) else G_(s_t)))))
-	)
-pairs AFrees
-
-AMaps = new MutableHashTable
-for n from 1 to 4 do
- for 
-targets((2,2,0),1)
+picture id_(frees#{3,1})
+displayBlocks id_(frees#{3,1})
+indices (frees#{3,1})
+components frees#{3,1}
+componentsAndIndices frees#{3,1}
 
 ///
 ---Code from EagonResolution.m2---------------
@@ -215,7 +216,49 @@ targets((2,2,0),1)
 --then eTensor adds the first components, concatenates the second components.
 --note that this is associative but NOT commutative.
 
+labeler = (L,F) -> directSum(1:(L=>F));
+
+AFrees = method()
+AFrees(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
+    -- A is a resolution of a ring R = S/I (as S-module S^1/I)
+    -- returns a hash table of the labeled tensor products of free S-modules
+    -- needed for forming the A-infinity structure on the resolution A
+S := ring Rres;
+B := (chainComplex apply(length Rres - 1, i -> -Rres.dd_(i+2)))[-2];
+frees := new MutableHashTable;
+for n from 0 to bound do (
+    bS := bSymbols(length Rres, n);
+    apply(bS, s -> (
+      frees#s = labeler(s,tensor(S,apply(#s, t->B_(s_t))))
+	    )));
+    hashTable pairs frees)
+
+AFrees(ChainComplex, ChainComplex, ZZ) := HashTable => (Rres,Mres,bound) ->(
+    -- A is a resolution of a ring R = S/I (as S-module S^1/I)
+    -- G is a resolution of an R-module M (as S-module)
+    -- returns a hash table of the labeled tensor products of free S-modules
+    -- needed for forming the A-infinity structure on the two resolutions.
+S := ring Rres;
+B := (chainComplex apply(length Rres - 1, i -> -Rres.dd_(i+2)))[-2];
+frees := new MutableHashTable;
+for n from 0 to bound do (
+    bS := bSymbols(length Rres,length Mres, n);
+    apply(bS, s -> (
+      frees#s = labeler(s,tensor(S,apply(#s, t->(
+			if t<#s-1 then B_(s_t) else Mres_(s_t)))));
+	    )));
+    hashTable pairs frees)
+
 bSymbols = method()
+bSymbols(ZZ,ZZ) := List => (pdR,d) ->(
+--    lists of non-negative integers s_0..s_k that sum to d
+--    such that 2 <= s_i <= maxA for all i
+    lb := for k from 1 to d//2 list toList(k:2);
+    C := for k from 1 to d//2 list compositions(k, d-2*k);
+    B' := flatten apply(d//2, i -> C_i/(L-> L+lb_i));
+    select(B', s -> all(#s, i-> s_i <= pdR+1))
+    )
+
 bSymbols(ZZ,ZZ,ZZ) := List => (pdR,pdM,d) ->(
 --    lists of non-negative integers s_0..s_k that sum to d
 --    such that 2 <= s_i <= maxA for i<k and 0<=s_k<=maxG.
@@ -224,7 +267,179 @@ bSymbols(ZZ,ZZ,ZZ) := List => (pdR,pdM,d) ->(
     B' := flatten apply(d//2+1, i -> C_i/(L-> L+lb_i));
     select(B', s -> all(#s-1, i-> s_i <= pdR+1) and s_(#s-1) <= pdM)
     )
+
+targets1 = method()
+targets1 (VisibleList, ZZ) := List => (s,j) -> (
+    --s is a bSymbol, j>=1.
+    --output is a list of targets of maps collapsing j indices in the A-infinity structure on Rres
+    len := #s;
+    if j > len then return {} else
+    if j == 1 then (
+	L' := apply(len, i->apply(#s, k-> if k == i then s_k-1 else s_k));
+    L := select(L', t -> all(len, i -> t_i >= 2));
+	  ) else
+    L = for i from 0 to len-j list 
+      s_(toList(0..i-1))|{-1+sum(j, k -> s_(i+k))}|s_(toList(i+j..len-1));
+    L
+	 )
+
+targets = method()
+targets (VisibleList, ZZ) := List => (s,j) -> (
+    --s is a bSymbol, j>=1.
+    --output is a list of targets of maps collapsing j indices in the A-infinity structure on Rres**Mres
+    len := #s;
+    if j > len then return {} else
+    if j == 1 then (
+	L' := apply(len, i->apply(#s, k-> if k == i then s_k-1 else s_k));
+    L := select(L', t -> all(len - 1, i -> t_i >= 2) and last t >= 0)
+	  ) else
+    L = for i from 0 to len-j list 
+      s_(toList(0..i-1))|{-1+sum(j, k -> s_(i+k))}|s_(toList(i+j..len-1));
+    L
+	 )
+
+maps = method()
+maps(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
+    --inductively construct the maps m_j on tensor products of degree d
+    S := ring Rres;
+    pdR := length Rres; 
+    B := (chainComplex apply(length Rres - 1, i -> -Rres.dd_(i+2)))[-2];
+
+    frees := AFrees(Rres,bound);
+    symbols := keys frees;
+    m := new MutableHashTable;
     
+    for d from 1 to bound do(
+	for j from 1 to d do(
+           ss := select(symbols, s -> sum s == d and length s == j); 
+	    for s in ss do(
+		for t in targets1(s,j) do
+	        if j == 1 then (
+		   if s_0 == 2 then m#(j,s) = 0 else  
+		                    m#(j,s) = map(frees#t,frees#s, B.dd_(s_0)));
+		if j == 2 then (
+                    A0 := (chainComplex gradedModule (S^1))[-2];
+		    d1 := map(A0,B, i -> if (i == 2) then Rres.dd_1 else 0);
+		    m2 := nullhomotopy (d1 ** id_B - id_B ** d1);
+		    indices(source m2_5);
+		    error();
+		    	    ))));
+    hashTable pairs m)
+--	<<(d,j)<<ss<<endl;
+
+tensor(ZZ,HashTable) := ChainComplex => (p,C) ->(
+    --forms the pth tensor power pC of the complex C
+    --in such a way that if C consists of modules from the hashtable produced by AFrees,
+    --then the modules of the tensor power are direct sums of modules from the hashtable, so that
+    --componentsAndIndices applied to pC gives the correct list of indices, and
+    --thus picture pC.dd_m works.
+    ampC = max C - min C;
+    pCModules = apply(
+    )
+///
+restart
+debug loadPackage("AInfinity", Reload => true)
+kk = ZZ/101
+S = kk[a,b,c]
+R1 = S^1/(ideal vars S)^2
+M = coker vars S
+A = res R1
+G = res M
+m = maps(A,4)
+frees = AFrees(A,5)
+tensor(2,frees)
+AFrees(A,G,5)
+///
+
+///
+
+s = {4,3,2,1}
+targets(s,1)
+targets(s,2)
+targets(s,3)
+targets(s,4)
+targets(s,5)
+///
+
+
+symbolPairs = method()
+symbolPairs (ZZ,ZZ,ZZ,ZZ) := List => (pdR, pdM, n, j) -> (
+    --list of lists {p,q,s,t} such that s = (u,i), t = (v,j) are symbols; degree s = n, degree t = n-1; 
+    --and s,t are equal in the places <p and >q, and q-p+1 = j.
+    for s in bSymbols(pdR, pdM, n) list targets(s,j)/(t -> {s,t}))
+
+///
+bSymbols(3,3,7)
+targets({2,4,0},2)
+targets({2,0},2)
+symbolPairs(3,3,5,2)
+///
+
+picture = method()
+picture Matrix := (M1) -> (
+    M := flattenBlocks M1;
+    src := indices source M;
+    tar := indices target M;
+--    src := labels source M;
+--    tar := labels target M;
+    netList (prepend(
+        prepend("", src),
+        for t in tar list prepend(t, for s in src list (
+                mts := M^[t]_[s];
+		cont := ideal M^[t]_[s];
+                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "id" else 
+		if cont == ideal(1_(ring mts)) then "u" else "*"
+                ))
+        ), Alignment=>Center)
+    )
+
+flattenBlocks = method()
+flattenBlocks Module := (F) -> (
+    if not isFreeModule F then error "expected a free module";
+    (comps, inds) := componentsAndIndices F;
+    compsLabelled := for i from 0 to #comps-1 list (
+-*        if inds#i === null then (
+            if rank comps#i > 0 then error "expected zero module";
+            continue;
+            );
+*-
+        inds#i => comps#i
+        );
+    directSum compsLabelled
+    )
+
+flattenBlocks Matrix := (M) -> (
+    F := flattenBlocks target M;
+    G := flattenBlocks source M;
+    map(F,G,matrix M)
+    )
+
+displayBlocks = method()
+displayBlocks Matrix := (M1) -> (
+    M := flattenBlocks M1;
+    src := select(indices source M, i-> i =!= null);
+    tar := select(indices target M, i-> i =!= null);
+    netList (prepend(
+        prepend("", src),
+        for t in tar list prepend(t, for s in src list (
+                mts := M^[t]_[s];
+                h := if mts == 0 then "." else if (numrows mts == numcols mts and mts == 1) then "1" else net mts
+                ))
+        ), Alignment=>Center)
+    )
+
+labels := method()
+labels Module := List => M -> (
+    if M.cache#?"label" then M.cache#"label" else
+      if M.cache.?components then (
+	L := M.cache.components;
+	if not (L_0).cache#?"label" then error"no labels" else
+--	  for N in M.cache.components list N.cache#"label")
+	  apply(M.cache.components, N ->  N.cache#"label"))
+    )
+
+    
+
 ///
 restart
 debug loadPackage("AInfinity", Reload =>true)
@@ -235,42 +450,6 @@ pdR = 3;pdM=3
 d =5
 ///
 
-targets = method()
-targets (VisibleList, ZZ) := List => (s,j) -> (
-    --s is a bSymbol, j>=1.
-    --output is a list of targets of maps collapsing j indices in the A-infinity structure.
-    len := #s;
-    if j > len then return {} else
-    if j == 1 then (
-	L' := apply(len, i->apply(#s, k-> if k == i then s_k-1 else s_k));
-        L := select(L', t -> all(len - 1, i -> t_i >= 2) and last t >= 0)
-	  ) else
-        L = for i from 0 to len-j list 
-          s_(toList(0..i-1))|{-1+sum(j, k -> s_(i+k))}|s_(toList(i+j..len-1));
-	L
-	 )
-     
-///
-s = (2,2,0)
-j = 2
-targets(s,1)
-targets(s,2)
-targets(s,3)
-///
-
-
-symbolPairs = method()
-symbolPairs (ZZ,ZZ,ZZ,ZZ) := List => (pdA, pdM, n, j) -> (
-    --list of lists {p,q,s,t} such that s = (i,u), t = (j,v) are symbols; degree s = n, degree t = n-1; 
-    --and s,t are equal in the places <p and >q, and q-p+1 = j.
-    for s in bSymbols(pdA, pdM, n) list targets(s,j)/(t -> {s,t}))
-
-///
-bSymbols(3,3,7)
-targets({2,4,0},2)
-targets({2,0},2)
-symbolPairs(3,3,5,2)
-///
 
 compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
     -- nparts is the number of terms
