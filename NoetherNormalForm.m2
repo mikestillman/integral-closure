@@ -16,59 +16,25 @@ newPackage(
         )
 
 -- TODO:
---  rename multiplication --> multiplicationMap
---  rename getBasis --> noetherBasis (different for ring, and for the field?)
---  remove some functions from the export list
---  clean up use of NoetherInfo, NoetherField, NoetherRing.
---    this is mainly used in trace, multiplicationMap, traceForm...
 --  remove old bracketed code
 --  get noetherForm(RingMap) to work with the other methods.
---  place into NoetherNormalization
+--  if R is multigraded, then we get an error.  Fix.  What do we want to happen?
+--  place this code into NoetherNormalization?
 --  call the functions here noetherNormalization?
 
-
 -- TODO:
---  getBasis: bad name, perhaps noetherBasis?
---    also, should allow the situation where noetherForm has not been called?
---    perhaps only present the matrix, not the list?
---  noetherForm:
---    if the linear forms are variables, do not rename them (at least by default).
---    if the linear forms are not variables, we must give them new names, but then
---      also remove the variables from the larger ring B.
---      one way: consider all of the elements of the list, which are affine linear forms.
---        find a complement: a set of variables which combined with these linear forms span the 
---          set of all variables?  Well, hmmm, not quite.
---    need an optional argument about this.
---
 --  need a function that takes B, and determines if it has been placed into this form?
---    inNoetherForm -- change name?
+--    inNoetherForm -- change name?  MAYBE OK?
 --  test noetherForm for all kinds of rings/gradings.
---  remove internal functions from export list: makeFrac, getBasis, 
---  functions to keep:
---    noetherForm
---    inNoetherForm (call it something else?  This is true if it was created via noetherForm)
---    multiplicationMap
---    traceForm
+--
 --    trace? of an element in B or L = frac B.
 --    noetherBasis (getBasisMatrix) (of frac B, of B?)
 --    discriminant?
-
--- creates A --> B, B isomorphic to the original affine ring R/
---   where B is finite over A.
--- frac B --> L
--- coefficientRing B --> A
--- frac A 
--- L --> frac A  (coefficientRing L)
--- L --> B (ring numerator 1_L)
--- noetherField B == L
--- noetherRing L == B
--- how to get the isomorphism from B to R?
 
 export {
     "isFiniteOverCoefficientRing", -- TODO: get this to work
 --    "checkNoetherNormalization", -- TODO: get this to work
     "noetherForm",
---    "makeFrac",
     "noetherBasis",
     "noetherBasisMatrix",
     "inNoetherForm",
@@ -76,8 +42,6 @@ export {
     "traceForm",
     "noetherMap",
     -- keys used:
---    "noetherField",
---    "noetherRing",
     "NoetherInfo",
     "Remove"
     }
@@ -87,55 +51,66 @@ rawIsField = value Core#"private dictionary"#"rawIsField"
 isField EngineRing := R -> (R.?isField and R.isField) or rawIsField raw R
 
 --inNoetherForm
+-- this function isn't used locally, instead the internal function `noetherInfo` is used.
 inNoetherForm = method()
 inNoetherForm Ring := Boolean => (R) -> R.?NoetherInfo
 
 -- private routine
+-- NoetherInfo (placed into both B, frac B):
+-- keys:
+--   "ring"
+--   "field"
+--   "basis of ring" -- really, a generating set, over coefficient ring
+--   "basis of field" -- generating set, over coefficient field
+--   "traces of generators" -- in field, or in the ring?
+--   "trace form"
+--   "noether map" -- isomorphism back to the original ring.
 setNoetherInfo = method()
 setNoetherInfo(Ring, Ring) := (B, KB) -> (
-    B.NoetherInfo = new MutableHashTable;
-    KB.NoetherInfo = new MutableHashTable;
-    B.NoetherInfo#"noetherField" = KB;
-    KB.NoetherInfo#"noetherRing" = B;
-      -- this one should contain:
-      --   map B --> R (original ring)
-      --   map R --> B
-      --   map B --> KB (not needed?)
+    NI := new MutableHashTable;
+    B.NoetherInfo = NI;
+    KB.NoetherInfo = NI;
+    NI#"ring" = B;
+    NI#"field" = KB;
+    -- Other fields are set on demand.
     )
 
 -- private routine
 noetherInfo = method()
-noetherInfo Ring := (R) -> (
+noetherInfo Ring := MutableHashTable => (R) -> (
     if not R.?NoetherInfo
     then error "expected a ring or field created with `noetherForm`";
     R.NoetherInfo
     )
 
-noetherField = method()
-noetherField Ring := Ring => (R) -> (
-    -- Note: any ring created with noetherForm will have this field set.
-    -- Two rings are generally created: the noether form itself: B = A[x...]/I
-    --  and its fraction field L = k(x...)/I.
-    H := noetherInfo R;
-    if H#?"NoetherField" 
-      then H#"NoetherField" 
-      else R
-    )
-
-noetherRing = method()
-noetherRing Ring := Ring => (R) -> (
-    H := noetherInfo R;
-    if H#?"NoetherRing" 
-      then H#"NoetherRing" 
-      else R
-    )
-
 noetherMap = method()
 noetherMap Ring := Ring => (B) -> (
-    if not B#?"NoetherMap" then 
-        error "expected a ring created with `noetherForm`"
-    else
-        B#"NoetherMap"
+    NI := noetherInfo B;
+    NI#"noether map"
+    )
+
+computeBasis = method()
+computeBasis Ring := Sequence => (R) -> (
+    -- assumption: R is finite over the coefficient ring
+    -- returns a sequence (B, S, H):
+    --   B: matrix of module generators of R over its coeff ring
+    --   S: not sure: seems to be a hashtable: each monom over ambient => actual monom in R.
+    --   H: hashtable, keys: monomial generators, value: index in B.
+    -- This just does the computation, does not stash anything!
+    LT := leadTerm ideal R;
+    K := ultimate(coefficientRing, R);
+    R1 := K (monoid R);
+    J := ideal sub(LT,R1);
+    B := sub(cover basis(comodule J), R);
+    -- now present this in two ways:
+    -- (1) as a list of monomials in R (or, as a matrix?)
+    -- (2) as a hash table, m => i, giving the index of each monomial.
+    B = sort B;
+    L := flatten entries B;
+    H := hashTable for i from 0 to #L-1 list L#i => i;
+    Rambient := ambient R;
+    S := new MutableHashTable from apply(L, s -> {lift(s,Rambient),s});
+    (B, S, H)
     )
 
 -- The following sets (or gets, if already computed) the
@@ -147,25 +122,11 @@ basisOfRing Ring := (R) -> (
     -- returns a matrix over R whose entries are generators
     -- of R over the coeff ring
     NI := noetherInfo R;
-    if not NI#?"basis" then (
-        LT := leadTerm ideal R;
-        K := ultimate(coefficientRing, R);
-        R1 := K (monoid R);
-     	J := ideal sub(LT,R1);
-     	B := sub(cover basis(comodule J), R);
-	-- now present this in two ways:
-	-- (1) as a list of monomials in R (or, as a matrix?)
-	-- (2) as a hash table, m => i, giving the index of each monomial.
-	B = sort B;
-	L := flatten entries B;
-	H := hashTable for i from 0 to #L-1 list L#i => i;
-	Rambient := ambient R;
-     	S := new MutableHashTable from apply(L, s -> {lift(s,Rambient),s});
-        NI#"basis" = B;
-        NI#"monomials" = S;
-        NI#"inverse basis" = H;
-        );
-    NI#"basis"
+    if not NI#?"basis of ring" then NI#"basis of ring" = computeBasis NI#"ring";
+    if not NI#?"basis of field" then NI#"basis of field" = computeBasis NI#"field";
+    if R === NI#"ring" then first NI#"basis of ring"
+    else if R === NI#"field" then first NI#"basis of field"
+    else error "internal error in basisOfRing"
     )
 
 noetherBasis = method()
@@ -183,54 +144,47 @@ multiplicationMap RingElement := (m) -> (
      )
 
 -- private function.
--- is only called for a noetherField.
-setTraces = (R) -> (
-     -- R should be a Noether field
-    H := noetherInfo R;
-    if not H#?"traces" then (
-        B := noetherBasis R;
-        traces := for b in B list (
-	    m := multiplicationMap b;
-	    --numerator lift(trace m, coefficientRing R)
-	    t := lift(trace m, coefficientRing R);
-	    tdenom := lift(denominator t, coefficientRing ring t);
-	    1/tdenom * numerator t
-	    );
-        H#"traces" = matrix{traces};
+setTraces = (NI) -> (
+    RK := NI#"field";
+    B := noetherBasis RK;
+    traces := for b in B list (
+        m := multiplicationMap b;
+        --numerator lift(trace m, coefficientRing RK)
+        t := lift(trace m, coefficientRing RK);
+        tdenom := lift(denominator t, coefficientRing ring t);
+        1/tdenom * numerator t
         );
+    NI#"traces" = matrix{traces};
     )
 
+-- trace: if f is in R, then trace(f) is in A?
+--        if f is in KR, then trace(f) is in KA.
 trace RingElement := (f) -> (
+    -- Currently, if f is in R, then result is in frac A.
+    --            if f is in frac R, then result is in frac A.
     R := ring f;
-    -- if not placedInNoetherForm R
-    --   then place it, or give an error.
-    -- RK = frac R;
-     -- R = ring f should be a noetherRing or noetherField
-     -- result is in the coefficient ring of R.
-     RK := noetherField R;
-     NI := noetherInfo RK;
-     if not NI#?"traces" then setTraces RK;
-     traces := NI#"traces";
-     f = sub(f,RK);
-     M := last coefficients(f, Monomials => noetherBasisMatrix RK);
-     g := (traces * M)_(0,0);
-     g = lift(g, coefficientRing RK);
-     --stopgap for lifts from frac QQ[x] to QQ[x] not working 5-26-11
-     --when works, change below to return lift(g, coefficientRing R)
-     gdenom := denominator g;
-     if gdenom == 1 then numerator g else (
-	  gdenom = lift(gdenom, coefficientRing ring gdenom);
-	  1/gdenom * numerator g
-	  )
-     )
+    NI := noetherInfo R;
+    RK := NI#"field";
+    if not NI#?"traces" then setTraces NI;
+    traces := NI#"traces";
+    f = sub(f,RK);
+    M := last coefficients(f, Monomials => noetherBasisMatrix RK);
+    g := (traces * M)_(0,0);
+    g = lift(g, coefficientRing RK);
+    --stopgap for lifts from frac QQ[x] to QQ[x] not working 5-26-11
+    --when works, change below to return lift(g, coefficientRing R)
+    gdenom := denominator g;
+    if gdenom == 1 then numerator g else (
+        gdenom = lift(gdenom, coefficientRing ring gdenom);
+        1/gdenom * numerator g
+        )
+    )
 
 traceForm = method()
 traceForm Ring := (R) -> (
-    -- if not placedInNoetherForm R
-    --   then place it, or give an error.
-    -- RK = frac R;
-    RK := noetherField R;
-    NI := noetherInfo RK;
+    NI := noetherInfo R; -- will error if not in the correct form (TODO: 
+      -- it could possibly add the info to place it into form, if it is already so)
+    RK := NI#"field"; -- same as frac R.
     if not NI#?"trace form" then NI#"trace form" = (
         S := noetherBasis RK;
         K := coefficientRing RK;
@@ -370,7 +324,6 @@ makeFrac Ring := Ring => (B) -> (
     factor KB := opts -> (f) -> hold numerator f/factor denominator f;
     expression KB := f -> expression numerator f / expression denominator f;
     setNoetherInfo(B, KB);
-    setTraces KB;
     KB
     )
 
@@ -668,12 +621,13 @@ noetherForm List := Ring => opts -> (xv) -> (
     -- now we need to descend this to R --> B = ambientB/(image of I)
     J := trim (G I); 
     B := (target G)/J;
+    L := makeFrac B;
+    -- Now create the isomorphism B --> R and its inverse.
     GR := map(B, R, G.matrix);
     FR := map(R, B, F.matrix);
     GR.cache.inverse = FR;
     FR.cache.inverse = GR;
-    B#"NoetherMap" = FR; -- stash the map B --> R, but the other can be obtained via 'inverse'
-    L := makeFrac B;
+    B.NoetherInfo#"noether map" = FR; -- stash the map B --> R, but the other can be obtained via 'inverse'
     B
     )
 
@@ -733,6 +687,216 @@ noetherForm Ring := Ring => opts -> R -> (
     phi := map(R,A,for x in xv list F^-1 x);
     noetherForm (phi, Remove => opts.Remove)
     )
+
+beginDocumentation()
+
+doc ///
+  Key
+    NoetherNormalForm
+  Headline
+    code for Noether normal forms of affine rings
+  Description
+    Text
+///
+
+doc ///
+  Key
+    noetherForm
+    (noetherForm, List)
+    (noetherForm, RingMap)
+    (noetherForm, Ring)
+  Headline
+    create a polynomial ring in Noether normal form
+  Usage
+    B = noetherForm phi
+    B = noetherForm xv
+    B = noetherForm R
+  Inputs
+    phi:RingMap
+      from a ring {\tt A} to a ring {\tt R}
+    xv:List
+      of variables in an affine ring {\tt R} over which {\tt R} is finite
+    R:Ring
+      an affine equidimensional and reduced ring
+  Outputs
+    B:Ring
+      isomorphic to B, but of the form {\tt A[new variables]/(ideal)}.
+  Consequences
+    Item
+      The following fields are set in {\tt R}:
+    Item
+      The following fields are set in {\tt B}:
+    Item
+      The following fields are set in {\tt L = frac B}:
+  Description
+    Text
+    Example
+      kk = ZZ/101
+      A = kk[t]
+      R = kk[x,y]/(y^4-x*y^3-(x^2+1)*y-x^6)
+      phi = map(R,A,{R_0})
+      B = noetherForm phi
+    Example
+      kk = ZZ/101
+      x = symbol x
+      y = symbol y
+      R = kk[x,y,z]/(ideal(x*y, x*z, y*z))
+      A = kk[t]
+      phi = map(R,A,{R_0+R_1+R_2})
+      B = noetherForm phi
+  Caveat
+    The base field must currently be a finite field, or the rationals.
+    Finiteness is not yet checked.
+  SeeAlso
+///
+
+doc ///
+  Key
+    noetherBasis
+    (noetherBasis, Ring)
+  Headline
+    basis over coefficient ring of ring in Noether form
+  Usage
+    noetherBasis R
+  Inputs
+    R:Ring
+  Outputs
+    :Matrix
+  Description
+    Text
+    Example
+      kk = ZZ/101
+      R = kk[x,y,z]/(y^4-x*y^3-(x^2+1)*y-x^6, z^3-x*z-x)
+      B = noetherForm {x}
+      noetherBasis B
+      noetherBasis frac B
+      assert(multiplicationMap(y^3) == (multiplicationMap y)^3)
+      --trace(y^3) -- FAILS
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (noetherBasis, Ring)
+    (multiplicationMap, RingElement)
+///
+
+doc ///
+  Key
+    multiplicationMap
+    (multiplicationMap, RingElement)
+  Headline
+    matrix of multiplication by an element
+  Usage
+    multiplicationMap f
+  Inputs
+    f:RingElement
+  Outputs
+    :Matrix
+  Description
+    Text
+      Given a ring...
+    Example
+      S = ZZ/101[a..d]
+      I = monomialCurveIdeal(S, {1,3,4})
+      R = S/I
+      B = noetherForm {a,d}
+      bas = noetherBasis B
+      bas/ring
+    Example
+      basKB = noetherBasis frac B
+    Text
+      The trace form is only defined for the fraction field?
+      Where is the result defined?
+    Example
+      traceForm frac B
+    Text
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (noetherBasis, Ring)
+    (trace, RingElement)
+    (traceForm, Ring)
+///
+
+doc ///
+  Key
+    traceForm
+    (traceForm, Ring)
+  Headline
+    trace form matrix of ring created using noetherForm
+  Usage
+    traceForm R
+  Inputs
+    R:Ring
+  Outputs
+    :Matrix
+  Description
+    Text
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (noetherBasis, Ring)
+    (multiplicationMap, RingElement)
+///
+
+doc ///
+  Key
+    (trace, RingElement)
+  Headline
+    trace of an element in a ring or field in Noether normal form
+  Usage
+    trace f
+  Inputs
+    f:RingElement
+  Outputs
+    :RingElement
+  Description
+    Text
+    Example
+      S = ZZ/101[a..d]
+      I = monomialCurveIdeal(S, {1,3,4})
+      R = S/I
+      B = noetherForm {a,d}
+      bas = noetherBasis frac B
+      bas/trace
+      --trace b -- fails
+      use frac B
+      trace c
+      traceForm frac B
+  Caveat
+    One must have created this ring with @TO noetherForm@.
+  SeeAlso
+    noetherForm
+    (inNoetherForm, Ring)
+    (noetherBasis, Ring)
+    (multiplicationMap, RingElement)
+///
+
+doc ///
+  Key
+    inNoetherForm
+    (inNoetherForm, Ring)
+  Headline
+    whether the ring was created using noetherForm
+  Usage
+    inNoetherForm R
+  Inputs
+    R:Ring
+  Outputs
+    :Boolean
+  Description
+    Text
+  Caveat
+    This function only checks whether the ring was created using @TO noetherForm@, not
+    whether it really is in Noether normal form
+  SeeAlso
+    noetherForm
+///
 
 TEST ///
 -*
@@ -1098,158 +1262,6 @@ G*F
   -- stash phi into B? or R?
 ///
 
-beginDocumentation()
-
-doc ///
-  Key
-    NoetherNormalForm
-  Headline
-    code for Noether normal forms of affine rings
-  Description
-    Text
-///
-
-doc ///
-  Key
-    noetherForm
-    (noetherForm, List)
-    (noetherForm, RingMap)
-    (noetherForm, Ring)
-  Headline
-    create a polynomial ring in Noether normal form
-  Usage
-    B = noetherForm phi
-    B = noetherForm xv
-    B = noetherForm R
-  Inputs
-    phi:RingMap
-      from a ring {\tt A} to a ring {\tt R}
-    xv:List
-      of variables in an affine ring {\tt R} over which {\tt R} is finite
-    R:Ring
-      an affine equidimensional and reduced ring
-  Outputs
-    B:Ring
-      isomorphic to B, but of the form {\tt A[new variables]/(ideal)}.
-  Consequences
-    Item
-      The following fields are set in {\tt R}:
-    Item
-      The following fields are set in {\tt B}:
-    Item
-      The following fields are set in {\tt L = frac B}:
-  Description
-    Text
-    Example
-      kk = ZZ/101
-      A = kk[t]
-      R = kk[x,y]/(y^4-x*y^3-(x^2+1)*y-x^6)
-      phi = map(R,A,{R_0})
-      B = noetherForm phi
-    Example
-      kk = ZZ/101
-      x = symbol x
-      y = symbol y
-      R = kk[x,y,z]/(ideal(x*y, x*z, y*z))
-      A = kk[t]
-      phi = map(R,A,{R_0+R_1+R_2})
-      B = noetherForm phi
-  Caveat
-    The base field must currently be a finite field, or the rationals.
-    Finiteness is not yet checked.
-  SeeAlso
-///
-
-doc ///
-  Key
-    multiplicationMap
-    (multiplicationMap, RingElement)
-  Headline
-    matrix of multiplication by an element
-  Usage
-    multiplicationMap f
-  Inputs
-    f:RingElement
-  Outputs
-    :Matrix
-  Description
-    Text
-      Given a ring.
-  Caveat
-    One must have created this ring with @TO noetherForm@.
-  SeeAlso
-    noetherForm
-    (inNoetherForm, Ring)
-    (noetherBasis, Ring)
-///
-
-doc ///
-  Key
-    traceForm
-    (traceForm, Ring)
-  Headline
-    trace form matrix of ring created using noetherForm
-  Usage
-    traceForm R
-  Inputs
-    R:Ring
-  Outputs
-    :Matrix
-  Description
-    Text
-  Caveat
-    One must have created this ring with @TO noetherForm@.
-  SeeAlso
-    noetherForm
-    (inNoetherForm, Ring)
-    (noetherBasis, Ring)
-    (multiplicationMap, RingElement)
-///
-
-doc ///
-  Key
-    inNoetherForm
-    (inNoetherForm, Ring)
-  Headline
-    whether the ring was created using noetherForm
-  Usage
-    inNoetherForm R
-  Inputs
-    R:Ring
-  Outputs
-    :Boolean
-  Description
-    Text
-  Caveat
-    This function only checks whether the ring was vreated using @TO noetherForm@, not
-    whether it really is in Noether normal form
-  SeeAlso
-    noetherForm
-///
-
-doc ///
-  Key
-    noetherBasis
-    (noetherBasis, Ring)
-  Headline
-    basis over coefficient ring of ring in Noether form
-  Usage
-    noetherBasis R
-  Inputs
-    R:Ring
-  Outputs
-    :Matrix
-  Description
-    Text
-  Caveat
-    One must have created this ring with @TO noetherForm@.
-  SeeAlso
-    noetherForm
-    (inNoetherForm, Ring)
-    (noetherBasis, Ring)
-    (multiplicationMap, RingElement)
-///
-
 TEST ///
   -- test-finiteOverCoefficientRing
 -*
@@ -1567,8 +1579,10 @@ uninstallPackage "NoetherNormalForm"
 restart
 installPackage "NoetherNormalForm"
 check NoetherNormalForm
+
 restart
 needsPackage  "NoetherNormalForm"
+check NoetherNormalForm
 
 doc ///
   Key
