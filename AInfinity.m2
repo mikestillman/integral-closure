@@ -327,14 +327,18 @@ maps(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
     hashTable pairs m)
 --	<<(d,j)<<ss<<endl;
 
-tensor(ZZ,HashTable) := ChainComplex => (p,C) ->(
-    --forms the pth tensor power pC of the complex C
-    --in such a way that if C consists of modules from the hashtable produced by AFrees,
-    --then the modules of the tensor power are direct sums of modules from the hashtable, so that
+tensor List := ChainComplex L ->(
+    --L = {C_0..C_(p-1)}, list of chain complexes.forms the tensor product of the C_i
+    --in such a way that if the tensor products of the modules (C_i)_m are labeled,
+    --then the modules of the tensor product are direct sums of modules from the hashtable, so that
     --componentsAndIndices applied to pC gives the correct list of indices, and
     --thus picture pC.dd_m works.
-    ampC = max C - min C;
-    pCModules = apply(
+    p = #L;
+    Min = apply(L, C->min C);
+    Max = apply(L, C->max C);
+    pCModules = apply(sum Max - sum Min, i ->(
+	    d = i+sum Min;
+	    com = combinations(d,p)
     )
 ///
 restart
