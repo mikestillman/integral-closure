@@ -16,6 +16,8 @@ newPackage(
         )
 
 -- TODO:
+--  1. bug: finiteness is still not checked?
+--  2. bug: if original ring has multigrading, then get an error.
 --  remove old bracketed code
 --  get noetherForm(RingMap) to work with the other methods.
 --  if R is multigraded, then we get an error.  Fix.  What do we want to happen?
@@ -167,7 +169,7 @@ trace RingElement := (f) -> (
     RK := NI#"field";
     if not NI#?"traces" then setTraces NI;
     traces := NI#"traces";
-    f = sub(f,RK);
+    f = promote(f,RK);
     M := last coefficients(f, Monomials => noetherBasisMatrix RK);
     g := (traces * M)_(0,0);
     g = lift(g, coefficientRing RK);
@@ -565,7 +567,9 @@ createCoefficientRing(Ring, List) := RingMap => opts -> (R, L) -> (
       -- create the matrix over the base: of size #elems of A x (numgens R + numgens A)
       monsR := reverse append(gens R, 1_R);
       (mons, cfs) := coefficients(f.matrix, Monomials => monsR);
-      M1 := -id_(kk^#lins) || lift(cfs_lins, kk);
+      cfs = map((ring cfs)^(numrows cfs),,cfs); -- clear out the degree information so 'lift' 
+        -- in this next line succeeds.
+      M1 := -id_(kk^#lins) || lift(cfs_lins, kk)
       M := gens gb M1;
       inM := leadTerm M;
       inM0 := submatrix(inM, {#lins+1 .. numrows M - 1},);
@@ -771,7 +775,7 @@ doc ///
       noetherBasis B
       noetherBasis frac B
       assert(multiplicationMap(y^3) == (multiplicationMap y)^3)
-      --trace(y^3) -- FAILS
+      trace(y^3) -- fails?
   Caveat
     One must have created this ring with @TO noetherForm@.
   SeeAlso
@@ -864,7 +868,7 @@ doc ///
       B = noetherForm {a,d}
       bas = noetherBasis frac B
       bas/trace
-      --trace b -- fails
+      trace b -- fails?
       use frac B
       trace c
       traceForm frac B
