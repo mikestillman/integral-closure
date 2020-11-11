@@ -206,11 +206,9 @@ tensorList List := L -> (
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
 	    print com;
     	    t := apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))));
---	    print last(com);
 	    select(t, tt-> #tt != 0)
 	    ))
     --make the differential as a block matrix:
---    error();
 --    chainComplex(apply #pCModules, i->map(pCModules_i, pCModules_(i+1), (p,q) -> matrix ****))
     )
 
@@ -222,7 +220,7 @@ kk = ZZ/101
 S = kk[a,b,c]
 R1 = S^1/ideal(a,b)
 A = res R1
-tensorList{A,A}
+t = tensorList{A,A}
 class (last t)
 #last t
 last t
