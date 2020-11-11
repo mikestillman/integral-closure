@@ -32,146 +32,6 @@ export {
     "symbolPairs"
     }
 
-///
---given a resolution A of R over S, and G or M over S, form tensor products
---G_i**A_u**A_v**..**A_w. Reconstruct the label (i,{u,v..w})? We'd need to know the names of the components.
-
-wrote "targets", symbolPairs, the latter giving the source,target of the maps defined from m^A and m^G.
-
-///
-LabeledModule = new Type of Module
-print class LabeledModule
-LabeledChainComplex = new Type of ChainComplex
-LabeledComplex = new Type of Complex
-
-labeledModule = method()
-labeledModule(VisibleList,Module) := LabeledModule => (L,F) -> (
-    F':=new LabeledModule from F;
-    if not F'.?cache then F'.cache = new CacheTable;
-    F'.cache.label = L;
-    F'.cache.factors = {F'};--singleton means not a tensor product module
-    F'.cache.components = {F'};
-    F'.cache.indices = {L};
-    F'.cache.indexComponents = new HashTable from {L=>0};
---    F'.cache.module = F;
-    F'
-    )
--*
-module = method()
-module LabeledModule := Module => M -> new Module from M
-
-labeledModule(Module) := LabeledModule => F -> labeledModule({},F)
-
-getLabel = method()
---getLabel LabeledModule := VisibleList => F -> F.cache.label
---getLabel LabeledComplex := VisibleList => F -> F.cache.label
---getLabel LabeledChainComplex := VisibleList => F -> F.cache.label
-getLabel Thing := VisibleList => F -> if (F.?cache and F.cache.?label)
-                    then F.cache.label else
-		    error"Not a labeled object"
-
-labeledComplex = method()
-labeledComplex(VisibleList, Complex) := LabeledComplex => (L,C) -> (
-    C' := new LabeledComplex from C;
-    for i from min C to max C do if class C_i === labeledModule 
-       then C'_i = C_i else 
-       C'_i = labeledModule({},C_i);
-    for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i);
-    C'.cache = new CacheTable;
-    C'.cache.label = L;
-    C'
-)
-
-labeledChainComplex = method()
-labeledChainComplex(VisibleList, ChainComplex) := LabeledChainComplex => (L,C) -> (
-    C' := new LabeledChainComplex from C;
-    for i from min C to max C do if class C_i === labeledModule 
-       then C'_i = C_i else 
-       C'_i = labeledModule({},C_i);
-    for i from 1+min C to max C list map(C'_(i-1),C'_i, matrix C.dd_i);
-    C'.cache = new CacheTable;
-    C'.cache.label = L;
-    C'
-)
-
-tensor(LabeledModule, LabeledModule) := LabeledModule => o -> (F,G) -> (
-    ans := new LabeledModule from (module F ** module G);
-    ans.cache.module = (module F ** module G);
-    ans.cache.factors = {F,G};
-    ans.cache.components = flatten apply(components F, M -> apply(components G, N -> 
-	    module M ** module N));
-    ans.cache.label = {getLabel F, getLabel G};
-    ans)
-
-LabeledModule**LabeledModule := (A,B) -> tensor(A,B)
-
-directSum(LabeledModule, LabeledModule) := LabeledModule => (F,G) -> (
-    F':= new LabeledModule from (module F ++ module G);
-    F'.cache.label = {getLabel F,getLabel G};
-    F'.cache.factors = {F'};--singleton means not a tensor product module
-    F'.cache.components = {F,G};
-    F'.cache.indices = {getLabel F,getLabel G};
-    F'.cache.indexComponents = new HashTable from {getLabel F=>0,getLabel G => 1};
-    F')
-
-LabeledModule.directSum = (F,G)->(
-    F':= new LabeledModule from (module F ++ module G);
-    F'.cache.label = {getLabel F,getLabel G};
-    F'.cache.factors = {F'};--singleton means not a tensor product module
-    F'.cache.components = {F,G};
-    F'.cache.indices = {getLabel F,getLabel G};
-    F'.cache.indexComponents = new HashTable from {getLabel F=>0,getLabel G => 1};
-    F')
-
-
---this doesn't work. Is it because 
---"directSum" has class "MethodFunctionSingle" instead of "MethodFunction"?
-
-LabeledModule++LabeledModule := (A,B) -> directSum(A,B)
-///
-uninstallPackage "AInfinity"
-restart
-installPackage "AInfinity"
-///
-*-
-
--*
-///
-restart
-debug loadPackage("AInfinity", Reload => true)
-
-kk = ZZ/101
-S = kk[a,b,c]
-
-aSymbols(3,3,5)
-aSymbols 5
-
-
-
-km = coker vars S
-k = labeledModule({}, coker vars S)
-k1 = labeledModule({L1}, coker vars S)
-k2 = labeledModule({L2}, coker vars S)
-keys k1
-getLabel k
-getLabel k1
-keys k.cache
-k' = k++k
-class k'
-keys (k').cache
-
-
-K = labeledChainComplex({KK}, koszul vars S)
-getLabel K_1
-getLabel K
-class K_1
-class module K_1
-tensor(K_1, K_1)
-class(K_1**K_1)
-class(K_1 ++ K_1)
-class directSum(K_1, K_1)
-*-
-
 
 
 ///
@@ -327,32 +187,65 @@ maps(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
     hashTable pairs m)
 --	<<(d,j)<<ss<<endl;
 
-tensor List := ChainComplex L ->(
-    --L = {C_0..C_(p-1)}, list of chain complexes.forms the tensor product of the C_i
+tensorList = method()
+tensorList List := L -> (
+    --L = {C_0..C_(p-1)}, list of modules or chain complexes. Form the tensor product of the C_i
     --in such a way that if the tensor products of the modules (C_i)_m are labeled,
     --then the modules of the tensor product are direct sums of modules from the hashtable, so that
     --componentsAndIndices applied to pC gives the correct list of indices, and
     --thus picture pC.dd_m works.
-    p = #L;
-    Min = apply(L, C->min C);
-    Max = apply(L, C->max C);
-    pCModules = apply(sum Max - sum Min, i ->(
-	    d = i+sum Min;
-	    com = combinations(d,p)
+    S := ring L_0;
+    if #L == 0 then error "needs list of length > 0";
+    if #L == 1 then return L_0;
+    if #L > 1 and class(L_0) === Module then return tensorList(drop(L, -1)) ** last L;
+    p := #L;
+    Min := apply(L, C->min C);
+    Max := apply(L, C->max C-1);
+    pCModules := apply(#L + sum Max - sum Min, i ->(
+	    d := i+sum Min;
+	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
+	    print com;
+    	    t := apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))));
+--	    print last(com);
+	    select(t, tt-> #tt != 0)
+	    ))
+    --make the differential as a block matrix:
+--    error();
+--    chainComplex(apply #pCModules, i->map(pCModules_i, pCModules_(i+1), (p,q) -> matrix ****))
     )
+
+
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[a,b,c]
-R1 = S^1/(ideal vars S)^2
-M = coker vars S
+R1 = S^1/ideal(a,b)
 A = res R1
-G = res M
-m = maps(A,4)
-frees = AFrees(A,5)
-tensor(2,frees)
-AFrees(A,G,5)
+tensorList{A,A}
+class (last t)
+#last t
+last t
+t0=select(t, tt -> #tt !=0)
+last t0
+
+apply (length t, i-> directSum t_i)
+netList t
+componentsAndIndices directSum t_0
+map(t_1,t_2,(i,j) -> matrix
+netList(apply(#t, i->componentsAndIndices t_i))
+t_1^[(0,1)]
+picture(id_(t_5))
+
+M = labeler("(0,1)", S^2)
+indices M
+M^[(0,1)]
+N = labeler("(1,0)", S^2)
+(M++N)_["(0,1)"]
+(M++N)^{(1,0)}
+P = ({1,0}=>S^2)++({0,1} =>S^3)
+P = directSum({1,0}=>S^2,{0,1} =>S^3)
+P^[{1,0}]
 ///
 
 ///
@@ -568,23 +461,6 @@ tensor(Ring, List) := o -> (R,L) -> (
     ans1**last L
     )
 
-tensorAssociativity (LabeledModule,LabeledModule,LabeledModule) := Matrix => (M0,M1,M2) ->(
-    --produces the map from (M0**(M1**M2) to M0**M1**M2 = (M0**M1)**M2
-    t := tensorAssociativity(M0,M1,M2);
-    M := labeledModule(source t);
-    M.cache.factors = {M_0, M_1**M_2};
-    map(M0**M1**M2, M)
-    )
-
-reassociate1 = method()
-reassociate1 (LabeledModule, ZZ,ZZ) := Matrix => (M,p) ->(
-    M0 := ((M.cache.factors)_0).cache.factors_0;
-    M1 := ((M.cache.factors)_0).cache.factors_1;
-    M2 := (M.cache.factors)_1;
-    t := tensorAssociativity(M0,M1,M2);
-    N := target t;
-    N.cache.factors = {M0,M1**M2};
-    )
     
 
 
