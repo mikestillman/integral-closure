@@ -18,22 +18,28 @@ tensorList List := L -> (
 	    d := i+sum Min;
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
 	    print com;
-    	    t := apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))));
-	    select(t, tt-> #tt != 0)
-	    ))
+    	    apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
+	));
+    select(pCModules, tt-> #tt != 0)
+	    )
     --make the differential as a block matrix:
 --    chainComplex(apply #pCModules, i->map(pCModules_i, pCModules_(i+1), (p,q) -> matrix ****))
-    )
+
 
 
 kk = ZZ/101
 S = kk[a,b,c]
 R1 = S^1/ideal(a,b)
 A = res R1
-t = tensorList{A,A}
+B = res coker random(S^2, S^{-1,-1,-3})
+netList (t= tensorList{A,A})
 class (last t)
 #last t
 last t
 t0=select(t, tt -> #tt !=0) -- note that this line is the same as the last line of the function!
 --Why doesn't this line work when it's inside the function, but does when it's outside??
 last t0
+netList o7
+
+tensorList{A,B}
+netList oo

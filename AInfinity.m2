@@ -15,21 +15,22 @@ newPackage(
 	)
 
 export {
---    "LabeledModule",
---    "LabeledComplex",
---    "LabeledChainComplex",
+    "LabeledModule",
+    "LabeledComplex",
+    "LabeledChainComplex",
+    "labeledModule",
+    "getLabel",
+    "labeledComplex",
+    "labeledChainComplex",
+    --symbols
+    "label",
+    "factors",
+    "module",
+    "symbolPairs",
+--
     "aInfinity",
     "burck",
-    "golodBetti",
---    "labeledModule",
---    "getLabel",
---    "labeledComplex",
---    "labeledChainComplex",
-    --symbols
---    "label",
---    "factors",
---    "module",
---    "symbolPairs"
+    "golodBetti"
     }
 
 
@@ -186,34 +187,13 @@ maps(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
 		    	    ))));
     hashTable pairs m)
 --	<<(d,j)<<ss<<endl;
--*
-tensorList = method()
-tensorList List := L -> (
-    --L = {C_0..C_(p-1)}, list of modules or chain complexes. Form the tensor product of the C_i
-    --in such a way that if the tensor products of the modules (C_i)_m are labeled,
-    --then the modules of the tensor product are direct sums of modules from the hashtable, so that
-    --componentsAndIndices applied to pC gives the correct list of indices, and
-    --thus picture pC.dd_m works.
-    S := ring L_0;
-    if #L == 0 then error "needs list of length > 0";
-    if #L == 1 then return L_0;
-    if #L > 1 and class(L_0) === Module then return tensorList(drop(L, -1)) ** last L;
-    p := #L;
-    Min := apply(L, C->min C);
-    Max := apply(L, C->max C-1);
-    pCModules := apply(#L + sum Max - sum Min, i ->(
-	    d := i+sum Min;
-	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-	    print com;
-    	    t := apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))));
-	   -- select(t, tt-> #tt != 0)
-	   ts := apply(t, tt-> try directSum tt then directSum tt else S^0)));
-   e = apply(#L, i->toList(i:0)|{1}|toList(#L-1-i:0))
-   )
-    --make the differential as a block matrix:
---    chainComplex(apply #pCModules, i->map(pCModules_i, pCModules_(i+1), (p,q) -> matrix ****))
-    )
-*-
+
+suitable = method()
+suitable List := v-> 
+     -- v is a list of ZZ. returns null unless v has the form
+     -- {0...0,1,0..0}, in which case it returns the position of the 1.
+                  if min v == 0 then position (v, vv -> vv == 1) else null;
+		  
 tensorList = method()
 tensorList List := L -> (
     --L = {C_0..C_(p-1)}, list of modules or chain complexes. Form the tensor product of the C_i
@@ -231,32 +211,34 @@ tensorList List := L -> (
     modules := apply(#L + sum Max - sum Min, i ->(
 	    d := i+sum Min;
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-	    print com;
     	    apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
 	));
-
     modules = select(modules, tt-> #tt != 0);
-    suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
-    for i from 0 to #modules -1 list(	
-        map(directSum modules#(i-1),
-            directSum modules#i,
-            matrix table(
-                modules#(i-1),
-                modules#i,
-                (j,k) -> (
-                    tar := j#1;
-                    src := k#1;
+<<pairs modules<<endl;
+    for i from 0 to #modules -2 list(	
+        map(directSum modules#i,
+            directSum modules#(i+1),
+            matrix table( -- form a block matrix
+                modules#i, -- rows of the table
+                modules#(i+1), -- cols of the table
+                (j,k) -> ( -- j,k each have the form (List => Module)
 		    indtar := j#0;
 		    indsrc := k#0;		    
+                    tar := j#1;
+                    src := k#1;
 		    p := suitable(indsrc - indtar);
                     m := map(tar, src, 
-			if p === null then 0 else
-			phi := (-1)^p*tensor(S, apply(p, q -> L_q_(indtar_q)))**
+			if p === null then 0 else(
+			sign := (-1)^(sum(indsrc_(toList(0..p-1))));
+<<(indsrc,indtar,p,sign)<<endl;
+			phi := sign*tensor(S, apply(p, q -> L_q_(indtar_q)))**
 			                                (L_p).dd_(indsrc_p)**
                                tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1))))
-			);
+			));
+<<phi<<endl;
                     m))))
-	)
+    )
+	
 
 
 
@@ -270,57 +252,6 @@ R1 = S^1/ideal(a,b)
 A = res R1
 t = chainComplex tensorList{A,A}
 t.dd^2
-tar
-src
-indtar
-indsrc
-
-indices directSum t_1
-indices (components directSum t_1)_0
-L = {A,A,A}
-t = tensorList{A,A,A}
- (pCModules_2_1
-map
-map(ts_2,ts_3,(i,j) -> (
-apply(#components ts_2, i-> apply(#components ts_3, j->(
-	 sour = (components ts_3)_j;
-	 tar =  (components ts_2)_i;
-	 differ = (indices ts_3)_j - (indices ts_2)_i);
-     	     q = positions(differ, s -> s>0)))
-
-	 if not all(#L, i-> differ_i >=0) then map(tar,sour, 0) else(
-	     q = positions(#L, s->differ_s>0);
-	     map(tar,sour, -1^q*A.dd_3))))
-)	 
-#components ts_2
-components ts_2
-components ts_3
-methods map
-(components ts_2)_0
-(components ts_3)_0
-class (last t)
-#last t
-last t
-t0=select(t, tt -> #tt !=0)
-last t0
-
-apply (length t, i-> directSum t_i)
-netList t
-componentsAndIndices directSum t_0
-map(t_1,t_2,(i,j) -> matrix
-netList(apply(#t, i->componentsAndIndices t_i))
-t_1^[(0,1)]
-picture(id_(t_5))
-
-M = labeler("(0,1)", S^2)
-indices M
-M^[(0,1)]
-N = labeler("(1,0)", S^2)
-(M++N)_["(0,1)"]
-(M++N)^{(1,0)}
-P = ({1,0}=>S^2)++({0,1} =>S^3)
-P = directSum({1,0}=>S^2,{0,1} =>S^3)
-P^[{1,0}]
 ///
 
 ///
