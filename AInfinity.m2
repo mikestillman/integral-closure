@@ -15,21 +15,21 @@ newPackage(
 	)
 
 export {
-    "LabeledModule",
-    "LabeledComplex",
-    "LabeledChainComplex",
+--    "LabeledModule",
+--    "LabeledComplex",
+--    "LabeledChainComplex",
     "aInfinity",
     "burck",
     "golodBetti",
-    "labeledModule",
-    "getLabel",
-    "labeledComplex",
-    "labeledChainComplex",
+--    "labeledModule",
+--    "getLabel",
+--    "labeledComplex",
+--    "labeledChainComplex",
     --symbols
-    "label",
-    "factors",
-    "module",
-    "symbolPairs"
+--    "label",
+--    "factors",
+--    "module",
+--    "symbolPairs"
     }
 
 
@@ -186,7 +186,7 @@ maps(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
 		    	    ))));
     hashTable pairs m)
 --	<<(d,j)<<ss<<endl;
-
+-*
 tensorList = method()
 tensorList List := L -> (
     --L = {C_0..C_(p-1)}, list of modules or chain complexes. Form the tensor product of the C_i
@@ -206,11 +206,59 @@ tensorList List := L -> (
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
 	    print com;
     	    t := apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))));
-	    select(t, tt-> #tt != 0)
-	    ))
+	   -- select(t, tt-> #tt != 0)
+	   ts := apply(t, tt-> try directSum tt then directSum tt else S^0)));
+   e = apply(#L, i->toList(i:0)|{1}|toList(#L-1-i:0))
+   )
     --make the differential as a block matrix:
 --    chainComplex(apply #pCModules, i->map(pCModules_i, pCModules_(i+1), (p,q) -> matrix ****))
     )
+*-
+tensorList = method()
+tensorList List := L -> (
+    --L = {C_0..C_(p-1)}, list of modules or chain complexes. Form the tensor product of the C_i
+    --in such a way that if the tensor products of the modules (C_i)_m are labeled,
+    --then the modules of the tensor product are direct sums of modules from the hashtable, so that
+    --componentsAndIndices applied to pC gives the correct list of indices, and
+    --thus picture pC.dd_m works.
+    S := ring L_0;
+    if #L == 0 then error "needs list of length > 0";
+    if #L == 1 then return L_0;
+    if #L > 1 and class(L_0) === Module then return tensorList(drop(L, -1)) ** last L;
+    p := #L;
+    Min := apply(L, C->min C);
+    Max := apply(L, C->max C-1);
+    modules := apply(#L + sum Max - sum Min, i ->(
+	    d := i+sum Min;
+	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
+	    print com;
+    	    apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
+	));
+
+    modules = select(modules, tt-> #tt != 0);
+    suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
+    for i from 0 to #modules -1 list(	
+        map(directSum modules#(i-1),
+            directSum modules#i,
+            matrix table(
+                modules#(i-1),
+                modules#i,
+                (j,k) -> (
+                    tar := j#1;
+                    src := k#1;
+		    indtar := j#0;
+		    indsrc := k#0;		    
+		    p := suitable(indsrc - indtar);
+                    m := map(tar, src, 
+			if p === null then 0 else
+			phi := (-1)^p*tensor(S, apply(p, q -> L_q_(indtar_q)))**
+			                                (L_p).dd_(indsrc_p)**
+                               tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1))))
+			);
+                    m))))
+	)
+
+
 
 
 ///
@@ -220,7 +268,36 @@ kk = ZZ/101
 S = kk[a,b,c]
 R1 = S^1/ideal(a,b)
 A = res R1
-t = tensorList{A,A}
+t = chainComplex tensorList{A,A}
+t.dd^2
+tar
+src
+indtar
+indsrc
+
+indices directSum t_1
+indices (components directSum t_1)_0
+L = {A,A,A}
+t = tensorList{A,A,A}
+ (pCModules_2_1
+map
+map(ts_2,ts_3,(i,j) -> (
+apply(#components ts_2, i-> apply(#components ts_3, j->(
+	 sour = (components ts_3)_j;
+	 tar =  (components ts_2)_i;
+	 differ = (indices ts_3)_j - (indices ts_2)_i);
+     	     q = positions(differ, s -> s>0)))
+
+	 if not all(#L, i-> differ_i >=0) then map(tar,sour, 0) else(
+	     q = positions(#L, s->differ_s>0);
+	     map(tar,sour, -1^q*A.dd_3))))
+)	 
+#components ts_2
+components ts_2
+components ts_3
+methods map
+(components ts_2)_0
+(components ts_3)_0
 class (last t)
 #last t
 last t
