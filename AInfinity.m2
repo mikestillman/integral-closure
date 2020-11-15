@@ -214,7 +214,7 @@ tensorList List := L -> (
     	    apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
 	));
     modules = select(modules, tt-> #tt != 0);
-<<pairs modules<<endl;
+--<<pairs modules<<endl;
     for i from 0 to #modules -2 list(	
         map(directSum modules#i,
             directSum modules#(i+1),
@@ -230,12 +230,10 @@ tensorList List := L -> (
                     m := map(tar, src, 
 			if p === null then 0 else(
 			sign := (-1)^(sum(indsrc_(toList(0..p-1))));
-<<(indsrc,indtar,p,sign)<<endl;
-			phi := sign*tensor(S, apply(p, q -> L_q_(indtar_q)))**
+			phi := sign*(tensor(S, apply(p, q -> L_q_(indtar_q)))**
 			                                (L_p).dd_(indsrc_p)**
-                               tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1))))
+                               tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1)))))
 			));
-<<phi<<endl;
                     m))))
     )
 	
@@ -250,8 +248,8 @@ kk = ZZ/101
 S = kk[a,b,c]
 R1 = S^1/ideal(a,b)
 A = res R1
-t = chainComplex tensorList{A,A}
-t.dd^2
+t = chainComplex tensorList{A,A,A}
+(t.dd^2)
 ///
 
 ///
