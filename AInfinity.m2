@@ -15,6 +15,7 @@ newPackage(
 	)
 
 export {
+    "AFrees",
     "LabeledModule",
     "LabeledComplex",
     "LabeledChainComplex",
@@ -70,14 +71,17 @@ components frees#{3,1}
 componentsAndIndices frees#{3,1}
 
 ///
----Code from EagonResolution.m2---------------
-
---for eTensor to work, the label must be of the form {ZZ,List}, representing
---an element of G**B**B**B...
---then eTensor adds the first components, concatenates the second components.
---note that this is associative but NOT commutative.
-
 labeler = (L,F) -> directSum(1:(L=>F));
+///
+Y = labeler({1},S^1)
+Z = labeler({2},S^1)
+X = Y++Z
+components X
+indices X -- gives the numbers
+indices\components X
+componentsAndIndices X -- correct.
+
+///
 
 AFrees = method()
 AFrees(ChainComplex, ZZ) := HashTable => (Rres, bound) ->(
@@ -211,9 +215,11 @@ tensorList List := L -> (
     modules := apply(#L + sum Max - sum Min, i ->(
 	    d := i+sum Min;
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-    	    apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
+    	    --apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
+	    apply(com, co -> (co => labeler(co, tensorList(apply(p, pp->(L_pp)_(co_pp))))))
 	));
     modules = select(modules, tt-> #tt != 0);
+--error();
 --<<pairs modules<<endl;
     for i from 0 to #modules -2 list(	
         map(directSum modules#i,
@@ -248,8 +254,12 @@ kk = ZZ/101
 S = kk[a,b,c]
 R1 = S^1/ideal(a,b)
 A = res R1
-t = chainComplex tensorList{A,A,A}
+m = tensorList{A,A,A};
+t = chainComplex m
 (t.dd^2)
+indices t_2
+componentsAndIndices t_2
+picture m_1
 ///
 
 ///
