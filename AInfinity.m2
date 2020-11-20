@@ -229,13 +229,10 @@ labeledTensorComplex List := ChainComplex => L -> (
     modules := apply(#L + sum Max - sum Min, i ->(
 	    d := i+sum Min;
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-    	    --apply(com, co -> (co => tensorList(apply(p, pp->(L_pp)_(co_pp)))))
---	    apply(com, co -> (co => labeler(co, tensorList(apply(p, pp->(L_pp)_(co_pp))))))
 	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
 	));
     modules = select(modules, tt-> #tt != 0);
---error();
---<<pairs modules<<endl;
+
     d := for i from 0 to #modules -2 list(	
         map(directSum modules#i,
             directSum modules#(i+1),
@@ -334,10 +331,13 @@ for i from 3*2 to max B+1 do(
         co := select(compositions(3,i,max B), c -> min c >= min B);
 	--(C,K) := componentsAndIndices (B2_i); is this better?
 	for k in co do(
-	dm3 := m#{2,{sum k_{0,1}-1,k_2}}*(m#{2,k_{0,1}}**B_(k_2)) +
-	       -1^(k_0)* m#{2,{2,sum k_{1,2} -1}}*(B_(k_0)**m#{2,k_{1,2}}) +
+	dm3 := m#{2,{sum k_{0,1}-1,k_2}} * (m#{2,k_{0,1}}**B_(k_2)) +
+	
+	       -1^(k_0)* m#{2,{2,sum k_{1,2}-1}} * (B_(k_0)**m#{2,k_{1,2}}) +
+        
 	       sum(apply(3, ell -> if min(k-e_ell)< min B then 0 else 
 		       -1^(sum k_{0..ell-1})*m#{3,k-e_ell}*m#{1,k}));
+	       
 	m3 := dm3//B.dd_(i-1);
         m#{3,k} = map(B_(i-1), B3_i, m3))
      );
@@ -351,15 +351,31 @@ kk = ZZ/101
 S = kk[x_1..x_4]
 R = S/(ideal vars S)^2
 H = aInfinity(R,3);
-ell = 0
-m#{3,k-e_ell}*m#{1,k}));
+K = sort select(keys H, k->class k === List)
+for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
+H#{2,{2,4}}
 
-length B
-H = hashTable pairs m;
-keys H
-K = select(keys H, k->class k === List)
-for k in K do <<k<<" "<< picture(H#k)<<endl;
-H#{2,4}
+restart
+debug loadPackage("AInfinity", Reload => true)
+kk = ZZ/101
+S = kk[x_1..x_4]
+R = S/(ideal vars S)^2
+H = aInfinity(R,3);
+K = sort select(keys H, k->class k === List)
+for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
+H#{2,{2,4}}
+
+restart
+debug loadPackage("AInfinity", Reload => true)
+kk = ZZ/101
+S = kk[a,b,c]
+R = S/ideal"a2-bc,b2,c2,ab,ac"
+H = aInfinity(R,3);
+K = sort select(keys H, k->class k === List)
+for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
+H#{2,{2,3}}
+H#{2,{3,2}}
+
 ///
 
     
