@@ -279,7 +279,7 @@ debug loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[a,b,c,d]
 R = S/(ideal(a,b,c,d))^2
-H = aInfinity(R,3); -- potentionall slower than with chainComplexes.
+elapsedTime H = aInfinity(R,3); -- potentionall slower than with chainComplexes.
 K = toSequence (keys H)_{2..#keys H -1}
 K = select(K, k-> class k === List)
 for k in K do <<k<<" "<< picture H#k<<endl;
@@ -316,7 +316,7 @@ A0 := (complex S^1)[-2];
 d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
 m#"Bmap" = d;
 B2 := labeledTensorComplex{B,B};
-N := nullHomotopy (d**id_B-id_B**d);
+elapsedTime N := nullHomotopy (d**id_B-id_B**d);
 for i from 2*min B to max B+1 do (
 	(C,K) := componentsAndIndices (B2_i); 
 	for j from 0 to #K -1 do 
