@@ -322,8 +322,6 @@ for i from 2*min B to max B+1 do (
 	  if target N_i !=0 then
 	     m#{2,K_j} = map(B_(sum K_j - 1),C_j, N_(i)*((B2_i)_[K_j]))
 	                       );
---m#{3,i}
---error();
 B3 := labeledTensorComplex toList(3:B);
 e := apply(3, ell -> toList(ell:0)|{1}|toList(3-ell-1:0));
 
@@ -343,13 +341,21 @@ for i from 3*2 to max B+1 do(
      );
 hashTable pairs  m
 )
-
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[x_1..x_4]
 R = S/(ideal vars S)^2
+A = res coker presentation R
+elapsedTime lTC{A,A,A}
+elapsedTime A**A**A
+needsPackage "Complexes"
+A' = complex A
+
+elapsedTime A'**(A'**A')
+elapsedTime o10**o10
+
 H = aInfinity(R,3);
 K = sort select(keys H, k->class k === List)
 for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
@@ -391,17 +397,8 @@ m := new MutableHashTable;
 R := ring M;
 S := ring presentation R;
 RS := map(R,S);
-
--*
-A := res coker presentation R;
-B0 := chainComplex(apply(length A-1, i-> A.dd_(i+2)))[-2];
-B1 := chainComplex(for i from 3 to length B0+2 list 
-	map(labeledModule((,{i-1}), B0_(i-1)),
-	    labeledModule((i,{}), B0_i),
-	    B0.dd_i));
-B := B1[-2];
-*-
-B := source mR#"Bmap";
+MS := pushForward(RS,M);
+B := m#resolution; -- this is truncated, labeled.
 
 G0 := res pushForward(RS,M);
 G := chainComplex(for i from 1 to length G0 list 
@@ -413,11 +410,12 @@ m#"resolution" = G;
   apply(length G , i-> m#{1,i+1} = G.dd_(i+1));    
 
 --m#{2,i} 
---A0 := (chainComplex gradedModule (S^1))[-2];
---d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
-NG := nullhomotopy(G**mR#"Bmap"); --mR#"Bmap" = d
-apply(length G, i-> m#{2,i+2} = NG_(i+2));
-
+BG := labeledTensorComplex{B,G};
+d0 := dual syz B.dd_3;
+m20 := map(S^1**G_0, B_2**G_0, d0**G_0)//G.dd_1; 
+--extend(m20,
+)
+-*
 --m#{3,4}
   sour := directSum components source m#{2,3};
   m#{2,3} = map(G_2, sour, matrix m#{2,3});
@@ -427,7 +425,7 @@ apply(length G, i-> m#{2,i+2} = NG_(i+2));
                  );
   m#{3,4} = toLift//m#{1,3};
 hashTable pairs m)
-
+*-
 
 
 ///
