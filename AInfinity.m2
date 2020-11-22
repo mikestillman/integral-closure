@@ -16,17 +16,17 @@ newPackage(
 
 export {
     "AFrees",
-    "LabeledModule",
-    "LabeledComplex",
-    "LabeledChainComplex",
-    "labeledModule",
-    "getLabel",
-    "labeledComplex",
-    "labeledChainComplex",
+--    "LabeledModule",
+--    "LabeledComplex",
+--    "LabeledChainComplex",
+--    "labeledModule",
+--    "getLabel",
+--    "labeledComplex",
+--    "labeledChainComplex",
     --symbols
-    "label",
-    "factors",
-    "module",
+--    "label",
+--    "factors",
+--    "module",
     "symbolPairs",
 --
     "aInfinity",
@@ -53,7 +53,6 @@ M = coker vars S
 A = freeResolution R1
 freesA = AFrees(A,5)
 X = freesA#{2}++freesA#{3,2}
-methods tensor
 
 indices((components X)_1)
 indices X -- just the numbers
@@ -70,9 +69,10 @@ displayBlocks id_(frees#{3,1})
 indices (frees#{3,1})
 components frees#{3,1}
 componentsAndIndices frees#{3,1}
-
 ///
-labeler = (L,F) -> directSum(1:(L=>F));
+
+
+
 ///
 Y = labeler({1},S^1)
 Z = labeler({2},S^1)
@@ -81,7 +81,6 @@ components X
 indices X -- gives the numbers
 indices\components X
 componentsAndIndices X -- correct.
-
 ///
 
 AFrees = method()
@@ -164,50 +163,21 @@ targets (VisibleList, ZZ) := List => (s,j) -> (
     L
 	 )
 
-maps = method()
-maps(Complex, ZZ) := HashTable => (Rres, bound) ->(
-    --inductively construct the maps m_j on tensor products of degree d
-    S := ring Rres;
-    pdR := length Rres; 
-    B := (complex apply(length Rres - 1, i -> -Rres.dd_(i+2)))[-2];
-
-    frees := AFrees(Rres,bound);
-    symbols := keys frees;
-    m := new MutableHashTable;
-    
-    for d from 1 to bound do(
-	for j from 1 to d do(
-           ss := select(symbols, s -> sum s == d and length s == j); 
-	    for s in ss do(
-		for t in targets1(s,j) do
-	        if j == 1 then (
-		   if s_0 == 2 then m#(j,s) = 0 else  
-		                    m#(j,s) = map(frees#t,frees#s, B.dd_(s_0)));
-		if j == 2 then (
-                    A0 := (complex S^1)[-2];
-		    d1 := map(A0,B, i -> if (i == 2) then Rres.dd_1 else 0);
-		    m2 := nullHomotopy (d1 ** id_B - id_B ** d1);
-		    indices(source m2_5);
-		    error();
-		    	    ))));
-    hashTable pairs m)
---	<<(d,j)<<ss<<endl;
 
 suitable = method()
 suitable List := v-> 
      -- v is a list of ZZ. returns null unless v has the form
      -- {0...0,1,0..0}, in which case it returns the position of the 1.
                   if min v == 0 then position (v, vv -> vv == 1) else null;
-tensorList = method()
-tensorList List := Module => L -> (
-    --tensor product of a list of modules
-    if not class L_0 =!= Module then error "Input should be a list of Modules.";
-    S := ring L_0;
-    if #L == 0 then return S^1;
-    if #L == 1 then return L_0;
-    if #L > 1  then return tensorList(drop(L, -1)) ** last L)
-    
 		  
+labeler = (L,F) -> directSum(1:(L=>F));
+
+
+///
+restart
+debug loadPackage("AInfinity", Reload => true)
+///
+
 labeledTensorComplex = method()
 labeledTensorComplex List := Complex => L -> (
     --L = {C_0..C_(p-1)}, list chain complexes. Form the tensor product of the C_i
@@ -225,14 +195,16 @@ labeledTensorComplex List := Complex => L -> (
         );
     p := #L;
     Min := apply(L, C->min C);
-    Max := apply(L, C->max C-1);
+    Max := apply(L, C->max C);
     modules := apply(#L + sum Max - sum Min, i ->(
 	    d := i+sum Min;
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
 	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
 	));
+--<<netList modules<<endl;
     modules = select(modules, tt-> #tt != 0);
-
+--<<netList modules<<endl;
+--error();
     d := for i from 0 to #modules -2 list(	
         map(directSum modules#i,
             directSum modules#(i+1),
@@ -252,8 +224,11 @@ labeledTensorComplex List := Complex => L -> (
 			                                (L_p).dd_(indsrc_p)**
                                tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1)))))
 			))))));
-                   (complex d)[-sum(L, ell -> min ell)])
+                   (complex d)[-sum(L, ell -> min ell)]
+		   )
+
 labeledTensorComplex Complex := Complex => C -> labeledTensorComplex{C}
+
 lTC = labeledTensorComplex;
 
 ///
@@ -263,6 +238,11 @@ kk = ZZ/101
 S = kk[a,b,c]
 R1 = S^1/ideal(a,b)
 A = (freeResolution R1) [-3]
+lTC{A,A,A}
+A**A**A
+lTC{A,A}
+A**A
+
 A' = lTC {A}
 picture(A'.dd_5)
 T = lTC{A,A,A}
@@ -312,17 +292,29 @@ m#"resolution" = B;
 apply(length B , i-> m#{1,{i+3}} = B.dd_(i+3));
 
 --m#{2,i}
+
+
 A0 := (complex S^1)[-2];
 d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
 m#"Bmap" = d;
 B2 := labeledTensorComplex{B,B};
-elapsedTime N := nullHomotopy (d**id_B-id_B**d);
+--elapsedTime N := nullHomotopy (d**id_B-id_B**d);-- this is SLOW! -- 19 sec
+
+--fix the nullhomotopy problem!
+A0':=chainComplex A0;
+B2':=chainComplex B2;
+B' := chainComplex B;
+d' := map(A0', B', i-> if (i == 2) then A'.dd_1 else 0);
+N := nullhomotopy (d'**id_B'-id_B'**d'); -- .066 sec compared to 19
+--end of fix
+
 for i from 2*min B to max B+1 do (
 	(C,K) := componentsAndIndices (B2_i); 
 	for j from 0 to #K -1 do 
 	  if target N_i !=0 then
 	     m#{2,K_j} = map(B_(sum K_j - 1),C_j, N_(i)*((B2_i)_[K_j]))
-	                       );
+       );
+--m#{3,i}	                    
 B3 := labeledTensorComplex toList(3:B);
 e := apply(3, ell -> toList(ell:0)|{1}|toList(3-ell-1:0));
 
@@ -342,28 +334,123 @@ for i from 3*2 to max B+1 do(
      );
 hashTable pairs  m
 )
+
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
-kk = ZZ/101
-S = kk[x_1..x_4]
-R = S/(ideal vars S)^2
-A = freeResolution coker presentation R
-elapsedTime lTC{A,A,A}
-elapsedTime A**A**A
-needsPackage "Complexes"
-A' = complex A
+/// 
 
-elapsedTime A'**(A'**A')
-elapsedTime o10**o10
+aInfinity(HashTable, Module, ZZ) := HashTable => (mR, M,n) -> (
+    --R = ring M should be a factor ring of a polynomial ring S
+    --mR = aInfinity (R,n) an AInfinity structure on a resolution A of R
+    --M an R-module
+    --The HashTable returned contains the A-infinity structure on 
+    --an S-free resolution of M up to stage n.
+    --CAVEAT: for the moment n = 3, and we compute only
+    --m#{i,j} for i = 1,2,3.
+m := new MutableHashTable;
+B := mR#"resolution";
+R := ring M;
+S := ring presentation R;
+RS := map(R,S);
 
-H = aInfinity(R,3);
-K = sort select(keys H, k->class k === List)
-for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
-H#{2,{2,4}}
+-*
+MS := pushForward(RS,M);
 
+A' := freeResolution coker presentation R;
+A'' := labeledTensorComplex(A'[-1]);
+A := A''[1];
+B0 := complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+B1 := complex(for i from 3 to length B0+2 list 
+	map(B0_(i-1),
+	    B0_i,
+	    B0.dd_i));
+--B := labeledTensorComplex{B1[-2]};
+B := B1[-2];
+--B = mR#"resolution" -- use this if we take mR as an input.
+*-
+
+G0 := freeResolution pushForward(RS,M);
+G := complex labeledTensorComplex{G0};
+m#"resolution" = G;
+
+--m#{1,i}
+  apply(length G , i-> m#{1,i+1} = G.dd_(i+1));    
+
+--m#{2,i} 
+BG := labeledTensorComplex{B,G};
+d0 := dual syz dual B.dd_3;
+m20 := map(S^1**G_0, B_2**G_0, d0**G_0)//G.dd_1; 
+G' := naiveTruncation(G,1,infinity);
+m2 := extend(G',BG,m20,-1);
+--for i from min BG to max G+1 do
+--   m#{2,i} = map(G_(i-1),BG_i, m2_i);
+
+for i from min B to max BG do (
+	(C,K) := componentsAndIndices (BG_i); 
+	for j from 0 to #K -1 do 
+	  if target m2_i !=0 then
+	     m#{2,K_j} = map(G_(sum K_j - 1),C_j, m2_(i)*((BG_i)_[K_j]))
+       );
+
+--m#{3,i}	                       );
+B2G := labeledTensorComplex (toList(2:B)|{G});
+e := apply(3, ell -> toList(ell:0)|{1}|toList(3-ell-1:0));
+for i from min B2G to max G+1 do(
+	(C,K) := componentsAndIndices (B2G_i);
+	for k in K do(
+	dm3 := m#{2,{sum k_{0,1}-1,k_2}} * (mR#{2,k_{0,1}}**G_(k_2)) +
+	
+	       -1^(k_0)* m#{2,{k_0,sum k_{1,2}-1}} * (B_(k_0)**m#{2,k_{1,2}}) +
+	               
+	       sum(apply(#e, ell -> if min(k-e_ell)< min B then 0 else 
+		       -1^(sum k_{0..ell-1})*m#{3,k-e_ell}*m#{1,k}));
+
+	m3 := dm3//G.dd_(i-1);
+        m#{3,k} = map(G_(i-1), source ((B2G_i)_[k]), m3))
+     );
+hashTable pairs  m)
+
+-*
+burck = method()
+burck(HashTable,HashTable,ZZ) := Complex => (mR,mM,n) ->(
+    --mR,mM are A-infinity structures on a ring R and an R-module M
+    --computed at least to homological degree n.
+    --construct the Golod-type resolution up to length n, using
+    --Jessie Burck's recipe.
+G := mM#"resolution";
+B := mR#"resolution";
+d := new MutableHashTable;
+for i from 1 to length G do  d#(i,{0}) = G.dd_i); --mM#{1,i}
+d#(0,{2})
+*-
+
+
+
+///
 restart
 debug loadPackage("AInfinity", Reload => true)
+needsPackage "Complexes"
+kk = ZZ/101
+S = kk[x_1..x_4]
+R = S/(ideal vars S)^2 -- a golod ring
+F = res coker vars R
+M = coker F.dd_4;
+elapsedTime mR = aInfinity(R,3);
+elapsedTime m = aInfinity(mR,M,3);
+K = sort select(keys m, k->class k === List)
+for k in K do <<k<<" "<< picture(m#k)<< betti m#k <<endl;
+
+MS = pushForward(map(R,S), M)
+G = res MS
+A = res coker presentation R
+
+///
+
+///
+restart
+debug loadPackage("AInfinity", Reload => true)
+needsPackage "Complexes"
 kk = ZZ/101
 S = kk[x_1..x_4]
 R = S/(ideal vars S)^2
@@ -371,6 +458,18 @@ H = aInfinity(R,3);
 K = sort select(keys H, k->class k === List)
 for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
 H#{2,{2,4}}
+
+use S
+R = S/ideal(apply(gens S, p-> p^2))
+H = aInfinity(R,3);
+K = sort select(keys H, k->class k === List)
+for k in K do <<k<<" "<< picture(H#k)<< betti H#k <<endl;
+
+--note that m{3,{2,2,2}} = 0, since K res R^1 is a DG algebra!
+
+A = freeResolution coker presentation R
+--elapsedTime lTC{A,A,A} 
+--elapsedTime A**A**A -- this is too slow
 
 restart
 debug loadPackage("AInfinity", Reload => true)
@@ -386,50 +485,6 @@ H#{2,{3,2}}
 ///
 
     
-aInfinity(HashTable, Module, ZZ) := HashTable => (mR, M,n) -> (
-    --R = ring M should be a factor ring of a polynomial ring S
-    --mR = aInfinity (R,n) an AInfinity structure on a resolution A of R
-    --M an R-module
-    --The HashTable returned contains the A-infinity structure on 
-    --an S-free resolution of M up to stage n.
-    --CAVEAT: for the moment n = 3, and we compute only
-    --m#{i,j} for i = 1,2,3.
-m := new MutableHashTable;
-R := ring M;
-S := ring presentation R;
-RS := map(R,S);
-MS := pushForward(RS,M);
-B := m#resolution; -- this is truncated, labeled.
-
-G0 := freeResolution pushForward(RS,M);
-G := complex(for i from 1 to length G0 list 
-	map(labeledModule((i-1,{}), G0_(i-1)),
-	    labeledModule((i,{}), G0_(i)),
-	    G0.dd_i));
-m#"resolution" = G;
---m#{1,i}
-  apply(length G , i-> m#{1,i+1} = G.dd_(i+1));    
-
---m#{2,i} 
-BG := labeledTensorComplex{B,G};
-d0 := dual syz B.dd_3;
-m20 := map(S^1**G_0, B_2**G_0, d0**G_0)//G.dd_1; 
-G := complex G;
-BG := complex BG;
-G' := naiveTruncation(G,1,infinity);
-m2 := extend(G',BG,m20,-1);
-)
--*
---m#{3,4}
-  sour := directSum components source m#{2,3};
-  m#{2,3} = map(G_2, sour, matrix m#{2,3});
-  toLift :=  map(G_2, B_2**B_2**G_0, 
-  - m#{2,3}*(source m#{2,3})_[0]*mR#{2,4}**id_(G_0) --*t^-1 --mR#{2,-}(mR#{2,-}**1)
-  - m#{2,3}*(source m#{2,3})_[1]*(id_(B_2)**m#{2,2}) --m(1**m#{2,-})
-                 );
-  m#{3,4} = toLift//m#{1,3};
-hashTable pairs m)
-*-
 
 
 ///
@@ -444,18 +499,6 @@ targets(s,5)
 ///
 
 
-symbolPairs = method()
-symbolPairs (ZZ,ZZ,ZZ,ZZ) := List => (pdR, pdM, n, j) -> (
-    --list of lists {p,q,s,t} such that s = (u,i), t = (v,j) are symbols; degree s = n, degree t = n-1; 
-    --and s,t are equal in the places <p and >q, and q-p+1 = j.
-    for s in bSymbols(pdR, pdM, n) list targets(s,j)/(t -> {s,t}))
-
-///
-bSymbols(3,3,7)
-targets({2,4,0},2)
-targets({2,0},2)
-symbolPairs(3,3,5,2)
-///
 
 picture = method()
 picture Matrix := (M1) -> (
@@ -553,87 +596,6 @@ compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
      result
      );
 
-
-eagonSymbols = method()
-eagonSymbols(ZZ,ZZ) := List => (n,i) ->(
-    --symbol of the module Y^n_i, as a list of pairs, defined inductively from n-1,i+1 and n-1,0
-    --assumes large number of vars and pd.
-    if n === 0 then return {(i,{})};
-    if i === 0 then return eagonSymbols(n-1,1);
-    e' := eagonSymbols (n-1,0);
-    e'1 := apply (e', L -> L_1|{i});
-    eagonSymbols(n-1,i+1)|apply (#e', j-> (e'_j_0,e'1_j))
-    )
- -*
-
-bSymbols ZZ := List => n -> (
-    --these are indexed with the module resolution component last, 
-    --and the ring resolution component indexed as in the B complex: A_i = B_(i+1) for i>= 1.
-    --note that the symbol is now a single list
-    L :=eagonSymbols(n,0);
-    apply(L, ell -> toList flatten(ell_1/(i->i+1), ell_0))
-)
-
-    if n === 0 then return {0};
-    bS' := bSymbols n-1;
-    apply(bS', s -> toList flatten
-
-	)
-
-bSymbols(ZZ,ZZ,ZZ) := List => (pdA,pdM,n) -> (
-    L := bSymbols n;
-    select(L, ell -> (
-	    ell' := drop(ell, -1);
-	    all(ell', u -> u <= pdA+1) and last ell <= pdM))
-    )
-*-
-	  
-
-
-tensorWithComponents = method()
-tensorWithComponents(Module, Module, Function) := Module => (F, G, combineIndices) -> (
-    if F == 0 or G == 0 then return (ring F)^0;
-    (compsF, indicesF) := componentsAndIndices F;
-    (compsG, indicesG) := componentsAndIndices G;
-    comps := flatten for f from 0 to #compsF-1 list (
-        for g from 0 to #compsG-1 list (
-            newindex := if indicesF#f === null or indicesG#g === null
-	       then null else combineIndices(indicesF#f, indicesG#g);
-            newindex => directSum(1:(newindex=>(compsF#f ** compsG#g)))
-            )
-        );
-    if #comps == 0 then (ring F)^0 else directSum comps
-    )
-
-tensorWithComponents(Module, Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) -> a|b)
-tensorWithComponents(Matrix, Module, Function) := Matrix => (phi, G, combineIndices) -> (
-                          src :=  tensorWithComponents(source phi, G, combineIndices);
-                          tar :=  tensorWithComponents(target phi, G, combineIndices);			  
-			  map(tar,src,phi**G))
-
-eTensor = method()
-eTensor(Module,Module) := Module => (F, G) -> tensorWithComponents(F, G, (a,b) ->(a#0+b#0,a#1|b#1))
-eTensor(Matrix,Module) := Matrix => (phi,G) -> tensorWithComponents(phi, G, (a,b) ->(a#0+b#0,a#1|b#1))
-
-eTensor(ChainComplex, ChainComplex) := ChainComplex => (A,B) -> ( --TODO
-  C0 := A**B;
-  C := chainComplex( for i from 1+min C0 to max C0 list 
-	      map(directSum(for j from min A to i list A_j**B_(i-1-j)),
-		  directSum(for j from min A to i list A_j**B_(i-j)),
-    	          matrix(C0.dd_i)));
-  C[-min C0])
-
-eTensor(ChainComplex, ChainComplexMap) := (G,d) -> 
-    map(eTensor(G,target d), eTensor (G, source d), i-> eTensor(id_(G_i), d_i))
-     
-	      
-eTensor(Ring, List) := (R,L) -> (
-    --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..d}).
-    --The order matters for chain complexes; maybe not for modules.
-    if L === {} then return R^1;
-    if #L === 1 then return L_0;
-    eTensor(R,drop(L,-1))**last L
-    )
 
 
 tensor(Ring, List) := o -> (R,L) -> (
@@ -733,70 +695,61 @@ componentsAndIndices = (F) -> (
         )
     )
 
-
-golodBetti = method()
-golodBetti (Module,ZZ) := BettiTally => (M,b) ->(
-    --case where M is a module over a factor ring R = S/I,
-    --MS is the same module over S
-    --F = freeResolution I
-    --K = freeResolution MS
-    R := ring M;
-    p := presentation R;
-    S := ring p;
-    phi1 := substitute(presentation M, S);
-    phi := phi1 | target phi1 ** p;
-    MS := prune coker phi;
-    K := freeResolution MS;
-    F := freeResolution coker p;
-    golodBetti(F,K,b)
+tensorDegrees = method()
+tensorDegrees List := List => L -> (
+    --L is a list of lists of ZZ. If L_i is the list of degrees of
+    --a free module F_i, where F is a list of free modules,
+    --then the output is a list of the degrees
+    --of the free module tensor F.
+    n := #L;
+    if n ==0 then return {0};
+    if n == 1 then return L_0;
+    M := tensorDegrees drop(L, 1);
+    flatten apply(L_0, ell -> apply(M, m-> ell+m))
     )
-
-
-
-
--*
-burck = method()
-burck(HashTable,HashTable,ZZ) := Complex => (mR,mM,n) ->(
-    --mR,mM are A-infinity structures on a ring R and an R-module M
-    --computed at least to homological degree n.
-    --construct the Golod-type resolution up to length n, using
-    --Jessie Burck's recipe.
-G := mM#"resolution";
-B := mR#"resolution";
-d := new MutableHashTable;
-for i from 1 to length G do  d#(i,{0}) = G.dd_i); --mM#{1,i}
-d#(0,{2})
-*-
-
-labeledProducts = method()
-labeledProducts(ChainComplex, ChainComplex, ZZ) := Sequence => (A,G,n) ->(
--*    returns a pair of lists of lengths n,n+1; the first element is a list
-    {A,A**A,..,(A**..**A)}; the second is a list
-    {G, A**G, A**A**G..} with <= n factors, where each
-    component of each product is is labeled:
-    {j_1..j_s} => A_(j_1)**..**A_(j_s)  while
-    (i,{j_1..j_s}) => G_i**A_(j_1)**..**A_(j_s) 
-*-
-    AA := apply(n, i-> eTensor(ring A, toList(i+1:A)));
-    GA := apply(n+1, i-> eTensor(ring A, {G}|toList(i:A)));
-    (AA,GA)
-    )
-    
 
 ///
 restart
-needsPackage "Complexes"
-debug loadPackage("AInfinity",Reload => true)
-S = ZZ/101[x,y,z]
-R = S/(ideal gens S)^2
-M = coker vars R
-mR = aInfinity(R,3);
-pairs mR
-mM = aInfinity(mR,M,3);
-pairs mM
-componentsAndIndices source mR#{1,3}
-componentsAndIndices target mM#{3,4}
-///
+debug loadPackage "AInfinity"
+V = ZZ/101[x_1..x_3]
+R = V/(ideal vars V)^3
+R1 = V^1/(ideal vars V)^3
+M = R**coker vars V
+golodRanks(M,6)
+betti res (M, LengthLimit =>6)
+F = res M
+N = coker F.dd_2
+golodRanks(coker (F.dd_2),6)
+res (N, LengthLimit =>6)
+ ///    
+
+golodRanks = method()
+golodRanks (Module,ZZ) := List => (M,b) ->(
+    --M is a module over a factor ring R = S/I, S a polynomial ring.
+    --implements the rational function as power series. 
+    --See Avramov, six lectures, p.50.
+    --Out put is the sequence of ranks, equal to those in the free resolution
+    --if and only if M is a Golod module.
+    expand := (nu,de,n) -> nu*sum(apply(n, i-> (de)^i)); --nu/(1-de) as power series
+    R := ring M;
+    p := presentation R;
+    S := ring p;
+    RS := map(R,S);
+    MS := prune pushForward(RS,M);
+    G := res MS;
+    A := res coker p;
+    x := symbol x;
+    U := QQ[x];
+    g := sum(1+length G, i-> x^i*rank G_i);
+    a := sum(toList(1..length A), i-> x^(i+1)*rank A_i);
+    c := (coefficients expand(g,a,b))_1;
+    (reverse flatten entries c)_(toList(0..b))
+    )
+
+
+
+
+
 
 beginDocumentation()
 
@@ -842,72 +795,6 @@ TEST ///
 end--
 
 
-restart
-needsPackage "Complexes"
---loadPackage("AInfinity", Reload =>true)
-uninstallPackage "AInfinity"
-restart
-installPackage "AInfinity"
-
-uninstallPackage "Complexes"
-restart
-installPackage "Complexes"
-viewHelp Complexes
-
-t = tensorAssociativity(B_2, B_2, B_2);
-b = betti B
-b ** b
-(b ** b) ** b  ==
-((b ** b) ** b ) ** b
-
-
-------tensor associativity
-
-for resolutions A of R, G of M, both length 3 , there is one nonzero component of m_3:
-mM_3: B_2**B_2**G_0 ->G_3 == -mM_2(mB_2(B_2,B_2),G_0)-mM_2(B_2, mM_2(B_2,G_0))
-
-
-1(2(3))->(1,2)3
-1(2(3(4))) -> 1(2,3)4->(1,2)3)4
-1(2(3
-
---why doesn't this work??
-
-tensor List := Module => mods -> (
-    if #mods == 1 then return mods_0;
-    if #mods == 2 then return tensor(mods_0,mods_1);
-    mods' := drop(mods,1);
-    tensor(mods_0,tensor mods')
-    )
-mods = {S^2,S^3,S^4}
-mods = {S^2,S^3}
-tensor mods
-tensor{S^2}
-
-associativity = method()
-associativity(List, List) := Matrix => blocks, mods -> (
--*
-    blocks = {a,b,..,c} positive integers, 
-    mods = {A_1,..,C_c}
-    returns the map
-    (A_1**..**A_a)**(B_1**..**B_b)**..**(C_1**..**C_c) -> A_1**..**C_c.
-    Note that the built-in tensor product of multiple factors
-    goes from left to right:
-    tensorAssociativity: A*(B*C) -> A*B*C = (A*B)*C; 
-*- 
-    n := sum blocks;
-   if blocks == {n-1,1} then tensorAssociativity(mods_0**;
-   
-viewHelp tensorAssociativity
-
-S = ZZ/101[a,b,c]
-G = res coker vars S
-E = extend(G,schurComplex({2},G),id_(G_0))
-
-components (source E)_2
-code methods schurComplex
-viewHelp SchurComplexes
-
 
 -*
 TODO: 
@@ -945,3 +832,60 @@ formation (A.cache.formation#1#1)
 oo.cache.indices
 A.cache.indices 
 
+labeledTensorChainComplex = method()
+labeledTensorChainComplex List := ChainComplex => L -> (
+    --L = {C_0..C_(p-1)}, list chain complexes. Form the tensor product of the C_i
+    --in such a way that if the tensor products of the modules (C_i)_m are labeled,
+    --then the modules of the tensor product are direct sums of modules from the hashtable, so that
+    --componentsAndIndices applied to pC gives the correct list of indices, and
+    --thus picture pC.dd_m works.
+    if class L_0 =!= ChainComplex then error"Input should be a list of ChainComplexes.";
+    S := ring L_0;
+    if #L == 1 and class L_0 === ChainComplex then (
+	B := L_0;
+	F := for i from min B to max B list labeler({i}, B_i);
+	B' := complex for i from min B to max B -1 list map(F_(i-min B),F_(i+1-min B), B.dd_(i+1));
+	return B'[-min B]
+        );
+    p := #L;
+    Min := apply(L, C->min C);
+    Max := apply(L, C->max C-1);
+    modules := apply(#L + sum Max - sum Min, i ->(
+	    d := i+sum Min;
+	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
+	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
+	));
+    modules = select(modules, tt-> #tt != 0);
+
+    d := for i from 0 to #modules -2 list(	
+        map(directSum modules#i,
+            directSum modules#(i+1),
+            matrix table( -- form a block matrix
+                modules#i, -- rows of the table
+                modules#(i+1), -- cols of the table
+                (j,k) -> ( -- j,k each have the form (List => Module)
+		    indtar := j#0;
+		    indsrc := k#0;		    
+                    tar := j#1;
+                    src := k#1;
+		    p := suitable(indsrc - indtar);
+                    m := map(tar, src, 
+			if p === null then 0 else(
+			sign := (-1)^(sum(indsrc_(toList(0..p-1))));
+			phi := sign*(tensor(S, apply(p, q -> L_q_(indtar_q)))**
+			                                (L_p).dd_(indsrc_p)**
+                               tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1)))))
+			))))));
+                   (chainComplex d)[-sum(L, ell -> min ell)])
+B
+G
+labeledTensorChainComplex{chainComplex B,chainComplex G}
+labeledTensorComplex{B,G}
+B**G
+lTC{B,G}
+lTC{G,G}
+G**G
+lTC{B,B}
+B**B
+lTC{B,B,G}
+B**B**G
