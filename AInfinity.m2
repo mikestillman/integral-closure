@@ -36,20 +36,69 @@ export {
     }
 
 
+-*
+currently (11/26) BurkeData produces a list of the free modules in the Burke resolution to stage n,
+in a form that F_5^[{3,2,0}] works (this is the projection).
+
+Next to do: a function that takes a symbol {u_1..u_s} and produces all the 
+lists
+{offset, width, source symbol} = {p,w,{u_1..u_s}}
+corresponding to maps from that free module:
+a map from
+{u_1..u_s}, Where u_i is the index of a module in B for i<s and u_s of a module in G;
+to
+(-1)^(sum{u_1..u_p},{u_1..u_p,sum(u_(p+1)..u_(p+w)),u_(p+w+1)..u_s}
+gotten by applying m#{w,{u_(p+1)..u_(p+w)}}
+
+Could we speed up BurkeData by creating the tensor products inductively?
+*-
 
 ///
 uninstallPackage "AInfinity"
 restart
 installPackage "AInfinity"
 ///
+burkeData = method()
+burkeData(Ring,Module,ZZ) := HashTable => (R,M,n) ->(
+--currently (11/26) 
+--F = burkeData(R,M,6) 
+--produces the list of the free modules indexed 0..n in the Burke resolution,
+--in a form that things like F_5^[{3,2,0}] work (this is the projection).
+
+S := ring presentation R;
+RS := map(R,S);
+G := labeledTensorComplex freeResolution(pushForward(RS, M), LengthLimit=>n);
+A' := freeResolution (coker presentation R, LengthLimit => n-1);
+A'' := labeledTensorComplex(A'[-1]);
+A := A''[1];
+B0 := complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+   BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
+    C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
+    apply(C, c -> labeledDirectSum c)
+    )
+
+labeledDirectSum = method()
+labeledDirectSum Module := Module => M ->(
+    ci := componentsAndIndices M;
+    directSum apply(#ci_0, i->(ci_1_i => ci_0_i))
+    )
+labeledDirectSum List := Module => L ->(
+    ciL := apply(L, M -> componentsAndIndices M);
+    directSum flatten apply(ciL, ci -> apply(#ci_0, i->(ci_1_i => ci_0_i)))
+    )
 
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[a,b,c]
+R = S/(ideal vars S)^2
 R1 = S^1/(ideal vars S)^2
-M = coker vars S
+M = coker vars R
+F =  burkeData(R,M,6)
+componentsAndIndices F_5
+
+--
 A = freeResolution R1
 freesA = AFrees(A,5)
 X = freesA#{2}++freesA#{3,2}
@@ -201,10 +250,8 @@ labeledTensorComplex List := Complex => L -> (
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
 	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
 	));
---<<netList modules<<endl;
     modules = select(modules, tt-> #tt != 0);
---<<netList modules<<endl;
---error();
+
     d := for i from 0 to #modules -2 list(	
         map(directSum modules#i,
             directSum modules#(i+1),
@@ -226,7 +273,6 @@ labeledTensorComplex List := Complex => L -> (
 			))))));
                    (complex d)[-sum(L, ell -> min ell)]
 		   )
-
 labeledTensorComplex Complex := Complex => C -> labeledTensorComplex{C}
 
 lTC = labeledTensorComplex;
@@ -280,14 +326,18 @@ RS := map(R,S);
 A' := freeResolution coker presentation R;
 A'' := labeledTensorComplex(A'[-1]);
 A := A''[1];
-B0 := complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+
+B := complex(apply(length A-1, i-> A.dd_(i+2)))[-2]; -- this was called B0
+-*
 B1 := complex(for i from 3 to length B0+2 list 
 	map(B0_(i-1),
 	    B0_i,
 	    B0.dd_i));
 --B := labeledTensorComplex{B1[-2]};
 B := B1[-2];
+*-
 m#"resolution" = B;
+
 --m#{1,i}
 apply(length B , i-> m#{1,{i+3}} = B.dd_(i+3));
 
@@ -889,3 +939,25 @@ lTC{B,B}
 B**B
 lTC{B,B,G}
 B**B**G
+
+----------
+--Roos example: non-Golod with trivial homology algebra.
+restart
+needsPackage "DGAlgebras"
+debug needsPackage "AInfinity"
+kk = ZZ/101
+--kk = QQ
+S = kk[x,y,z,u]
+I = ideal(u^3, x*y^2, (x+y)*z^2, x^2*u+z*u^2, y^2*u+x*z*u, y^2*z+y*z^2) -- has the betti nums as in Roos
+betti (A = res I) -- shows that the m_2 must be trivial
+R = S/I
+isGolod R -- gives the wrong answer! as one sees by comparing Poincare series, below
+H = acyclicClosure(R, EndDegree => 0)
+isHomologyAlgebraTrivial H
+
+betti res( coker vars R, LengthLimit =>5)
+--golodRanks(coker vars R, 5)
+((1+t)^4)*sum(10, i-> (6*t^2+12*t^3+9*t^4+2*t^5)^i)
+
+m = aInfinity(R,3);
+trim ideal(m#{3,{2,2,2}})
