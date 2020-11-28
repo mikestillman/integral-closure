@@ -59,7 +59,7 @@ restart
 installPackage "AInfinity"
 ///
 burkeData = method()
-burkeData(Ring,Module,ZZ) := HashTable => (R,M,n) ->(
+burkeData(Ring,Module,ZZ) := List => (R,M,n) ->(
 --currently (11/26) 
 --F = burkeData(R,M,6) 
 --produces the list of the free modules indexed 0..n in the Burke resolution,
@@ -72,9 +72,9 @@ A' := freeResolution (coker presentation R, LengthLimit => n-1);
 A'' := labeledTensorComplex(A'[-1]);
 A := A''[1];
 B0 := complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
-   BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
-    C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
-    apply(C, c -> labeledDirectSum c)
+BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
+C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
+apply(C, c -> labeledDirectSum c)
     )
 
 labeledDirectSum = method()
@@ -87,7 +87,76 @@ labeledDirectSum List := Module => L ->(
     directSum flatten apply(ciL, ci -> apply(#ci_0, i->(ci_1_i => ci_0_i)))
     )
 
+mapComponents = method()
+mapComponents List := List => u -> (
+    --u = {u_0..u_n}; for i<n, u_i represents a free module in B, the truncated, shifted res of R^1; 
+    --u_n represents a free module in G, the S-resolution of the R-module M.
+    --output is a list whose elements have the form {sign, p,q,{v_0..v_m}} corresponding to
+    --a map collapsing u_p..u_q to sum(for i from p to q list u_i), where sign is (-1)^sum(apply p, i->u_i).
+    --We require also v_0..v_(m-1)>=2 and v_m>=0; otherwise this is not a free module.
+    sign := p-> (-1)^(sum apply(p, i->u_i));
+    n := #u-1;
+    L0 := apply(n+1, p-> {sign p, p,p,u_{0..p-1}|{u_p-1}|u_{p+1..n}});
+    L1 := flatten apply(n+1, p -> for q from p+1 to n list {sign p, p,q,u_{0..p-1}|
+	                         {-1+sum for i from p to q list u_i}|
+		                 u_{q+1..n}});
+    L := L0|L1;
+    select(L, LL -> all(#LL_3, i -> if i<n then LL_3_i>=2 else LL_3_i>=0))	
+    )
+
+mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,n) ->(
+    --List the matrices of the maps starting from 
+    --the component labeled u in 
+    --B**..**B**G, with n = #u-1 copies of B.
+    R := mA#"ring";
+    B := mA#"resolution";
+    M := mG#"module";
+    G := mG#"resolution";
+    F := burkeData(R,M,n);
+
+    for t from 1 to #F+1 list (
+	c :=componentsAndIndices F_t;
+	for s from 0 to #c_0 list(
+	    u := c_1_s;
+    	    n := #u-1;
+    	    vv := mapComponents u;
+    	    for v in vv list (
+		sign := v_0;
+		p := v_1;
+		q := v_2;
+--need to tensor the folowing with R
+		map(F_(t-1), F_t, 
+		    (F_(t-1))_[u_{0..p-1}|{-1+sum u_{p..q}}|u_{q+1..n}] * 
+		    if q<n 
+		    then sign * (
+	 		tensor (S, for i from 0 to p-1 list B_(u_i))**
+	 		mA#{q-p+1, u_{p..q}}**
+	 		tensor(S, for i from p+1 to n-1 list B_(u_i))**
+	 		G_(u_n))
+                    else sign * (
+	     		tensor(S, for i from 0 to p-1 list B_(u_i))**
+	     		mG#{q-p+1, u_{p..q}}))
+             ))
+    ))
+
+burke = method()
+burke(HashTable,HashTable,List) := Complex => (mA,mG,F) ->(
+    (for j from 1 to #F-1 list (
+	ci := componentsAndIndices F_j))
+)
+	
+    
 ///
+restart
+debug loadPackage("AInfinity", Reload => true)
+u = {2,1}
+netList mapComponents u
+
+sign := p-> (-1)^(sum apply(p, i->u_i))
+apply(5, p -> sign (p)
+-1^sum apply(0, i->u_i)
+
+
 restart
 debug loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
@@ -95,6 +164,13 @@ S = kk[a,b,c]
 R = S/(ideal vars S)^2
 R1 = S^1/(ideal vars S)^2
 M = coker vars R
+mA = aInfinity(R,3)
+mG = aInfinity(mA,M,3)
+u = {3,1}
+n = 3
+mapComponents (mA,mG,n)
+
+netList mapComponents u
 F =  burkeData(R,M,6)
 componentsAndIndices F_5
 
@@ -320,7 +396,7 @@ aInfinity (Ring,ZZ) := HashTable => (R,n) -> (
     --CAVEAT: for the moment n = 3 is fixed! 
 
 m := new MutableHashTable;
-
+m#"ring" = R;
 S := ring presentation R;
 RS := map(R,S);
 A' := freeResolution coker presentation R;
@@ -399,6 +475,7 @@ aInfinity(HashTable, Module, ZZ) := HashTable => (mR, M,n) -> (
     --CAVEAT: for the moment n = 3, and we compute only
     --m#{i,j} for i = 1,2,3.
 m := new MutableHashTable;
+m#"module" = M;
 B := mR#"resolution";
 R := ring M;
 S := ring presentation R;
@@ -425,7 +502,7 @@ G := complex labeledTensorComplex{G0};
 m#"resolution" = G;
 
 --m#{1,i}
-  apply(length G , i-> m#{1,i+1} = G.dd_(i+1));    
+  apply(length G , i-> m#{1,{i+1}} = G.dd_(i+1));    
 
 --m#{2,i} 
 BG := labeledTensorComplex{B,G};
