@@ -100,7 +100,7 @@ debug loadPackage("AInfinity", Reload => true)
 mapComponents {3,2}
 ///
 
-mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,n) ->(
+mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,len) ->(
     --List the matrices of the maps starting from 
     --the component labeled u in 
     --B**..**B**G, with n = #u-1 copies of B.
@@ -109,9 +109,9 @@ mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,n) ->(
     B := mA#"resolution";
     M := mG#"module";
     G := mG#"resolution";
-    F := burkeData(R,M,n);
+    F := burkeData(R,M,len);
 
-    for t from 1 to n list (
+    for t from 1 to len list (
 	c :=componentsAndIndices F_t;
 	flatten apply(#c_0, s->(
 	    u := c_1_s;
@@ -121,18 +121,19 @@ mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,n) ->(
 		sign := v_0;
 		p := v_1;
 		q := v_2;
---need to tensor the folowing with R
 		map(F_(t-1), F_t, 
-		    (F_(t-1))_[u_{0..p-1}|{-1+sum u_{p..q}}|u_{q+1..n}] * 
+		    (F_(t-1))_[u_{0..p-1}|{-1+sum u_{p..q}}|u_{q+1..n}]*
 		    (if q<n 
 		    then sign * (
 	 		tensor (S, for i from 0 to p-1 list B_(u_i))**
 	 		mA#{q-p+1, u_{p..q}}**
-	 		tensor(S, for i from p+1 to n-1 list B_(u_i))**
-	 		G_(u_n))
+	 		tensor(S, for i from q+1 to n-1 list B_(u_i))**
+	 		G_(u_n)
+			    	)
                     else sign * (
 	     		tensor(S, for i from 0 to p-1 list B_(u_i))**
-	     		mG#{q-p+1, u_{p..q}})
+	     		mG#{q-p+1, u_{p..q}}
+			        )
 		    )*
 		    (F_t)^[u])
              ))))
@@ -146,23 +147,30 @@ burke(HashTable,HashTable,List) := Complex => (mA,mG,F) ->(
 	
     
 ///
+(F_(t-1))_[u_{0..p-1}|{-1+sum u_{p..q}}|u_{q+1..n}] 
+
+                        tensor (S, for i from 0 to p-1 list B_(u_i))
+                        mA#{q-p+1, u_{p..q}}
+                        tensor(S, for i from p+1 to n-1 list B_(u_i))**G_(u_n)
+
 restart
 debug loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[a,b,c]
 R = S/(ideal vars S)^2
 R = S/ideal(apply(gens S, x -> x^3))
-R1 = S^1/(ideal vars S)^2
 M = coker vars R
-
 mA = aInfinity(R,3)
---mG = aInfinity(mA,M,3)
-n=3
-netList (D =  mapComponents (mA,mG,n))
-C = complex apply(D, d-> sum d) -- not a complex til we **R
+mG = aInfinity(mA,M,3)
+n=4
+elapsedTime netList (D =  mapComponents (mA,mG,n));
+C = complex apply(D, d-> sum d)
 netList for i from 1 to 3 list picture C.dd_i
 C
 C.dd^2
+displayBlocks C.dd_2, displayBlocks C.dd_3
+displayBlocks (C.dd_2*C.dd_3)
+
 netList apply(keys mA, k-> (k, mA#k))
 netList apply(keys mG, k-> (k, mG#k))
 C.dd_2, C.dd_3
@@ -391,22 +399,19 @@ m#"resolution" = G;
 --m#{1,i}
   apply(length G , i-> m#{1,{i+1}} = G.dd_(i+1));    
 
---m#{2,i} 
+--m#{2,i} --m#{2,{2,1}} is still wrong!
+m2 := new MutableHashTable;
 BG := labeledTensorComplex{B,G};
-d0 := dual syz dual B.dd_3;
-m20 := map(S^1**G_0, B_2**G_0, d0**G_0)//G.dd_1; 
-G' := naiveTruncation(G,1,infinity);
-m2 := extend(G',BG,m20,-1);
---for i from min BG to max G+1 do
---   m#{2,i} = map(G_(i-1),BG_i, m2_i);
+m2#1 = (map(S^1, B_2, dual syz dual B.dd_3)**G_0)//G.dd_1;
+for i from 2 to max G do m2#i = -(m2#(i-1)*BG.dd_(i+1))//G.dd_i;
 
-for i from min B to max BG do (
-	(C,K) := componentsAndIndices (BG_i); 
+for i from 1 to max G do (
+	(C,K) := componentsAndIndices (BG_(i+1)); 
 	for j from 0 to #K -1 do 
-	  if target m2_i !=0 then
-	     m#{2,K_j} = map(G_(sum K_j - 1),C_j, m2_(i)*((BG_i)_[K_j]))
+	  if target m2#i !=0 then
+	     m#{2,K_j} = map(G_i,C_j, (m2#i)*((BG_(i+1)_[K_j])))
        );
-
+--error(); --m2#2 is wrong.
 --m#{3,i}	                       );
 B2G := labeledTensorComplex (toList(2:B)|{G});
 e := apply(3, ell -> toList(ell:0)|{1}|toList(3-ell-1:0));
@@ -425,6 +430,29 @@ for i from min B2G to max G+1 do(
      );
 hashTable pairs  m)
 
+///--bug!
+restart
+debug loadPackage("AInfinity", Reload => true)
+needsPackage "Complexes"
+kk = ZZ/101
+S = kk[a,b,c]
+R = S/ideal"a3,b3,c3"
+M = coker vars R
+koszul(2, vars R)
+mA = aInfinity(R,3)
+mG = aInfinity(mA,M,3)
+--The following should be 0 and it's not:
+--m2#2
+--koszul(2,vars R)*m2#2
+B = mA#"resolution"
+G = mG#"resolution"
+--The following should be the composite 
+--0 == map B_2**G_1 -> G_2++B_2**G_0 -> G_1
+G.dd_2*mG#{2,{2,1}}+
+   mG#{2,{2,0}}* (B_2**mG#{1,{1}})
+--and should thus be in (a3,b3,c3).
+keys mG
+///
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
