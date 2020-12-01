@@ -1095,9 +1095,10 @@ isNullHomotopyOf(ComplexMap, ComplexMap) := (h, f) -> (
 
 -- TODO: we are keeping this version so that we may compare the 
 --   more general version with this version, at a later date.
---   WARNING: this code is not used: it is written over 2 functions below.
-nullHomotopy(ComplexMap,Thing) := (f,notused) -> (
+nullHomotopyFreeSource = f -> (
+    -- f:ComplexMap
     -- key assumption: 'source f' is a complex of free modules
+    -- result is a ComplexMap h : C --> D, of degree degree(f)+1
     C := source f;
     D := target f;
     deg := degree f + 1;
@@ -1106,16 +1107,15 @@ nullHomotopy(ComplexMap,Thing) := (f,notused) -> (
     for i from lo to hi do (
         if hs#?(i-1) then ( 
             rem := (f_i - hs#(i-1) * dd^C_i) % (dd^D_(i+deg));
-            if rem != 0 then error "can't construct homotopy";
+            if rem != 0 then return null; -- error "can't construct homotopy";
             hs#i = (f_i - hs#(i-1) * dd^C_i) // (dd^D_(i+deg))
             )
         else (
             rem = f_i % dd^D_(i+deg);
-            if rem != 0 then error "can't construct homotopy";
+            if rem != 0 then return null; -- error "can't construct homotopy";
             hs#i = f_i // dd^D_(i+deg)
             )
         );
-    -- result is a ComplexMap h : C --> D, of degree degree(f)+1
     map(D, C, new HashTable from hs, Degree => deg)
     )
 
@@ -1128,6 +1128,10 @@ isNullHomotopic ComplexMap := Boolean => f -> (
     )
 
 nullHomotopy ComplexMap := ComplexMap => f -> (
+    -- we check that the source is free, as that can be much faster
+    -- TODO: nullHomotopy should perhaps be hook-ified.
+    result := if isFree source f then nullHomotopyFreeSource f;
+    if result =!= null then return result;
     g := homomorphism' f;
     H := target g; 
     d := degree f;
