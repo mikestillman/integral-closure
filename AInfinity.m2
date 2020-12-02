@@ -181,11 +181,10 @@ B = mA#"resolution"
 G = mG#"resolution"
 BG = labeledTensorComplex{B,G}
 picture BG.dd_5
-RBG = R**BG
-picture RBG_5
-components BG.dd_5
-ci = componentsAndIndices BG_5
-formation RBG_5
+
+RBG = labeledTensorComplex(R,BG)
+
+picture RBG
 
 elapsedTime netList (D =  mapComponents (mA,mG,n));
 C = complex apply(D, d-> sum d)
@@ -238,6 +237,8 @@ labeledDirectSum List := Module => L ->(
     )
 
 labeledTensorComplex = method()
+
+-*
 labeledTensorComplex List := Complex => L -> (
     --L = {C_0..C_(p-1)}, list chain complexes. Form the tensor product D of the C_i
     --in such a way that the tensor products of the modules (C_i)_(m_i) are labeled {..m_i..}
@@ -288,23 +289,74 @@ D := apply(modules, L -> directSum L);
 			))))));
                    (complex d)[-sum(L, ell -> min ell)]
 		   )
+
+*-
+labeledTensorComplex List := Complex => L -> (
+    --L = {C_0..C_(p-1)}, list chain complexes. Form the tensor product D of the C_i
+    --in such a way that the tensor products of the modules (C_i)_(m_i) are labeled {..m_i..}
+    --so that componentsAndIndices applied to C_i gives the correct list of indices, and
+    --thus picture C.dd_m works.
+    if class L_0 =!= Complex then error"Input should be a list of Complexes.";
+    S := ring L_0;
+    if #L == 1 and class L_0 === Complex then (
+	B := L_0;
+	F := for i from min B to max B list labeler({i}, B_i);
+	B' := complex for i from min B to max B -1 list map(F_(i-min B),F_(i+1-min B), B.dd_(i+1));
+	return B'[-min B]
+        );
+    p := #L;
+    Min := apply(L, C->min C);
+    Max := apply(L, C->max C);
+    modules := apply(#L + sum Max - sum Min, i ->(
+	    d := i+sum Min;
+	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
+	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
+	));
+    modules = select(modules, tt-> #tt != 0);
+
+suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
+     -- v is a list of ZZ. returns null unless v has the form
+     -- {0...0,1,0..0}, in which case it returns the position of the 1.
+
+    d := for i from 0 to #modules -2 list(	
+        map(directSum modules#i,
+            directSum modules#(i+1),
+            matrix table( -- form a block matrix
+                modules#i, -- rows of the table
+                modules#(i+1), -- cols of the table
+                (j,k) -> ( -- j,k each have the form (List => Module)
+		    indtar := j#0;
+		    indsrc := k#0;		    
+                    tar := j#1;
+                    src := k#1;
+		    p := suitable(indsrc - indtar);
+                    m := map(tar, src, 
+			if p === null then 0 else(
+			sign := (-1)^(sum(indsrc_(toList(0..p-1))));
+			phi := sign*(tensor(S, apply(p, q -> L_q_(indtar_q)))**
+			                                (L_p).dd_(indsrc_p)**
+                               tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1)))))
+			))))));
+                   (complex d)[-sum(L, ell -> min ell)]
+		   )
 	       
 labeledTensorComplex Complex := Complex => C -> labeledTensorComplex{C}
 
 labeledTensorComplex(Ring, Complex) := Complex => (R,C)->(
     --preserve the labels on C while tensoring each free module with R
     c := for i from min C to max C list componentsAndIndices C_i;
-    D := for j from min C to max C list if #c_j_0 === 1 then 
+    D := for j from 0 to max C - min C list if #c_j_0 === 1 then 
     --this is to fix the directSum bug
         labeler(c_j_1_0, R**c_j_0_0) else
     	directSum apply(#c_j_0, i -> labeler(c_j_1_i, R**c_j_0_i));
-    complex for i from 1+min C to max C list map(D_(i-1),D_i,R**C.dd_i)
+    complex (for i from 1 to max C - min C list map(D_(i-1),D_i,R**C.dd_(i+min C)), Base => min C)
     )
 	
 lTC = labeledTensorComplex;
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
+--debug loadPackage("workingAInfinity", Reload => true)
 needsPackage "Complexes"
 S = ZZ/101[a,b,c]
 K' = complex koszul vars S
@@ -315,7 +367,7 @@ componentsAndIndices(K2_3)
 
 L = {K,K}
 R = S/ideal a
-picture labeledTensorComplex(R,KK)
+picture labeledTensorComplex(R,K2)
 
 restart
 debug loadPackage("AInfinity", Reload => true)
