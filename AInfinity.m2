@@ -45,7 +45,8 @@ burkeData(Ring,Module,ZZ) := List => (R,M,n) ->(
 --Output is a list of labeled complexes of R-modules
 S := ring presentation R;
 RS := map(R,S);
-G := labeledTensorComplex  (R**freeResolution(pushForward(RS, M), LengthLimit=>n));
+MS := pushForward(RS,M);
+G := labeledTensorComplex freeResolution(MS, LengthLimit => n);
 A' := freeResolution (coker presentation R, LengthLimit => n-1);
 A'' := labeledTensorComplex(R**A'[-1]);
 A := A''[1];
@@ -69,12 +70,24 @@ G := labeledTensorComplex freeResolution(pushForward(RS, M), LengthLimit=>n);
 A' := freeResolution (coker presentation R, LengthLimit => n-1);
 A'' := labeledTensorComplex(A'[-1]);
 A := A''[1];
-B0 := complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+B0 := labeledTensorComplex complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
 BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
 C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
 apply(C, c -> labeledDirectSum c)
     )
-
+///
+restart
+debug loadPackage "AInfinity"
+S = ZZ/101[a,b,c]
+R = S/ideal"a3,b3,c3"
+M = coker vars R
+n = 3
+BB = burkeData(M,n)
+netList apply(BB, X -> componentsAndIndices X)
+B3 = BB_3
+B3_[{2,1}]
+componentsAndIndices B3
+///
 
 mapComponents = method()
 mapComponents List := List => u -> (
@@ -97,7 +110,13 @@ mapComponents List := List => u -> (
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
-mapComponents {3,2}
+needsPackage "Complexes"
+S = ZZ/101[a,b,c]
+K = complex koszul vars S
+KK = labeledTensorComplex{K,K}
+componentsAndIndices KK_5
+R = S/ideal a
+picture labeledTensorComplex(R,KK)
 ///
 
 mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,len) ->(
@@ -147,11 +166,7 @@ burke(HashTable,HashTable,List) := Complex => (mA,mG,F) ->(
 	
     
 ///
-(F_(t-1))_[u_{0..p-1}|{-1+sum u_{p..q}}|u_{q+1..n}] 
 
-                        tensor (S, for i from 0 to p-1 list B_(u_i))
-                        mA#{q-p+1, u_{p..q}}
-                        tensor(S, for i from p+1 to n-1 list B_(u_i))**G_(u_n)
 
 restart
 debug loadPackage("AInfinity", Reload => true)
@@ -162,7 +177,16 @@ R = S/ideal(apply(gens S, x -> x^3))
 M = coker vars R
 mA = aInfinity(R,3)
 mG = aInfinity(mA,M,3)
-n=4
+B = mA#"resolution"
+G = mG#"resolution"
+BG = labeledTensorComplex{B,G}
+picture BG.dd_5
+RBG = R**BG
+picture RBG_5
+components BG.dd_5
+ci = componentsAndIndices BG_5
+formation RBG_5
+
 elapsedTime netList (D =  mapComponents (mA,mG,n));
 C = complex apply(D, d-> sum d)
 netList for i from 1 to 3 list picture C.dd_i
@@ -181,12 +205,20 @@ labeler(Thing,Module) := (L,F) -> directSum(1:(L=>F));
 labeler(List, List) := Module => (Modules, Labels) ->(
     --forms the direct sum of the Modules, with the components labeled by the Labels.
 --    directSum apply(#Modules, i -> (Labels_i => Modules_i))
-    apply(#Modules, i -> (Labels_i => Modules_i))
+    apply(#Modules, i -> labeler(Labels_i, Modules_i))
 	)
+    
+label = method()
+label(Module) := Thing => M-> (indices M)_0
+label(List) := List => L-> apply(L, M ->(indices M)_0)
+
 ///
+restart
+debug loadPackage"AInfinity"
 S = ZZ/101[a,b]
 labeler({S^1,S^2},{A,B})
-componentsAndIndices oo_0
+directSum oo
+componentsAndIndices oo
 ///
 
 labeledDirectSum = method()
@@ -225,25 +257,27 @@ labeledTensorComplex List := Complex => L -> (
     modules := apply(#L + sum Max - sum Min, i ->(
 	    d := i+sum Min;
 	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
-	));
+	    apply(com, co -> co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp)))))
+	    ));
     modules = select(modules, tt-> #tt != 0);
 
 suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
      -- v is a list of ZZ. returns null unless v has the form
      -- {0...0,1,0..0}, in which case it returns the position of the 1.
 
-    d := for i from 0 to #modules -2 list(	
-        map(directSum modules#i,
-            directSum modules#(i+1),
+D := apply(modules, L -> directSum L);
+--if L is a singleton and L_0 is labeled, then directSum L loses the label!
+
+    d := for i from 0 to #modules -2 list(
+        map(D_i, D_(i+1),
             matrix table( -- form a block matrix
                 modules#i, -- rows of the table
                 modules#(i+1), -- cols of the table
-                (j,k) -> ( -- j,k each have the form (List => Module)
-		    indtar := j#0;
-		    indsrc := k#0;		    
-                    tar := j#1;
-                    src := k#1;
+                (j,k) -> ( -- j,k are each labeled modules
+		    indtar := j_0_0
+		    indsrc := k_0_0;	    
+                    tar := j;
+                    src := k;
 		    p := suitable(indsrc - indtar);
                     m := map(tar, src, 
 			if p === null then 0 else(
@@ -260,14 +294,53 @@ labeledTensorComplex Complex := Complex => C -> labeledTensorComplex{C}
 labeledTensorComplex(Ring, Complex) := Complex => (R,C)->(
     --preserve the labels on C while tensoring each free module with R
     c := for i from min C to max C list componentsAndIndices C_i;
-    D := for j from min C to max C list
-    	directSum apply(#c_j_0, i->(c_j_1_i => (R**c_j_0_i)));
-    complex for i from 1+min C to max C list map(D_(i-1),D_i,R**C.dd_i);
-    D
+    D := for j from min C to max C list if #c_j_0 === 1 then 
+    --this is to fix the directSum bug
+        labeler(c_j_1_0, R**c_j_0_0) else
+    	directSum apply(#c_j_0, i -> labeler(c_j_1_i, R**c_j_0_i));
+    complex for i from 1+min C to max C list map(D_(i-1),D_i,R**C.dd_i)
     )
 	
 lTC = labeledTensorComplex;
+///
+restart
+debug loadPackage("AInfinity", Reload => true)
+needsPackage "Complexes"
+S = ZZ/101[a,b,c]
+K' = complex koszul vars S
+K = lTC K'
+picture (K2 = labeledTensorComplex{K,K})
+componentsAndIndices(K2_3)
+(K2_3)_[{3,0}]
 
+L = {K,K}
+R = S/ideal a
+picture labeledTensorComplex(R,KK)
+
+restart
+debug loadPackage("AInfinity", Reload => true)
+
+C = labeler(A,S^1) ++ labeler(B,S^2)
+componentsAndIndices C
+picture id_C
+--but
+C_[A]
+--does not work!
+
+C = (A =>labeler(A,S^1)) ++ (B =>labeler(B,S^2))
+componentsAndIndices C
+picture id_C
+--work, AND
+C_[A] -- works
+
+C = (A =>S^1) ++ (B => S^2)
+componentsAndIndices C -- does not work
+picture id_C -- does not work
+--but
+C_[A] -- works
+
+
+///
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
@@ -279,6 +352,7 @@ K = toSequence (keys H)_{2..#keys H -1}
 K = select(K, k-> class k === List)
 for k in K do <<k<<" "<< picture H#k<<endl;
 
+K = koszul vars S
 ///
 
 aInfinity = method()
@@ -317,8 +391,8 @@ A0 := (complex S^1)[-2];
 d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
 m#"Bmap" = d;
 B2 := labeledTensorComplex{B,B};
---elapsedTime N := nullHomotopy (d**id_B-id_B**d);-- this is SLOW! -- 19 sec
-
+elapsedTime N := nullHomotopy (d**id_B-id_B**d);-- this is SLOW! -- 19 sec
+-*
 --fix the nullhomotopy problem!
 A0':=chainComplex A0;
 B2':=chainComplex B2;
@@ -326,7 +400,7 @@ B' := chainComplex B;
 d' := map(A0', B', i-> if (i == 2) then A'.dd_1 else 0);
 N := nullhomotopy (d'**id_B'-id_B'**d'); -- .066 sec compared to 19
 --end of fix
-
+*-
 for i from 2*min B to max B+1 do (
 	(C,K) := componentsAndIndices (B2_i); 
 	for j from 0 to #K -1 do 
@@ -400,10 +474,12 @@ m#"resolution" = G;
   apply(length G , i-> m#{1,{i+1}} = G.dd_(i+1));    
 
 --m#{2,i} --m#{2,{2,1}} is still wrong!
-m2 := new MutableHashTable;
+m2 := new MutableHashTable;-- m2#i will be a map to G_i
 BG := labeledTensorComplex{B,G};
-m2#1 = (map(S^1, B_2, dual syz dual B.dd_3)**G_0)//G.dd_1;
-for i from 2 to max G do m2#i = -(m2#(i-1)*BG.dd_(i+1))//G.dd_i;
+A0 := complex {S^1};
+AG := labeledTensorComplex{A0,G};
+m2#1 = map(AG_0, BG_2, (dual syz dual B.dd_3)**G_0)//AG.dd_1;
+for i from 2 to max AG do m2#i = -(m2#(i-1)*BG.dd_(i+1))//AG.dd_i;
 
 for i from 1 to max G do (
 	(C,K) := componentsAndIndices (BG_(i+1)); 
@@ -435,8 +511,8 @@ restart
 debug loadPackage("AInfinity", Reload => true)
 needsPackage "Complexes"
 kk = ZZ/101
-S = kk[a,b,c]
-R = S/ideal"a3,b3,c3"
+S = kk[a,b]
+R = S/ideal"a3,b3"
 M = coker vars R
 koszul(2, vars R)
 mA = aInfinity(R,3)
@@ -451,6 +527,8 @@ G = mG#"resolution"
 G.dd_2*mG#{2,{2,1}}+
    mG#{2,{2,0}}* (B_2**mG#{1,{1}})
 --and should thus be in (a3,b3,c3).
+mG#{2,{2,0}}
+G.dd_2*mG#{2,{2,1}}
 keys mG
 ///
 ///
@@ -524,6 +602,9 @@ picture Matrix := (M1) -> (
                 ))
         ), Alignment=>Center)
     )
+picture Module := M -> picture id_M
+picture Complex := C -> netList apply(toList(min C+1..max C), i-> picture C.dd_i)
+picture ChainComplex := C -> netList apply(toList(min C+1..max C), i-> picture C.dd_i)
 
 flattenBlocks = method()
 flattenBlocks Module := (F) -> (
@@ -758,6 +839,10 @@ labeledTensorChainComplex List := ChainComplex => L -> (
 	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
 	));
     modules = select(modules, tt-> #tt != 0);
+
+suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
+     -- v is a list of ZZ. returns null unless v has the form
+     -- {0...0,1,0..0}, in which case it returns the position of the 1.
 
     d := for i from 0 to #modules -2 list(	
         map(directSum modules#i,
