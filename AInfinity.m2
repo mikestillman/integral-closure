@@ -180,6 +180,24 @@ mG = aInfinity(mA,M,3)
 B = mA#"resolution"
 G = mG#"resolution"
 BG = labeledTensorComplex{B,G}
+A = labeledTensorComplex freeResolution coker presentation R
+AG = labeledTensorComplex{A,G}
+BG' = complex(for i from 2+min AG to max AG list AG.dd_i, Base => 2)
+G' = complex(for i from 2 to max G list G.dd_i, Base => 1)
+m0 =extend(G,AG,id_(G_0))
+maps = hashTable for i from min G' to max G' list i+1=>map(G_i, BG'_(i+1), m0_i)
+m2 = map(G',BG',maps, Degree => -1)
+
+m2 = map(G', BG', i -> oo_i)
+
+map(G, BG', i-> m0_i, Degree => -1)
+
+BG'_3
+G_2
+m0_2
+
+for i from 1 to max G list map(G_i, BG'_(i+1), m0_i)
+m0_1
 picture BG.dd_5
 
 RBG = labeledTensorComplex(R,BG)
@@ -480,6 +498,7 @@ for i from 3*2 to max B+1 do(
 hashTable pairs  m
 )
 
+
 ///--the fix
 restart
 debug loadPackage("AInfinity", Reload => true)
@@ -526,18 +545,19 @@ m#"resolution" = G;
   apply(length G , i-> m#{1,{i+1}} = G.dd_(i+1));    
 
 --m#{2,i} --m#{2,{2,1}} is still wrong!
-m2 := new MutableHashTable;-- m2#i will be a map to G_i
-BG := labeledTensorComplex{B,G};
-A0 := complex {S^1};
-AG := labeledTensorComplex{A0,G};
-m2#1 = map(AG_0, BG_2, (dual syz dual B.dd_3)**G_0)//AG.dd_1;
-for i from 2 to max AG do m2#i = -(m2#(i-1)*BG.dd_(i+1))//AG.dd_i;
+A := labeledTensorComplex freeResolution coker presentation R;
+AG := labeledTensorComplex{A,G};
+BG' := complex(for i from 2+min AG to max AG list AG.dd_i, Base => 2);
+G' := complex(for i from 2 to max G list G.dd_i, Base => 1);
+m0 := extend(G,AG,id_(G_0));
+maps := hashTable for i from min G' to max G' list i+1=>map(G_i, BG'_(i+1), m0_i);
+m2 := map(G',BG',maps, Degree => -1);
 
-for i from 1 to max G do (
-	(C,K) := componentsAndIndices (BG_(i+1)); 
-	for j from 0 to #K -1 do 
-	  if target m2#i !=0 then
-	     m#{2,K_j} = map(G_i,C_j, (m2#i)*((BG_(i+1)_[K_j])))
+for i from 2 to 1+max G do (
+	(C,K) := componentsAndIndices (BG'_(i)); 
+	for j from 0 to #K - 1 do 
+	  if target m2_i != 0 then
+	     m#{2,K_j} = map(G_(i-1),C_j, (m2_i)*((BG'_(i)_[K_j])))
        );
 --error(); --m2#2 is wrong.
 --m#{3,i}	                       );
