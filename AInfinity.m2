@@ -3,6 +3,7 @@ restart
 uninstallPackage "AInfinity"
 restart
 installPackage "AInfinity"
+check AInfinity
 restart
 debug loadPackage "AInfinity"
 ///
@@ -30,7 +31,10 @@ export {
     "labeledDirectSum",
     "mapComponents",
     "componentsAndIndices",
-    "label"
+    "label",
+    "picture",
+    "displayBlocks",
+    "extractBlocks"
     }
 
 
@@ -375,16 +379,29 @@ assert(RK_0_[{0}] == map(R^1,R^1,1))
 
 ///
 restart
-debug loadPackage("AInfinity", Reload => true)
+loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[a,b,c,d]
 R = S/(ideal(a,b,c,d))^2
-elapsedTime H = aInfinity(R,3); -- potentionall slower than with chainComplexes.
+elapsedTime H = aInfinity(R,3); 
+
 K = toSequence (keys H)_{2..#keys H -1}
 K = select(K, k-> class k === List)
 for k in K do <<k<<" "<< picture H#k<<endl;
 
-K = koszul vars S
+R = S/ideal apply(gens S, x->x^3)
+use S
+
+restart
+loadPackage("AInfinity", Reload => true)
+S = ZZ/101[a..e]
+R = S/ideal"a3,b3,c3,d3,e3"
+m = aInfinity(R,3)
+B = m#"resolution"
+--m{2,2} is skew-symmetric, mimicing A_1**A_1 -> A_2. and B2 commutes with B3.
+map(B_4, B_3**B_2, m#{3,2}) ==map(B_4, B_2**B_3,m#{2,3}*tensorCommutativity (B_3,B_2))
+
+tensorCommutativity
 ///
 
 aInfinity = method()
@@ -402,7 +419,7 @@ m#"ring" = R;
 S := ring presentation R;
 RS := map(R,S);
 A := freeResolution coker presentation R;
-B := complex(apply(length A-1, i -> -A.dd_(i+2)), Base =>2); -- new B!
+B := labeledTensorComplex complex(apply(length A-1, i -> -A.dd_(i+2)), Base =>2); -- new B!
 m#"resolution" = B;
 
 --m#{u_1}
@@ -447,15 +464,19 @@ for i from 3*2 to max B+1 do(
         co := select(compositions(3,i,max B), c -> min c >= min B);
 	--(C,K) := componentsAndIndices (B2_i); is this better?
 	for k in co do(
-	dm3 := m#{sum k_{0,1}-1,k_2} * (m#k_{0,1}**B_(k_2)) +
+	dm3 := m#{sum k_{0,1}-1,k_2} * (m#(k_{0,1})**B_(k_2)) +
 	
-	       -1^(k_0)* m#{2,sum k_{1,2}-1} * (B_(k_0)**m#k_{1,2}) +
+	       -1^(k_0)* m#{k_0,sum k_{1,2}-1} * (B_(k_0)**m#(k_{1,2})) +
         
-	       sum(apply(3, ell -> if min(k-e_ell)< min B then 0 else 
-		       -1^(sum k_{0..ell-1})*m#(k-e_ell)*m#k));
-	       
+	       sum(apply(3, ell -> if min(k-e_ell)< min B then 0 else (
+			mm := tensor(S, apply(3, i-> if i == ell then m#(k_{ell}) else B_(k_i)));
+		       -1^(sum k_{0..ell-1})*m#(k-e_ell)*mm)));
+	       --mm is m#(k_{ell}) tensored with factors B_(k_i) in the appropriate order. eg, 
+	       --if ell = 0,then
+	       --mm = m#(k_{0})**B_(k_1)**B_(k_1)
 	m3 := dm3//B.dd_(i-1);
-        m#k = map(B_(i-1), B3_i, m3))
+        m#k = map(B_(i-1), B3_i, m3*B3_i^[k])
+	)
      );
 hashTable pairs  m
 )
