@@ -17,25 +17,28 @@ newPackage(
 	          {Name => "Mike Stillman", 
                   Email => "mike@math.cornell.edu", 
                   HomePage => "http://pi.math.cornell.edu/~mike"}},
-	PackageExports => {"Complexes"},
+	PackageExports => {"Complexes", "DGAlgebras"},
         Headline => "Compute AInfinity structures on free resolutions",
         DebuggingMode => true
 	)
 
 export {
     "aInfinity",
-    "burck",
+    "burke",
     "golodBetti",
     "labeledTensorComplex",
     "labeledDirectSum",
     "mapComponents",
-    "componentsAndIndices"
+    "componentsAndIndices",
+    "label"
     }
 
 
 -*
 currently (11/26) BurkeData produces a list of the free modules in the Burke resolution to stage n,
-in a form that F_5^[{3,2,0}] works (this is the projection).
+in a form that F_5^[{3,2,0}] works (this is the projection). note that this duplicates 	   
+some of the slowest parts of the two aInfinity routines, and should be combined
+with them.
 
 Could we speed up BurkeData by creating the tensor products inductively?
 *-
@@ -46,7 +49,7 @@ burkeData(Module,ZZ) := List => (M,n) ->(
 --F = burkeData(M,n) 
 --produces the list of the free modules indexed 0..n in the Burke resolution,
 --in a form that things like F_5^[{3,2,0}] work (this is the projection).
---output is a list of labeled complexes of S-modules, where 
+--output is a list of labeled S-modules, where 
 --S = ring presentation ring M.
 R := ring M;
 S := ring presentation R;
@@ -55,7 +58,8 @@ G := labeledTensorComplex freeResolution(pushForward(RS, M), LengthLimit=>n);
 A' := freeResolution (coker presentation R, LengthLimit => n-1);
 A'' := labeledTensorComplex(A'[-1]);
 A := A''[1];
-B0 := labeledTensorComplex complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+--B0 := labeledTensorComplex complex(apply(length A-1, i-> A.dd_(i+2)))[-2];
+B0 := labeledTensorComplex complex(apply(length A-1, i-> -A.dd_(i+2)),Base =>2);
 BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
 C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
 apply(C, c -> labeledDirectSum c)
@@ -71,16 +75,21 @@ BB = burkeData(M,n)
 netList apply(BB, X -> componentsAndIndices X)
 B3 = BB_3
 B3_[{2,1}]
-componentsAndIndices B3
 ///
 
 mapComponents = method()
 mapComponents List := List => u -> (
     --u = {u_0..u_n}; for i<n, u_i represents a free module in B, the truncated, shifted res of R^1; 
     --u_n represents a free module in G, the S-resolution of the R-module M.
-    --output is a list whose elements have the form {sign, p,q,{v_0..v_m}} corresponding to
-    --a map to {v_0..v_m} collapsing u_p..u_q to -1+sum(for i from p to q list u_i), where sign is (-1)^sum(apply p, i->u_i).
-    --We require also v_0..v_(m-1)>=2 and v_m>=0; otherwise this is not a free module.
+    --output is a list whose elements have the form 
+    --{sign, p,q,{v_0..v_m}} corresponding to
+    --a map with
+    --target =  {v_0..v_m} = {u_0..u_(p-1), v_p, u_(q+1)..u_n}
+    --that collapses
+    --u_p..u_q to a single index v_p = -1+sum(for i from p to q list u_i), 
+    --where sign is (-1)^sum(apply p, i->u_i).
+    --We require also v_0..v_(m-1)>=2 and v_m>=0; otherwise this is not 
+    --the index of a module in the resolution.
 
     sign := p-> (-1)^(sum apply(p, i->u_i)); 
     n := #u-1;
@@ -105,24 +114,35 @@ picture labeledTensorComplex(R,KK)
 ///
 
 mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,len) ->(
-    --List the matrices of the maps starting from 
-    --the component labeled u in 
-    --B**..**B**G, with n = #u-1 copies of B.
+    --The output is a list D_1..D_len
+    --where D_t is a list of  the matrices of maps 
+    --F_t ->comp(u,F_t) -> comp(v, F_(t-1) -> F_(t-1)
+    --where comp(u,F_t) is the component of F_t labeled u
+    --and similarly for v,F_(t-1).
+    --Thus sum D_t will be the map F.dd_t in the Burke resolution.
     R := mA#"ring";
     S := ring presentation R;
     B := mA#"resolution";
     M := mG#"module";
     G := mG#"resolution";
-    F := burkeData(M,len);
+    F := burkeData(M,len); -- the list of labeled free modules
 
-    for t from 1 to len list (
+   --Now form the components of the maps. 
+
+      for t from 1 to len list (
+  
+   --First construct vv, the list of valid maps F_t --> F_(t-1).
 	c :=componentsAndIndices F_t;
 	flatten apply(#c_0, s->(
 	    u := c_1_s;
+	--now focus on the maps starting from the u component of F_t
     	    numRComponents := #u-1;
-    	    vv0 := mapComponents u;
-	    (C,K) := componentsAndIndices F_(t-1);
-	    vv := select(vv0, v-> member(v_3,K));
+    	    vv0 := mapComponents u; -- not all the vv0_i are valid.
+	    (C,K) := componentsAndIndices F_(t-1);	    
+	    vv := select(vv0, v-> member(v_3,K)); 
+	  --for each member v of  vv, the list v_3 is the index of a component
+	  --of F_(t-1) to which the u component maps.
+	  --The rest of v describes the map, as follows:
     	    for v in vv list (
 		sign := v_0;
 		p := v_1;
@@ -145,9 +165,12 @@ mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,len) ->(
              ))))
     )
 
+--We should probably break this into pieces, and have a function that produces
+--the individual component corresponding to a member v of vv.
 
 burke = method()
 burke(Ring, Module, ZZ) := Complex => (R,M,len) ->(
+    --put the map components together into what should be a complex.
     mA := aInfinity(R,3);
     mG := aInfinity(mA,M,3);
     D := mapComponents(mA,mG,len);
@@ -155,43 +178,53 @@ burke(Ring, Module, ZZ) := Complex => (R,M,len) ->(
     )
 
 ///
---go
 restart
 debug loadPackage("AInfinity", Reload => true)
-needsPackage "DGAlgebras"
 kk = ZZ/101
 S = kk[a,b,c]
-R = S/((ideal a^2)*ideal(a,b,c))
-assert isGolod R
+R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
 M = coker vars R
 E = burke(R,M,5)
-E.dd^2 -- F_5-> F_4->F_3 is not 0. However, F_4 -> F_3 does surject onto ker F_3->F_2,
---so probably F_5 -> F_4 is wrong. The bad source components of the composite
---are {3,2,0} and {2,3,0}, while the bad target component is {3,0}
-apply(length E, i->prune HH_i E)
-picture(E.dd_4*E.dd_5)
+--as of 12-7-2020 this does not form a complex, because of a sign error.
+--But it's  acyclic where it is a complex
+apply(length E, i-> prune HH_(i)E)
+
+--te error:
+E.dd^2 -- F_5-> F_4->F_3 is not 0. Since F_4 -> F_3 surjects to ker F_3->F_2,
+--probably F_5 -> F_4 is wrong. The bad source component of the composite is
+--is {2,3,0}, while the bad target component is {3,0} 
+--Note that {3,2,0} is ok; this might be a clue.
+picture(E.dd_4*E.dd_5) -- the fact that this is twice something suggests sign error.
 picture E.dd_4
 picture E.dd_5
---{2,3,0} should map to {2,2,0}++{4,0}; and in F_4->F_3
---{2,2,0} -> {3,0} and also {4,0} -> {3,0}
---use extractBlocks to straighten this out!
+--{2,3,0} maps to {2,2,0}++{4,0}; both these summand map to {3,0},
+--and the composites should cancel but currently have the same sign.
 E5 = extractBlocks(E.dd_5,{{4,0},{2,2,0}}, {2,3,0});
 E4 = extractBlocks(E.dd_4,{3,0}, {{2,2,0},{4,0}});
-picture(E4*E5) -- NOW it's a sign error: the result is twice something!
-E4*E5
+
+
 
 --two possible errors to fix: 
 --1) check that the liftings are working with a Verbose option or just an assert
---2) try replacing the homotopy that current defines mA#{u_1,u_2} with the sort
---of code now used for mG; this seems the most likely failure point.
+
+--2) I tried replacing the homotopy that current defines mA#{u_1,u_2} with the sort
+--of code now used for mG. The signs I got were no better, but I didn't try
+--making the multiplication B**B -> B compatible with A**A -> A.
+
+--***we should check that the multiplication is graded-commutative!***
 ///
 
 labeler = method()
+--only direct sum modules can be labeled
 labeler(Thing,Module) := (L,F) -> directSum(1:(L=>F));
-labeler(List, List) := Module => (Modules, Labels) ->(
+--note that in labeling a direct sum, the labels must be applied to the modules
+--And when the direct sum is formed.
+
+labeledDirectSum = method()
+labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
     --forms the direct sum of the Modules, with the components labeled by the Labels.
---    directSum apply(#Modules, i -> (Labels_i => Modules_i))
-    apply(#Modules, i -> labeler(Labels_i, Modules_i))
+    if #Modules == 0 then return 0; -- in what ring??
+    directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
     
 label = method()
@@ -201,88 +234,49 @@ label(List) := List => L-> apply(L, M ->(indices M)_0)
 ///
 restart
 debug loadPackage"AInfinity"
-S = ZZ/101[a,b]
-labeler({S^1,S^2},{A,B})
-directSum oo
-componentsAndIndices oo
+check AInfinity
 ///
 
-labeledDirectSum = method()
-labeledDirectSum Module := Module => M ->(
-    ci := componentsAndIndices M;
-    directSum apply(#ci_0, i->(ci_1_i => ci_0_i))
-    )
+TEST///
+S = ZZ/101[a,b]
+C = labeledDirectSum({A,B},{S^1,S^2})
+assert (componentsAndIndices C  == ({S^1, S^2}, {A,B}))
+assert(C^[A] == map(S^1,S^3,{{1,0,0}}))
+assert(label components C == {A,B})
+assert(indices C == {A,B})
+///
 
-labeledDirectSum(Ring, Module) := Module => (R,M) ->(
-    ci := componentsAndIndices M;
-    directSum apply(#ci_0, i->(ci_1_i => R**ci_0_i))
-    )
+///
+--necessity of double labeling:
+C = labeler(A,S^1) ++ labeler(B,S^2)
+componentsAndIndices C
+picture id_C
+--but
+C_[A]
+--does not work!
 
-labeledDirectSum List := Module => L ->(
-    ciL := apply(L, M -> componentsAndIndices M);
-    directSum flatten apply(ciL, ci -> apply(#ci_0, i->(ci_1_i => ci_0_i)))
-    )
+C = (A =>labeler(A,S^1)) ++ (B =>labeler(B,S^2))
+componentsAndIndices C
+picture id_C
+--work, AND
+C_[A] -- works
+
+C = (A =>S^1) ++ (B => S^2)
+componentsAndIndices C -- does not work
+picture id_C -- does not work
+--but
+C_[A] -- works
+///
 
 labeledTensorComplex = method()
-
--*
 labeledTensorComplex List := Complex => L -> (
-    --L = {C_0..C_(p-1)}, list chain complexes. Form the tensor product D of the C_i
-    --in such a way that the tensor products of the modules (C_i)_(m_i) are labeled {..m_i..}
-    --so that componentsAndIndices applied to C_i gives the correct list of indices, and
-    --thus picture C.dd_m works.
-    if class L_0 =!= Complex then error"Input should be a list of Complexes.";
-    S := ring L_0;
-    if #L == 1 and class L_0 === Complex then (
-	B := L_0;
-	F := for i from min B to max B list labeler({i}, B_i);
-	B' := complex for i from min B to max B -1 list map(F_(i-min B),F_(i+1-min B), B.dd_(i+1));
-	return B'[-min B]
-        );
-    p := #L;
-    Min := apply(L, C->min C);
-    Max := apply(L, C->max C);
-    modules := apply(#L + sum Max - sum Min, i ->(
-	    d := i+sum Min;
-	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-	    apply(com, co -> co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp)))))
-	    ));
-    modules = select(modules, tt-> #tt != 0);
-
-suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
-     -- v is a list of ZZ. returns null unless v has the form
-     -- {0...0,1,0..0}, in which case it returns the position of the 1.
-
-D := apply(modules, L -> directSum L);
---if L is a singleton and L_0 is labeled, then directSum L loses the label!
-
-    d := for i from 0 to #modules -2 list(
-        map(D_i, D_(i+1),
-            matrix table( -- form a block matrix
-                modules#i, -- rows of the table
-                modules#(i+1), -- cols of the table
-                (j,k) -> ( -- j,k are each labeled modules
-		    indtar := j_0_0
-		    indsrc := k_0_0;	    
-                    tar := j;
-                    src := k;
-		    p := suitable(indsrc - indtar);
-                    m := map(tar, src, 
-			if p === null then 0 else(
-			sign := (-1)^(sum(indsrc_(toList(0..p-1))));
-			phi := sign*(tensor(S, apply(p, q -> L_q_(indtar_q)))**
-			                                (L_p).dd_(indsrc_p)**
-                               tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1)))))
-			))))));
-                   (complex d)[-sum(L, ell -> min ell)]
-		   )
-
-*-
-labeledTensorComplex List := Complex => L -> (
-    --L = {C_0..C_(p-1)}, list chain complexes. Form the tensor product D of the C_i
-    --in such a way that the tensor products of the modules (C_i)_(m_i) are labeled {..m_i..}
-    --so that componentsAndIndices applied to C_i gives the correct list of indices, and
-    --thus picture C.dd_m works.
+    --Input is L = {C_0..C_(p-1)}, a list of Complexes. 
+    --Returns the tensor product D of the C_i
+    --with labels so that the tensor product of {(C_i)_(u_i)} is labeled u = {..u_i..}
+    --ComponentsAndIndices applied to D_i gives the correct list of indices, and
+    --thus picture D works; but ALSO D_i_[u] and D_i^[u] return the inclusion
+    --and projection correctly. (Note that this requires "double" labeling.)
+    
     if class L_0 =!= Complex then error"Input should be a list of Complexes.";
     S := ring L_0;
     if #L == 1 and class L_0 === Complex then (
@@ -297,9 +291,17 @@ labeledTensorComplex List := Complex => L -> (
     Max := apply(L, C->max C);
     modules := apply(#L + sum Max - sum Min, i ->(
 	    d := i+sum Min;
-	    com := select(compositions(p,d), c -> all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
-	    apply(com, co -> (co => labeler(co, tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
+	    com := select(compositions(p,d), c -> 
+		    all(p, i->Min_i <= c_i and c_i<= Max_i) and c != {});
+	    apply(com, co -> 
+		    (co => labeler(co, 
+			       tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
+
 	));
+--note the (necessary) double labeling. This would be simplified using 
+--modules0 := apply(com, co ->tensor(S,apply(p, pp->(L_pp)_(co_pp))));
+--labeledDirectSum(com, modules0)
+--but at the moment this does NOT work.
     modules = select(modules, tt-> #tt != 0);
 
 suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
@@ -331,8 +333,11 @@ suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
 labeledTensorComplex Complex := Complex => C -> labeledTensorComplex{C}
 
 labeledTensorComplex(Ring, Complex) := Complex => (R,C)->(
-    --preserve the labels on C while tensoring each free module with R
+    --preserve the labels on C while tensoring each free module with R.
+    --NOTE that C must be a labeled complex!
+    
     c := for i from min C to max C list componentsAndIndices C_i;
+    if c_(min C)_1_0 === null then error"Input Complex must be labeled";
     D := for j from 0 to max C - min C list if #c_j_0 === 1 then 
     --this is to fix the directSum bug
         labeler(c_j_1_0, R**c_j_0_0) else
@@ -340,51 +345,34 @@ labeledTensorComplex(Ring, Complex) := Complex => (R,C)->(
     complex (for i from 1 to max C - min C list map(D_(i-1),D_i,R**C.dd_(i+min C)), Base => min C)
     )
 	
-lTC = labeledTensorComplex;
+
+
 ///
 restart
-debug loadPackage("AInfinity", Reload => true)
---debug loadPackage("workingAInfinity", Reload => true)
-needsPackage "Complexes"
+loadPackage("AInfinity", Reload => true)
+check AInfinity
+///
+
+TEST///
 S = ZZ/101[a,b,c]
 K' = complex koszul vars S
-K = lTC K'
-picture (K2 = labeledTensorComplex{K,K})
-componentsAndIndices(K2_3)
-(K2_3)_[{3,0}]
 
-K' = K'[-1]
-labeledTensorComplex K'
-K'.dd
-K.dd
-L = {K,K}
+K = labeledTensorComplex K'
+assert(label K_2 == {2})
+assert(K_0_[{0}] == map(S^1,S^1,1))
+
+K2 = labeledTensorComplex{K',K'}
+picture K2
+componentsAndIndices(K2_1)
+assert(K2_1_[{1,0}] == map(S^{6:-1},S^{3:-1},id_(S^{3:-1})||0*id_(S^{3:-1})))
+
 R = S/ideal a
-picture labeledTensorComplex(R,K2)
-
-restart
-debug loadPackage("AInfinity", Reload => true)
-
-C = labeler(A,S^1) ++ labeler(B,S^2)
-componentsAndIndices C
-picture id_C
---but
-C_[A]
---does not work!
-
-C = (A =>labeler(A,S^1)) ++ (B =>labeler(B,S^2))
-componentsAndIndices C
-picture id_C
---work, AND
-C_[A] -- works
-
-C = (A =>S^1) ++ (B => S^2)
-componentsAndIndices C -- does not work
-picture id_C -- does not work
---but
-C_[A] -- works
-
-
+RK = labeledTensorComplex(R,K)
+picture RK
+assert(label RK_2 == {2})
+assert(RK_0_[{0}] == map(R^1,R^1,1))
 ///
+
 ///
 restart
 debug loadPackage("AInfinity", Reload => true)
@@ -414,7 +402,7 @@ m#"ring" = R;
 S := ring presentation R;
 RS := map(R,S);
 A := freeResolution coker presentation R;
-B := complex(apply(length A-1, i-> -A.dd_(i+2)), Base =>2); -- new B!
+B := complex(apply(length A-1, i -> -A.dd_(i+2)), Base =>2); -- new B!
 m#"resolution" = B;
 
 --m#{u_1}
