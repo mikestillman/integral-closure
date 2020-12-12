@@ -1,12 +1,3 @@
-///
-restart
-uninstallPackage "AInfinity"
-restart
-installPackage "AInfinity"
-check AInfinity
-restart
-debug loadPackage "AInfinity"
-///
 
 newPackage(
 	"AInfinity",
@@ -37,6 +28,62 @@ export {
     "extractBlocks"
     }
 
+///
+restart
+uninstallPackage "AInfinity"
+restart
+installPackage "AInfinity"
+check AInfinity
+restart
+debug loadPackage "AInfinity"
+///
+
+///
+restart
+debug loadPackage("AInfinity", Reload => true)
+kk = ZZ/2
+S = kk[a,b,c]
+R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
+M = coker vars R
+E = burke(R,M,5)
+--as of 12-7-2020 this does not form a complex, because of a sign error.
+--But it's  acyclic where it is a complex
+apply(length E, i-> prune HH_(i)E)
+
+--te error:
+E.dd^2 -- F_5-> F_4->F_3 is not 0. Since F_4 -> F_3 surjects to ker F_3->F_2,
+--probably F_5 -> F_4 is wrong. The bad source component of the composite is
+--is {2,3,0}, while the bad target component is {3,0} 
+--Note that {3,2,0} is ok; this might be a clue.
+picture(E.dd_4*E.dd_5) -- the fact that this is twice something suggests sign error.
+picture E.dd_4
+picture E.dd_5
+--{2,3,0} maps to {2,2,0}++{4,0}; both these summand map to {3,0},
+--and the composites should cancel but currently have the same sign.
+E5 = extractBlocks(E.dd_5,{{4,0},{2,2,0}}, {2,3,0});
+E4 = extractBlocks(E.dd_4,{3,0}, {{2,2,0},{4,0}});
+
+
+
+--two possible errors to fix: 
+--1) check that the liftings are working with a Verbose option or just an assert
+
+--2) I tried replacing the homotopy that current defines mA#{u_1,u_2} with the sort
+--of code now used for mG. The signs I got were no better, but I didn't try
+--making the multiplication B**B -> B compatible with A**A -> A.
+
+--***we should check that the multiplication is graded-commutative!***
+///
+
+burke = method()
+burke(Ring, Module, ZZ) := Complex => (R,M,len) ->(
+    --put the map components together into what should be a complex.
+    mA := aInfinity(R,3);
+    mG := aInfinity(mA,M,3);
+    D := mapComponents(mA,mG,len);
+    labeledTensorComplex(R,complex(D/sum))
+    )
+
 
 -*
 currently (11/26) BurkeData produces a list of the free modules in the Burke resolution to stage n,
@@ -66,8 +113,14 @@ A := A''[1];
 B0 := labeledTensorComplex complex(apply(length A-1, i-> -A.dd_(i+2)),Base =>2);
 BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
 C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
-apply(C, c -> labeledDirectSum c)
-    )
+--apply(C, c -> labeledDirectSum (S,c))
+error();
+--the following isn't right
+apply(C, c -> apply(c,cc ->(
+	    ci := componentsAndIndices cc;
+	    for d in ci list 
+	       directSum apply(d/first, dd-> dd_1_0 => dd_0_0)
+    )))
 ///
 restart
 debug loadPackage "AInfinity"
@@ -172,51 +225,6 @@ mapComponents(HashTable, HashTable, ZZ) := List =>(mA,mG,len) ->(
 --We should probably break this into pieces, and have a function that produces
 --the individual component corresponding to a member v of vv.
 
-burke = method()
-burke(Ring, Module, ZZ) := Complex => (R,M,len) ->(
-    --put the map components together into what should be a complex.
-    mA := aInfinity(R,3);
-    mG := aInfinity(mA,M,3);
-    D := mapComponents(mA,mG,len);
-    labeledTensorComplex(R,complex(D/sum))
-    )
-
-///
-restart
-debug loadPackage("AInfinity", Reload => true)
-kk = ZZ/101
-S = kk[a,b,c]
-R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
-M = coker vars R
-E = burke(R,M,5)
---as of 12-7-2020 this does not form a complex, because of a sign error.
---But it's  acyclic where it is a complex
-apply(length E, i-> prune HH_(i)E)
-
---te error:
-E.dd^2 -- F_5-> F_4->F_3 is not 0. Since F_4 -> F_3 surjects to ker F_3->F_2,
---probably F_5 -> F_4 is wrong. The bad source component of the composite is
---is {2,3,0}, while the bad target component is {3,0} 
---Note that {3,2,0} is ok; this might be a clue.
-picture(E.dd_4*E.dd_5) -- the fact that this is twice something suggests sign error.
-picture E.dd_4
-picture E.dd_5
---{2,3,0} maps to {2,2,0}++{4,0}; both these summand map to {3,0},
---and the composites should cancel but currently have the same sign.
-E5 = extractBlocks(E.dd_5,{{4,0},{2,2,0}}, {2,3,0});
-E4 = extractBlocks(E.dd_4,{3,0}, {{2,2,0},{4,0}});
-
-
-
---two possible errors to fix: 
---1) check that the liftings are working with a Verbose option or just an assert
-
---2) I tried replacing the homotopy that current defines mA#{u_1,u_2} with the sort
---of code now used for mG. The signs I got were no better, but I didn't try
---making the multiplication B**B -> B compatible with A**A -> A.
-
---***we should check that the multiplication is graded-commutative!***
-///
 
 labeler = method()
 --only direct sum modules can be labeled
@@ -225,9 +233,9 @@ labeler(Thing,Module) := (L,F) -> directSum(1:(L=>F));
 --And when the direct sum is formed.
 
 labeledDirectSum = method()
-labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
+labeledDirectSum(Ring, List,List) := Module => (S, Labels,Modules) ->(
     --forms the direct sum of the Modules, with the components labeled by the Labels.
-    if #Modules == 0 then return 0; -- in what ring??
+    if #Modules == 0 then return labeler({}, S^0); -- in what ring??
     directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
     
@@ -237,14 +245,18 @@ label(List) := List => L-> apply(L, M ->(indices M)_0)
 
 ///
 restart
-debug loadPackage"AInfinity"
+loadPackage"AInfinity"
 check AInfinity
 ///
 
 TEST///
 S = ZZ/101[a,b]
-C = labeledDirectSum({A,B},{S^1,S^2})
+C = labeledDirectSum(S,{A,B},{S^1,S^2})
+D = labeledDirectSum(S,{X},{S^0})
+D = labeledDirectSum(S,{},{})
+D^[{}]
 assert (componentsAndIndices C  == ({S^1, S^2}, {A,B}))
+assert(componentsAndIndices C == ({S^1 , S^2 }, {A, B}))
 assert(C^[A] == map(S^1,S^3,{{1,0,0}}))
 assert(label components C == {A,B})
 assert(indices C == {A,B})
@@ -300,18 +312,14 @@ labeledTensorComplex List := Complex => L -> (
 	    apply(com, co -> 
 		    (co => labeler(co, 
 			       tensor(S,apply(p, pp->(L_pp)_(co_pp))))))
-
 	));
---note the (necessary) double labeling. This would be simplified using 
---modules0 := apply(com, co ->tensor(S,apply(p, pp->(L_pp)_(co_pp))));
---labeledDirectSum(com, modules0)
---but at the moment this does NOT work.
+--note the (necessary) double labeling.
     modules = select(modules, tt-> #tt != 0);
 
 suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
      -- v is a list of ZZ. returns null unless v has the form
      -- {0...0,1,0..0}, in which case it returns the position of the 1.
-
+--error();
     d := for i from 0 to #modules -2 list(	
         map(directSum modules#i,
             directSum modules#(i+1),
@@ -331,8 +339,8 @@ suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
 			                                (L_p).dd_(indsrc_p)**
                                tensor(S, apply(#L-p-1, q -> L_(p+q+1)_(indtar_(p+q+1)))))
 			))))));
-                   (complex(d,Base => sum Min))
-		   )
+     (complex(d,Base => sum Min))
+     )
 	       
 labeledTensorComplex Complex := Complex => C -> labeledTensorComplex{C}
 
@@ -398,10 +406,9 @@ S = ZZ/101[a..e]
 R = S/ideal"a3,b3,c3,d3,e3"
 m = aInfinity(R,3)
 B = m#"resolution"
---m{2,2} is skew-symmetric, mimicing A_1**A_1 -> A_2. and B2 commutes with B3.
+--m{2,2} is skew-symmetric, mimicking A_1**A_1 -> A_2. and B2 commutes with B3.
 map(B_4, B_3**B_2, m#{3,2}) ==map(B_4, B_2**B_3,m#{2,3}*tensorCommutativity (B_3,B_2))
 
-tensorCommutativity
 ///
 
 aInfinity = method()
