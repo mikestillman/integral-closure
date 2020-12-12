@@ -117,6 +117,7 @@ C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
 --error();
 --the following isn't right
 apply(C, c -> labeledDirectSum c))
+
 ///
 restart
 debug loadPackage "AInfinity"
@@ -235,13 +236,30 @@ labeledDirectSum(Ring, List,List) := Module => (S, Labels,Modules) ->(
     if #Modules == 0 then return labeler({}, S^0); -- in what ring??
     directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
-*-
+
 labeledDirectSum = method()
 labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
     --forms the direct sum of the Modules, with the components labeled by the Labels.
     if #Modules == 0 then return 0; -- in what ring??
     directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
+*-
+labeledDirectSum = method()
+labeledDirectSum Module := Module => M ->(
+    ci := componentsAndIndices M;
+    directSum apply(#ci_0, i->(ci_1_i => ci_0_i))
+    )
+
+labeledDirectSum(Ring, Module) := Module => (R,M) ->(
+    ci := componentsAndIndices M;
+    directSum apply(#ci_0, i->(ci_1_i => R**ci_0_i))
+    )
+
+labeledDirectSum List := Module => L ->(
+    ciL := apply(L, M -> componentsAndIndices M);
+    directSum flatten apply(ciL, ci -> apply(#ci_0, i->(ci_1_i => ci_0_i)))
+    )
+
     
 label = method()
 label(Module) := Thing => M-> (indices M)_0
