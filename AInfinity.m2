@@ -114,13 +114,9 @@ B0 := labeledTensorComplex complex(apply(length A-1, i-> -A.dd_(i+2)),Base =>2);
 BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
 C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
 --apply(C, c -> labeledDirectSum (S,c))
-error();
+--error();
 --the following isn't right
-apply(C, c -> apply(c,cc ->(
-	    ci := componentsAndIndices cc;
-	    for d in ci list 
-	       directSum apply(d/first, dd-> dd_1_0 => dd_0_0)
-    )))
+apply(C, c -> labeledDirectSum c))
 ///
 restart
 debug loadPackage "AInfinity"
@@ -232,10 +228,18 @@ labeler(Thing,Module) := (L,F) -> directSum(1:(L=>F));
 --note that in labeling a direct sum, the labels must be applied to the modules
 --And when the direct sum is formed.
 
+-*
 labeledDirectSum = method()
 labeledDirectSum(Ring, List,List) := Module => (S, Labels,Modules) ->(
     --forms the direct sum of the Modules, with the components labeled by the Labels.
     if #Modules == 0 then return labeler({}, S^0); -- in what ring??
+    directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
+	)
+*-
+labeledDirectSum = method()
+labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
+    --forms the direct sum of the Modules, with the components labeled by the Labels.
+    if #Modules == 0 then return 0; -- in what ring??
     directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
     
