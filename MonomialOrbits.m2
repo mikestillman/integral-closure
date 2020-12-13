@@ -1,5 +1,3 @@
---todo: add stabilizer of an ideal, methods for Ideal+ monomial ideal.
-
 newPackage(
         "MonomialOrbits",
         Version => "0.9", 
@@ -63,14 +61,6 @@ orbitRepresentatives(Ring,MonomialIdeal,VisibleList) := List => o -> (R,I,degs) 
 restart
 debug loadPackage("MonomialOrbits", Reload => true)
 ///
-TEST///
-S = ZZ/101[a,b,c]
-I = monomialIdeal"a3,b3,c3"
-assert(#orbitRepresentatives(S,{3,3,3}) == 25)
-orbitRepresentatives(S,I,{3,3,3})
-orbitRepresentatives(S,I,{3})
-
-///    
 
 --orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
 --   orbitRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
@@ -115,28 +105,11 @@ hilbertRepresentatives(Ring, VisibleList) := List => o -> (R,h) -> (
      	 result1);
              );
     result)
-hilbertRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
-   hilbertRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
 
 ///
 restart
 debug loadPackage("MonomialOrbits", Reload => true)
 ///
-TEST///
-R = ZZ/101[a,b]
-      hilbertRepresentatives(R,{2,2,1}) 
-      hilbertRepresentatives(R,{2,2,1,0}) 
-
-R = ZZ/101[a,b,c]
-assert(#hilbertRepresentatives(R,{2}) == 1)
-assert(#hilbertRepresentatives(R,{2,0}) == 1)
-
-assert(#hilbertRepresentatives(R,{2,2,1})  == 3)
-assert(#hilbertRepresentatives(R,{2,2,1,0}) == #hilbertRepresentatives(R,{2,2,1}))
-
-assert(#hilbertRepresentatives(R,{3,4,5}) == 2)
-assert(#hilbertRepresentatives(R,{3,4,0}) == 4)
-///    
 
 
 setupRing = method(Options =>{Group => "SymmetricGroup", MonomialType => "all"})
@@ -231,15 +204,6 @@ cosets(List, List) := List => (G,H) -> (
 
 
 
-TEST///
-debug needsPackage"MonomialOrbits"
-S = ZZ/101[a,b,c,d]
-setupRing S	
-G = S.cache.MonomialOrbits#"GroupElements"
-H = {G_0,G_1}
-C = cosets(G,H)
-assert(24 ==#unique flatten for h in H list for c in C list (c*h))
-///
 
 ///
 restart
@@ -405,42 +369,50 @@ doc ///
      The default is "All" (anything other than "SquareFree" is equivalent to "All").
 ///
 
+
+TEST///
+S = ZZ/101[a,b,c]
+I = monomialIdeal"a3,b3,c3"
+assert(#orbitRepresentatives(S,{3,3,3}) == 25)
+assert(#orbitRepresentatives(S,I,{3}) == 2)
+
+R = ZZ/101[a..f]
+assert(orbitRepresentatives(R,{4,5}, MonomialType => "SquareFree") == {monomialIdeal (a*b*c*d, a*b*c*e*f)})
+///    
+
+TEST///
+R = ZZ/101[a,b]
+assert(hilbertRepresentatives(R,{2,2}) == {monomialIdeal a^2 , monomialIdeal(a*b)})
+assert(toString\hilbertRepresentatives(R,{2,2,1,0}) =={"monomialIdeal(a^2,a*b^2,b^4)", "monomialIdeal(a^2,b^3)", "monomialIdeal(a^3,a*b,b^4)"})
+assert(hilbertRepresentatives(R,{2,3,0}) =={monomialIdeal(a^3,a^2*b,a*b^2,b^3)})
+
+R = ZZ/101[a,b,c]
+assert(#hilbertRepresentatives(R,{2}) == 1)
+assert(#hilbertRepresentatives(R,{2,0}) == 1)
+
+assert(#hilbertRepresentatives(R,{2,2,1})  == 3)
+assert(#hilbertRepresentatives(R,{2,2,1,0}) == #hilbertRepresentatives(R,{2,2,1}))
+
+assert(#hilbertRepresentatives(R,{3,4,5}) == 2)
+assert(#hilbertRepresentatives(R,{3,4,0}) == 4)
 ///
+
+TEST///
+debug needsPackage "MonomialOrbits"
+S = ZZ/101[a,b,c,d]
+setupRing S	
+assert(#S.cache.MonomialOrbits#"GroupElements" == 24)
+G = S.cache.MonomialOrbits#"GroupElements"
+H = {G_0,G_1}
+C = cosets(G,H)
+assert(#C == 12)
+assert(24 ==#unique flatten for h in H list for c in C list (c*h))
+///
+
+end--
+
 uninstallPackage "MonomialOrbits"
 restart
 installPackage "MonomialOrbits"
 check "MonomialOrbits"
 viewHelp MonomialOrbits
-///
-
-TEST///
-  R = ZZ/101[a,b]
-  assert(hilbertRepresentatives(R,{2,2}) == {monomialIdeal a^2 , monomialIdeal(a*b)})
-  assert(toString\hilbertRepresentatives(R,{2,2,1,0}) =={"monomialIdeal(a^2,a*b^2,b^4)", "monomialIdeal(a^2,b^3)", "monomialIdeal(a^3,a*b,b^4)"})
-  assert(hilbertRepresentatives(R,{2,3,0}) =={monomialIdeal(a^3,a^2*b,a*b^2,b^3)})
-
- R = ZZ/101[vars(0..3)]
- L = orbitRepresentatives(R,{2,2,2})
- assert(#L == 11)
-  assert(#orbitRepresentatives(R,{2,3}) == 11)
-  R = ZZ/101[vars(0..5)]
- orbitRepresentatives(R,{4,5}, MonomialType => "SquareFree") == {monomialIdeal (a*b*c*d, a*b*c*e*f)}
-///
-
-
-end--
-
---Conjecture(d,n) = any binomial(d+n-1,d)-binomial(d+n-2,d)-1 of monomials defines an ideal of depth 0.
---verified for n = 3, d <= 4 and n = 4,d <= 3.
-n = 4
-S = ZZ/101[vars(0..n-1)]
-d = 4
-binomial(d+n-1,d)
-crit =  binomial(d+n-1,d)-binomial(d+n-2,d)-1
-time L = orbitRepresentatives(S,crit:d);
-mm = (ideal vars S)^d;
-time L' = for I in L list I' = ideal compress (gens mm%I);
-all(length\res\L',ell -> ell == n)
-#L 
-binomial(binomial(d+n-1,d),crit)//(product apply(n,i->i+1))
-
