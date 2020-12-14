@@ -16,7 +16,7 @@ newPackage(
 export {
     "orbitRepresentatives",
     "hilbertRepresentatives",
-    "Group",
+    "Perms",
     "MonomialType"
     }
 
@@ -48,7 +48,7 @@ monomialsInDegree = (d, R, type) -> (
     else 
         error "expected MonomialType to be either \"All\" or \"SquareFree\""
     )
-orbitRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
+orbitRepresentatives = method(Options=>{Perms=>"SymmetricGroup", MonomialType => "All"})
 
 orbitRepresentatives(Ring, VisibleList) := List => o -> (R, degs) -> (
     setupRing(R,o); -- creates G as a list of ring automorphisms
@@ -89,9 +89,9 @@ orbitRepresentatives(Ring, MonomialIdeal, VisibleList) := List => o -> (R, I, de
 ///
 
 --orbitRepresentatives(Ring, Sequence) := List => o->(R, degs) -> 
---   orbitRepresentatives(R, toList degs, Group => o.Group, MonomialType => o.MonomialType)
+--   orbitRepresentatives(R, toList degs, Perms => o.Perms, MonomialType => o.MonomialType)
 
-hilbertRepresentatives = method(Options=>{Group=>"SymmetricGroup", MonomialType => "All"})
+hilbertRepresentatives = method(Options=>{Perms=>"SymmetricGroup", MonomialType => "All"})
 hilbertRepresentatives(Ring, VisibleList) := List => o -> (R, h) -> (
     --orbit representatives of all monomial ideals I, if any, such that
     --hilbertFunction(i,R/I) = h_(i-1) for all i = 1,..,#h.
@@ -137,8 +137,8 @@ hilbertRepresentatives(Ring, VisibleList) := List => o -> (R, h) -> (
 ///
 
 
-setupRing = method(Options => {Group => "SymmetricGroup", MonomialType => "all"})
---Group is either "SymmetricGroup" or a list of ring automorphisms 
+setupRing = method(Options => {Perms => "SymmetricGroup", MonomialType => "all"})
+--Perms is either "SymmetricGroup" or a list of ring automorphisms 
 --or a list of permutations of 0..numgens R-1
 setupRing Ring := o -> R -> (
     if not R.?cache then R.cache = new CacheTable;
@@ -146,15 +146,15 @@ setupRing Ring := o -> R -> (
     H := R.cache.MonomialOrbits;
     if H#?"MonomialType" then oldMonomialType := H#"MonomialType";
     
-    if o.Group === "SymmetricGroup" then (
-        H#"Group" = "SymmetricGroup";
+    if o.Perms === "SymmetricGroup" then (
+        H#"Perms" = "SymmetricGroup";
         H#"GroupElements" = for p in permutations numgens R list
             map(R, R, (vars R)_p)
         )
-    else (if class((o.Group)_0) === RingMap then
-        H#"GroupElements" = o.Group else
-	H#"GroupElements" = permsToRingMaps(R,o.Group);
-        H#"Group" = "Other");
+    else (if class((o.Perms)_0) === RingMap then
+        H#"GroupElements" = o.Perms else
+	H#"GroupElements" = permsToRingMaps(R,o.Perms);
+        H#"Perms" = "Other");
     )
 
 ///
@@ -162,7 +162,7 @@ restart
 needsPackage "MonomialOrbits"
 ///
 
-sumMonomials = method(Options => {Group => "SymmetricGroup"})
+sumMonomials = method(Options => {Perms => "SymmetricGroup"})
 sumMonomials(List, List) := List => o -> (L1, L2) -> (
     --L1 list of monomial ideals
     --L2 llist of monomials
@@ -252,7 +252,7 @@ doc ///
     Key
         MonomialOrbits
     Headline
-        find orbit representatives of monomial ideals under the a group action
+        find orbit representatives of monomial ideals, up to permutations of the variables
     Description
         Text
             This package contains functions for the construction of
@@ -269,7 +269,7 @@ doc ///
             considered.
             
             The set G is specified as a list of ring maps that permute the variables
-	    by an option of the form {\tt Group => {...}}.
+	    by an option of the form {\tt Perms => {...}}.
 ///
 
 doc ///
@@ -277,7 +277,7 @@ doc ///
         orbitRepresentatives
         (orbitRepresentatives, Ring, VisibleList)
         (orbitRepresentatives, Ring, MonomialIdeal, VisibleList)
-        [orbitRepresentatives, Group]
+        [orbitRepresentatives, Perms]
         [orbitRepresentatives, MonomialType]    
     Headline
         find representatives of monomial ideals under a set of permutations of variables
@@ -290,7 +290,7 @@ doc ///
             or @ofClass Sequence@, of the degrees of the generators
         I:Ideal
             The starting ideal; all the ideals returned will contain this one. 
-        Group => List
+        Perms => List
             or @ofClass String@.  If not given, or is the String {\it SymmetricGroup}, 
             the symmetric group of permutations on
             the variables of $R$ is used.  If a list is given, it
@@ -348,11 +348,16 @@ doc ///
 	    G1 = {map(S,S,{b,c,a})}
 	    Gc = {{1,2,0},{2,0,1}}
 	    Gsymm = "SymmetricGroup"
-	    orbitRepresentatives(S,{2,2,2},Group => G1)	    
-	    orbitRepresentatives(S,{2,2,2},Group => Gc)	    	    
-	    #orbitRepresentatives(S,{2,2,2},Group => G1)	    
-	    #orbitRepresentatives(S,{2,2,2},Group => Gc)	    	    
-	    #orbitRepresentatives(S,{2,2,2},Group => Gsymm)	    	    	    
+	    orbitRepresentatives(S,{2,2,2},Perms => G1)	    
+	    orbitRepresentatives(S,{2,2,2},Perms => Gc)	    	    
+	    #orbitRepresentatives(S,{2,2,2},Perms => G1)	    
+	    #orbitRepresentatives(S,{2,2,2},Perms => Gc)	    	    
+	    #orbitRepresentatives(S,{2,2,2},Perms => Gsymm)	    	    	    
+	Text
+	    Multi-gradings are also allowed:
+	Example
+	    S = ZZ/101[x_0..x_3, Degrees=>{{1,2},{2,1},{1,1},{1,0}}]
+	    orbitRepresentatives(S,{{2,2},{2,1}})
         Text
             Since the input data specifies degrees of minimal generators,
 	    the set of ideals may be empty:
@@ -361,7 +366,7 @@ doc ///
             L = orbitRepresentatives(S,(2,2,2,2))
     SeeAlso
         hilbertRepresentatives
-        Group
+        Perms
         MonomialType
 ///
 
@@ -369,7 +374,7 @@ doc ///
     Key
         hilbertRepresentatives
         (hilbertRepresentatives, Ring, VisibleList)
-        [hilbertRepresentatives, Group]
+        [hilbertRepresentatives, Perms]
         [hilbertRepresentatives, MonomialType]    
     Headline
         find representatives of monomial ideals under a set of permutations of the variables
@@ -379,7 +384,7 @@ doc ///
         R:PolynomialRing
         s:VisibleList 
             of desired values of {\tt d->hilbertFunction(R/I,d)} for d in (1..length s)
-        Group => List
+        Perms => List
             or @ofClass String@.  If not given, or is {\it "SymmetricGroup"}, 
             the symmetric group of permutations on
             the variables of $R$ is used.  If a list is given, it
@@ -436,19 +441,19 @@ doc ///
             hilbertRepresentatives(S,{1,4}) == {}
     SeeAlso
         orbitRepresentatives
-        Group
+        Perms
         MonomialType
 ///
 
 doc ///
     Key
-        Group
+        Perms
     Headline
-        Group => "SymmetricGroup" or {f_1..f_t}
+        Perms => "SymmetricGroup" or {f_1..f_t}
     Description
         Text
             This option specifies a group of permutations of
-            variables.  Group => "SymmetricGroup" or Group => GG,
+            variables.  Perms => "SymmetricGroup" or Perms => GG,
             where GG is a list of permutations of the variables as
             maps S -> S OR GG is a list of permutations of the numbers 
 	    0..numgens S.  The default, "SymmetricGroup" uses the full
@@ -464,20 +469,27 @@ doc ///
         orbitRepresentatives(S,degs,MonomialType => "SquareFree")
     Description
         Text
-            The default is "All" (anything other than "SquareFree" is equivalent to "All").
+            The default is "All".
+///
+
+TEST///
+S = ZZ/101[x_0..x_3, Degrees=>{{1,2},{2,1},{1,1},{1,0}}]
+
+assert(#orbitRepresentatives(S,{{2,2},{2,1}}) == "WRONG")
+error"This answer is wrong!"
 ///
 
 TEST///
 S = ZZ/101[a,b,c]
 G = {{0,2,1},{1,0,2},{1,2,0}}
 Gs = permutations 3
-assert(#orbitRepresentatives(S, (2,2,2), Group => G_{0}) == 12 and
-#orbitRepresentatives(S, (2,2,2), Group => G_{1}) == 12 and
-#orbitRepresentatives(S, (2,2,2), Group => G_{2}) == 14 and
-#orbitRepresentatives(S, (2,2,2), Group => G_{0,1}) == 12 and
-#orbitRepresentatives(S, (2,2,2), Group => G) == 9 and
+assert(#orbitRepresentatives(S, (2,2,2), Perms => G_{0}) == 12 and
+#orbitRepresentatives(S, (2,2,2), Perms => G_{1}) == 12 and
+#orbitRepresentatives(S, (2,2,2), Perms => G_{2}) == 14 and
+#orbitRepresentatives(S, (2,2,2), Perms => G_{0,1}) == 12 and
+#orbitRepresentatives(S, (2,2,2), Perms => G) == 9 and
 #orbitRepresentatives(S, (2,2,2)) == 6 and 
-#orbitRepresentatives(S, (2,2,2), Group =>Gs) == 6
+#orbitRepresentatives(S, (2,2,2), Perms =>Gs) == 6
 )
 ///
 
