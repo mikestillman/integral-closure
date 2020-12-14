@@ -40,17 +40,20 @@ debug loadPackage "AInfinity"
 
 ///
 restart
-debug loadPackage("AInfinity", Reload => true)
+loadPackage("AInfinity", Reload => true)
 kk = ZZ/2
 S = kk[a,b,c]
 R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
 M = coker vars R
 E = burke(R,M,5)
---as of 12-7-2020 this does not form a complex, because of a sign error.
+E.dd^2
+--In char 2 this is fine, and acyclic! But
+--as of 12-7-2020 this does not form a complex 
+--in other characteristics, because of a sign error.
 --But it's  acyclic where it is a complex
 apply(length E, i-> prune HH_(i)E)
 
---te error:
+--the error:
 E.dd^2 -- F_5-> F_4->F_3 is not 0. Since F_4 -> F_3 surjects to ker F_3->F_2,
 --probably F_5 -> F_4 is wrong. The bad source component of the composite is
 --is {2,3,0}, while the bad target component is {3,0} 
@@ -62,8 +65,17 @@ picture E.dd_5
 --and the composites should cancel but currently have the same sign.
 E5 = extractBlocks(E.dd_5,{{4,0},{2,2,0}}, {2,3,0});
 E4 = extractBlocks(E.dd_4,{3,0}, {{2,2,0},{4,0}});
+E4*E5
 
+E51 = extractBlocks(E.dd_5,{4,0}, {2,3,0});
+E40 = extractBlocks(E.dd_4,{3,0}, {4,0});
+E40*E51
 
+mA = aInfinity(R,3);
+keys mA
+mG = aInfinity(mA,M,3);
+keys mG
+mG#{2,2,0}
 
 --two possible errors to fix: 
 --1) check that the liftings are working with a Verbose option or just an assert
@@ -124,7 +136,7 @@ debug loadPackage "AInfinity"
 S = ZZ/101[a,b,c]
 R = S/ideal"a3,b3,c3"
 M = coker vars R
-n = 3
+n = 4
 BB = burkeData(M,n)
 netList apply(BB, X -> componentsAndIndices X)
 B3 = BB_3
@@ -480,8 +492,9 @@ for i from 4 to 1+(concentration B)_1 do(
     for k in K do (
 	k' := {k_0-1,k_1-1};
 --	m#k = map(B_(i-1),source(B2_i_[k]), mul_(i-2)*A2_(i-2)_[k'])
---wild idea: add a sign
+--wild idea: add a sign -- the following two both have the same trouble
 	m#k = (-1)^i* map(B_(i-1),source(B2_i_[k]), mul_(i-2)*A2_(i-2)_[k'])
+--	m#k = (-1)^(k_1)* map(B_(i-1),source(B2_i_[k]), mul_(i-2)*A2_(i-2)_[k'])	
 	)
     );
 
@@ -609,6 +622,7 @@ A := labeledTensorComplex freeResolution coker presentation R;
 AG := labeledTensorComplex{A,G};
 mul0 := map(G_0,AG_0,id_(G_0));
 mul := extend(G,AG,mul0);
+
 
 for i from 2 to 1+(concentration G)_1 do(
     (C,K) := componentsAndIndices BG_i;
