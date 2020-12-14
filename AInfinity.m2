@@ -248,6 +248,7 @@ labeledDirectSum(Ring, List,List) := Module => (S, Labels,Modules) ->(
     if #Modules == 0 then return labeler({}, S^0); -- in what ring??
     directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
+*-
 
 labeledDirectSum = method()
 labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
@@ -255,8 +256,7 @@ labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
     if #Modules == 0 then return 0; -- in what ring??
     directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
 	)
-*-
-labeledDirectSum = method()
+
 labeledDirectSum Module := Module => M ->(
     ci := componentsAndIndices M;
     directSum apply(#ci_0, i->(ci_1_i => ci_0_i))
@@ -285,10 +285,10 @@ check AInfinity
 
 TEST///
 S = ZZ/101[a,b]
-C = labeledDirectSum(S,{A,B},{S^1,S^2})
-D = labeledDirectSum(S,{X},{S^0})
-D = labeledDirectSum(S,{},{})
-D^[{}]
+C = labeledDirectSum({A,B},{S^1,S^2})
+D = labeledDirectSum({X},{S^0})
+--D = labeledDirectSum(S, {},{})
+--D^[{}]
 assert (componentsAndIndices C  == ({S^1, S^2}, {A,B}))
 assert(componentsAndIndices C == ({S^1 , S^2 }, {A, B}))
 assert(C^[A] == map(S^1,S^3,{{1,0,0}}))
