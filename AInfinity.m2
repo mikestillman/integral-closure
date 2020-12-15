@@ -1,4 +1,3 @@
-
 newPackage(
 	"AInfinity",
     	Version => "0.1", 
@@ -45,11 +44,12 @@ kk = ZZ/5
 S = kk[a,b,c]
 R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
 K = koszul vars R
-M = coker K.dd_1
+M = coker K.dd_2
 E = burke(R,M,5)
 E.dd^2
 apply(length E, i-> prune HH_(i)E)
 picture E
+betti E.dd_4
 ///
 
 burke = method()
@@ -90,9 +90,6 @@ A := A''[1];
 B0 := labeledTensorComplex complex(apply(length A-1, i-> -A.dd_(i+2)),Base =>2);
 BB := {G}|apply(n//2, i->labeledTensorComplex(toList(i+1:B0)|{G}));
 C := apply(n+1, i-> select(apply(BB,b-> b_i), c -> c != 0));
---apply(C, c -> labeledDirectSum (S,c))
---error();
---the following isn't right
 apply(C, c -> labeledDirectSum c))
 
 ///
@@ -206,41 +203,17 @@ labeler(Thing,Module) := (L,F) -> directSum(1:(L=>F));
 --note that in labeling a direct sum, the labels must be applied to the modules
 --And when the direct sum is formed.
 
--*
-labeledDirectSum = method()
-labeledDirectSum(Ring, List,List) := Module => (S, Labels,Modules) ->(
-    --forms the direct sum of the Modules, with the components labeled by the Labels.
-    if #Modules == 0 then return labeler({}, S^0); -- in what ring??
-    directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
-	)
-*-
+label = method()
+label(Module) := Thing => M-> (indices M)_0
+label(List) := List => L-> apply(L, M ->(indices M)_0)
 
 labeledDirectSum = method()
-labeledDirectSum(List,List) := Module => (Labels,Modules) ->(
-    --forms the direct sum of the Modules, with the components labeled by the Labels.
-    if #Modules == 0 then return 0; -- in what ring??
-    directSum apply(#Modules, i -> Labels_i => labeler(Labels_i, Modules_i))
-	)
-
-labeledDirectSum Module := Module => M ->(
-    ci := componentsAndIndices M;
-    directSum apply(#ci_0, i->(ci_1_i => ci_0_i))
-    )
-
-labeledDirectSum(Ring, Module) := Module => (R,M) ->(
-    ci := componentsAndIndices M;
-    directSum apply(#ci_0, i->(ci_1_i => R**ci_0_i))
-    )
-
 labeledDirectSum List := Module => L ->(
+    --L is a list of labeled modules.
     ciL := apply(L, M -> componentsAndIndices M);
     directSum flatten apply(ciL, ci -> apply(#ci_0, i->(ci_1_i => ci_0_i)))
     )
 
-    
-label = method()
-label(Module) := Thing => M-> (indices M)_0
-label(List) := List => L-> apply(L, M ->(indices M)_0)
 
 ///
 restart
@@ -797,37 +770,59 @@ displayBlocks Matrix := (M1) -> (
 
 extractBlocks = method()
 extractBlocks(Matrix, List) := Matrix => (phi, src) ->(
-    -- the map map(target phi, source phi, phi_[src]*(source phi)^[src], where src
-    -- is a list
-    -- of integers respresenting a block in source phi OR
-    -- a list of lists of integers, representing several blocks.
+    -- returns the submatrix corresponding to the block or blocks listed in src.
+    -- src is a list of integers or a list of such lists,
+    -- respresenting block(s) in source phi.
     -- note that this behavior is DIFFERENT than the function with the same
     -- name in EagonResolution, where the list is an ordinal list of integers
     -- representing the blocks (in some order??).
+    if class src_0 === ZZ then 
+       srcList := {src} else srcList = src;
     phi1 := flattenBlocks phi;
-    sour := source phi1;
-    if class src_0 === ZZ then
-          phi1_[src]*sour^[src] else
-    sum(src, src1 -> phi1_[src1]*sour^[src1])
+    matrix {apply(srcList,Ls->
+               phi1_[Ls])
+	   }
     )
 
+
 extractBlocks(Matrix, List, List) := Matrix => (phi, tar, src) ->(
-    -- the map map(target phi, source phi, phi_[src]^tar), where 
-    -- src is a list of integers 
-    -- respresenting a labeled summand source phi; and 
-    -- tar is a list of integers
-    -- respresenting a labeled summand target phi.
+    -- returns the submatrix corresponding to the block or blocks listed in src and tar.
+    -- src and tar are lists of integers or lists of such lists,
+    -- respresenting block(s) in phi.
+    -- note that this behavior is DIFFERENT than the function with the same
+    -- name in EagonResolution, where the list is an ordinal list of integers
+    -- representing the blocks (in some order??).
     if class src_0 === ZZ then 
        srcList := {src} else srcList = src;
     if class tar_0 === ZZ then
        tarList := {tar} else tarList = tar;
     phi1 := flattenBlocks phi;
-    sour := source phi1;
-    targ := target phi1;
-    sum flatten apply(srcList, Ls -> apply(tarList,Lt->
-               targ_[Lt]*phi1_[Ls]^[Lt]*sour^[Ls]))
+    matrix apply(tarList, Lt -> apply(srcList,Ls->
+               phi1_[Ls]^[Lt])
+	   )
     )
     
+///
+restart
+loadPackage("AInfinity", Reload => true)
+kk = ZZ/5
+S = kk[a,b,c]
+R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
+K = koszul vars R
+M = coker K.dd_3
+E = burke(R,M,5)
+E.dd^2
+apply(length E, i-> prune HH_(i)E)
+E.dd_2
+picture E.dd_2
+displayBlocks E.dd_2
+extractBlocks(E.dd_2,{1},{2,0})
+picture extractBlocks(E.dd_2,{1},{{2},{2,0}})
+
+
+displayBlocks E.dd_4
+betti E.dd_4
+///
 
 labels := method()
 labels Module := List => M -> (
