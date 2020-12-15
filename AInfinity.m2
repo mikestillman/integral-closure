@@ -45,18 +45,11 @@ kk = ZZ/5
 S = kk[a,b,c]
 R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
 K = koszul vars R
-M = coker K.dd_2
+M = coker K.dd_1
 E = burke(R,M,5)
-picture(E.dd_3*E.dd_4)
-picture E.dd_3
-picture E.dd_4
-extractBlocks(E.dd_4,{3},{2,2,0})
-
-----
-picture(E.dd_4*E.dd_5)
-
 E.dd^2
 apply(length E, i-> prune HH_(i)E)
+picture E
 ///
 
 burke = method()
@@ -438,22 +431,6 @@ m#"resolution" = B;
 --m#{u_1}
 apply(length B , i-> m#{i+3} = B.dd_(i+3));
 
--*
---the following is the NullHomotopy method described by Burke;
---leads to maps that don't compose to 0.
-A0 := (complex S^1)[-2];
-d := map(A0, B, i-> if (i == 2) then A.dd_1 else 0);
-m#"Bmap" = d;
-B2 := labeledTensorComplex{B,B};
-N := nullHomotopy (d**id_B-id_B**d);-- this was SLOW! now fixed.
-for i from 2*min B to max B+1 do (
-	(C,K) := componentsAndIndices (B2_i); 
-	for j from 0 to #K -1 do 
-	  if target N_i !=0 then
-	     m#(K_j) = map(B_(sum K_j - 1),C_j, N_(i)*((B2_i)_[K_j]))
-       );
-*-
-
 --m#{u_1,u_2}
 B2 := labeledTensorComplex{B,B};
 A0 := complex {A_0};
@@ -482,11 +459,11 @@ for i from 3*2 to max B+1 do(
 	for k in co do(
 	dm3 := m#{sum k_{0,1}-1,k_2} * (m#(k_{0,1})**B_(k_2)) +
 	
-	       -1^(k_0)* m#{k_0,sum k_{1,2}-1} * (B_(k_0)**m#(k_{1,2})) +
+	       (-1)^(k_0)* m#{k_0,sum k_{1,2}-1} * (B_(k_0)**m#(k_{1,2})) +
         
 	       sum(apply(3, ell -> if min(k-e_ell)< min B then 0 else (
 			mm := tensor(S, apply(3, i-> if i == ell then m#(k_{ell}) else B_(k_i)));
-		       -1^(sum k_{0..ell-1})*m#(k-e_ell)*mm)));
+		       (-1)^(sum k_{0..ell-1})*m#(k-e_ell)*mm)));
 	       --mm is m#(k_{ell}) tensored with factors B_(k_i) in the appropriate order. eg, 
 	       --if ell = 0,then
 	       --mm = m#(k_{0})**B_(k_1)**B_(k_1)
@@ -622,13 +599,14 @@ M := hashTable apply(e, ee->
 		      if i == 2 and ee_i == 0 then G_(k_i) else
 		      if m#?{k_i} then m#{k_i} else S^0))));
 	  
-	dm3 := m#{sum k_{0,1}-1,k_2} * (mR#(k_{0,1})**G_(k_2)) +
+	dm3 := -( m#{sum k_{0,1}-1,k_2} * (mR#(k_{0,1})**G_(k_2)) +
 	
-	       -1^(k_0) * m#{k_0,sum k_{1,2}-1} * (B_(k_0)**m#(k_{1,2})) +
+	       (-1)^(k_0) * m#{k_0,sum k_{1,2}-1} * (B_(k_0)**m#(k_{1,2})) +
 	               
 	       sum(apply(#e, ell ->
 			if min(k-e_ell-{2,2,0})<0 then 0 else 
-		       -1^(sum k_{0..ell-1}) * m#(k-e_ell) * M#{e_ell}));
+		       (-1)^(sum k_{0..ell-1}) * m#(k-e_ell) * M#{e_ell}))
+		   );
 
 	m3 := dm3//G.dd_(i-1);
         m#k = map(G_(i-1), source ((B2G_i)_[k]), m3))
@@ -637,14 +615,26 @@ hashTable pairs  m)
 
 ///
 restart
-debug loadPackage("AInfinity", Reload => true)
-needsPackage "Complexes"
+loadPackage("AInfinity", Reload => true)
 kk = ZZ/101
 S = kk[a,b,c]
-R = S/ideal"a3,b3,c3"
-M = coker vars R
+R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
+K = koszul vars R
+M = coker K.dd_2
+
 mA = aInfinity(R,3)
+B = mA#"resolution"
 mG = aInfinity(mA,M,3)
+G = mG#"resolution"
+
+keys mG
+mG#{2,2,0}
+m#{sum k_{0,1}-1,k_2} * (mR#(k_{0,1})**G_(k_2)) +
+1^(k_0) * m#{k_0,sum k_{1,2}-1} * (B_(k_0)**m#(k_{1,2})) 
+m#{3,0}*(mR#{2,2}**G_0)
+
+m#{2,1}*(B_2**m#{2,0})
+m3 = dm3//G.dd_3
 ///
 ///
 restart
