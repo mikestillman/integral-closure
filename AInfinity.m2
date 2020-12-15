@@ -41,50 +41,22 @@ debug loadPackage "AInfinity"
 ///
 restart
 loadPackage("AInfinity", Reload => true)
-kk = ZZ/2
+kk = ZZ/5
 S = kk[a,b,c]
 R = S/((ideal a^2)*ideal(a,b,c)) -- a simple 3 variable Golod ring
-M = coker vars R
+K = koszul vars R
+M = coker K.dd_2
 E = burke(R,M,5)
-E.dd^2
---In char 2 this is fine, and acyclic! But
---as of 12-7-2020 this does not form a complex 
---in other characteristics, because of a sign error.
---But it's  acyclic where it is a complex
-apply(length E, i-> prune HH_(i)E)
-
---the error:
-E.dd^2 -- F_5-> F_4->F_3 is not 0. Since F_4 -> F_3 surjects to ker F_3->F_2,
---probably F_5 -> F_4 is wrong. The bad source component of the composite is
---is {2,3,0}, while the bad target component is {3,0} 
---Note that {3,2,0} is ok; this might be a clue.
-picture(E.dd_4*E.dd_5) -- the fact that this is twice something suggests sign error.
+picture(E.dd_3*E.dd_4)
+picture E.dd_3
 picture E.dd_4
-picture E.dd_5
---{2,3,0} maps to {2,2,0}++{4,0}; both these summand map to {3,0},
---and the composites should cancel but currently have the same sign.
-E5 = extractBlocks(E.dd_5,{{4,0},{2,2,0}}, {2,3,0});
-E4 = extractBlocks(E.dd_4,{3,0}, {{2,2,0},{4,0}});
-E4*E5
+extractBlocks(E.dd_4,{3},{2,2,0})
 
-E51 = extractBlocks(E.dd_5,{4,0}, {2,3,0});
-E40 = extractBlocks(E.dd_4,{3,0}, {4,0});
-E40*E51
+----
+picture(E.dd_4*E.dd_5)
 
-mA = aInfinity(R,3);
-keys mA
-mG = aInfinity(mA,M,3);
-keys mG
-mG#{2,2,0}
-
---two possible errors to fix: 
---1) check that the liftings are working with a Verbose option or just an assert
-
---2) I tried replacing the homotopy that current defines mA#{u_1,u_2} with the sort
---of code now used for mG. The signs I got were no better, but I didn't try
---making the multiplication B**B -> B compatible with A**A -> A.
-
---***we should check that the multiplication is graded-commutative!***
+E.dd^2
+apply(length E, i-> prune HH_(i)E)
 ///
 
 burke = method()
@@ -353,7 +325,7 @@ labeledTensorComplex List := Complex => L -> (
 suitable := v-> if min v == 0 then position (v, vv -> vv == 1) else null;
      -- v is a list of ZZ. returns null unless v has the form
      -- {0...0,1,0..0}, in which case it returns the position of the 1.
---error();
+
     d := for i from 0 to #modules -2 list(	
         map(directSum modules#i,
             directSum modules#(i+1),
@@ -483,18 +455,20 @@ for i from 2*min B to max B+1 do (
 *-
 
 --m#{u_1,u_2}
-A2 := labeledTensorComplex{A,A};
 B2 := labeledTensorComplex{B,B};
-mm0 := map(A_0,A2_0,id_(A_0));
-mul := extend(A,A2,mm0);
+A0 := complex {A_0};
+d1 := map(A_0, B_2, A.dd_1);
+d1d1 := hashTable for i from min B to max B list 
+       i+2 => (d1**id_(B_i))*(B2_(i+2))^[{2,i}] - (id_(B_i)**d1)*(B2_(i+2))^[{i,2}];
+D := map(A0**B,B2,d1d1, Degree => -2);
+m0 := nullHomotopy D;
 for i from 4 to 1+(concentration B)_1 do(
     (C,K) := componentsAndIndices B2_i;
     for k in K do (
-	k' := {k_0-1,k_1-1};
---	m#k = map(B_(i-1),source(B2_i_[k]), mul_(i-2)*A2_(i-2)_[k'])
---wild idea: add a sign -- the following two both have the same trouble
-	m#k = (-1)^i* map(B_(i-1),source(B2_i_[k]), mul_(i-2)*A2_(i-2)_[k'])
---	m#k = (-1)^(k_1)* map(B_(i-1),source(B2_i_[k]), mul_(i-2)*A2_(i-2)_[k'])	
+	k' := {k_0+k_1-1};
+	m#k = map(target (B_(i-1))^[k'], source (B2_i)_[k],
+	       (B_(i-1))^[k']*m0_i*(B2_i)_[k]
+	        )
 	)
     );
 
@@ -530,6 +504,8 @@ needsPackage "DGAlgebras"
 kk = ZZ/101
 S = kk[a,b,c]
 R = S/((ideal a^2)*ideal(a,b,c))
+mA = aInfinity(R,3)
+
 assert isGolod R
 M = coker vars R
 E = burke(R,M,5)
@@ -607,6 +583,7 @@ m#"module" = M;
 B := mR#"resolution";
 R := ring M;
 S := ring presentation R;
+A := labeledTensorComplex freeResolution coker presentation R;
 RS := map(R,S);
 
 Mres := freeResolution pushForward(RS,M);
@@ -618,38 +595,19 @@ m#"resolution" = G;
 
 ----m#u, #u=2
 BG := labeledTensorComplex{B,G};
-A := labeledTensorComplex freeResolution coker presentation R;
-AG := labeledTensorComplex{A,G};
-mul0 := map(G_0,AG_0,id_(G_0));
-mul := extend(G,AG,mul0);
-
-
+A0 := complex {A_0};
+d1 := map(A_0, B_2, A.dd_1);
+dG := hashTable for i from min G to max G list
+              i+2 => (d1**id_(G_i))*(BG_(i+2))^[{2,i}];
+D := map(A0**G, BG, dG, Degree => -2);
+m0 := nullHomotopy D;
 for i from 2 to 1+(concentration G)_1 do(
     (C,K) := componentsAndIndices BG_i;
     for k in K do (
-	k' := {k_0-1,k_1};
-	m#k = map(G_(i-1),source(BG_i_[k]), mul_(i-1)*AG_(i-1)_[k']);
-    )
+	k' := {k_0+k_1-1};
+	m#k = map(G_(i-1), source (BG_i)_[k],m0_i*(BG_i)_[k])
+	)
     );
-
--* -- this works; gives wrong m#{3,0} and m#{2,1}
-BG := labeledTensorComplex{B,G};
-p := new MutableHashTable from
-       for i from 2 to length G list 
-             i=>(presentation R ** G_(i-2))*(BG_i)^[{2,i-2}];
-P := map(G[-2],BG,p);
-m2 := new MutableHashTable;
-     m2#2 = map(G_1, BG_2,P_2//G.dd_1);
-for i from 3 to length G+2 do 
-     m2#i = (m2#(i-1)*BG.dd_i+P_i)//G.dd_(i-1);
-
-for i from 2 to 1+max G do (
-	(C,K) := componentsAndIndices (BG_i); 
-	for j from 0 to #K - 1 do 
-	  if target m2#i != 0 then
-	     m#(K_j) = map(G_(i-1),C_j, (m2#i)*((BG_i_[K_j])))
-       );
-*-
 
 --m#u, #u=3	                       );
 B2G := labeledTensorComplex (toList(2:B)|{G});
@@ -677,7 +635,7 @@ M := hashTable apply(e, ee->
      );
 hashTable pairs  m)
 
-///--bug!
+///
 restart
 debug loadPackage("AInfinity", Reload => true)
 needsPackage "Complexes"
@@ -685,22 +643,8 @@ kk = ZZ/101
 S = kk[a,b,c]
 R = S/ideal"a3,b3,c3"
 M = coker vars R
-koszul(2, vars R)
 mA = aInfinity(R,3)
 mG = aInfinity(mA,M,3)
---The following should be 0 and it's not:
---m2#2
---koszul(2,vars R)*m2#2
-B = mA#"resolution"
-G = mG#"resolution"
---The following should be the composite 
---0 == map B_2**G_1 -> G_2++B_2**G_0 -> G_1
-G.dd_2*mG#{2,1}+
-   mG#{2,0}* (B_2**mG#{1})
---and should thus be in (a3,b3,c3).
-mG#{2,0}
-G.dd_2*mG#{2,1}
-keys mG
 ///
 ///
 restart
