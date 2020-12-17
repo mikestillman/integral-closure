@@ -229,7 +229,7 @@ doc ///
             generators, the program adds all possible generators of
             the (k+1)-st degree to each of ideals in L in a certain
             order, and then removes those in the list that can be
-            obtained by a transformation in G from one that is earlier
+            obtained by a permutation of variables from one that is earlier
             in the list.
 	    
             Because the generators are constrained to be minimal generators,

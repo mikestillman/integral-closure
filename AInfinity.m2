@@ -49,7 +49,9 @@ E = burke(R,M,5)
 E.dd^2
 apply(length E, i-> prune HH_(i)E)
 picture E
-betti E.dd_4
+picture E.dd_4
+componentsAndIndices E_4
+displayBlocks E.dd_2
 ///
 
 burke = method()
@@ -60,7 +62,6 @@ burke(Ring, Module, ZZ) := Complex => (R,M,len) ->(
     D := mapComponents(mA,mG,len);
     labeledTensorComplex(R,complex(D/sum))
     )
-
 
 -*
 currently (11/26) BurkeData produces a list of the free modules in the Burke resolution to stage n,
@@ -118,7 +119,6 @@ mapComponents List := List => u -> (
     --where sign is (-1)^sum(apply p, i->u_i).
     --We require also v_0..v_(m-1)>=2 and v_m>=0; otherwise this is not 
     --the index of a module in the resolution.
-
     sign := p-> (-1)^(sum apply(p, i->u_i)); 
     n := #u-1;
     L0 := apply(n+1, p-> {sign p, p,p,u_{0..p-1}|{u_p-1}|u_{p+1..n}});
@@ -217,7 +217,7 @@ labeledDirectSum List := Module => L ->(
 
 ///
 restart
-loadPackage"AInfinity"
+debug loadPackage"AInfinity"
 check AInfinity
 ///
 
@@ -236,11 +236,13 @@ assert(indices C == {A,B})
 
 ///
 --necessity of double labeling:
+S = ZZ/101[a,b,c]
 C = labeler(A,S^1) ++ labeler(B,S^2)
 componentsAndIndices C
 picture id_C
 --but
 C_[A]
+C_[1]
 --does not work!
 
 C = (A =>labeler(A,S^1)) ++ (B =>labeler(B,S^2))
@@ -448,7 +450,7 @@ hashTable pairs  m
 )
 
 ///
-restart
+Restart
 debug loadPackage("AInfinity", Reload => true)
 needsPackage "DGAlgebras"
 kk = ZZ/101
@@ -853,8 +855,6 @@ compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
      result
      );
 
-
-
 tensor(Ring, List) := o -> (R,L) -> (
     --note that A**B**C**..**D = (((A**B)**C)**..**D) = tensor(R,{A..D}).
     --The order matters for chain complexes; maybe not for modules.
@@ -864,7 +864,6 @@ tensor(Ring, List) := o -> (R,L) -> (
     ans1 := tensor(R,drop(L,-1));
     ans1**last L
     )
-
 
 componentsAndIndices = (F) -> (
     if not F.cache.?components then (
@@ -974,15 +973,6 @@ Make aInfinity(Ring,ZZ) use the commutative multiplication.
 Is there an analogue for the higher products?
 can we call SchurComplexes?
 
-add the maps B -> G 
-
-replace ** with eTensor
-
-add associativities
-
-construct the resolution
-
-
 
 
 Note: from "Grammarly":
@@ -1076,7 +1066,7 @@ S = kk[x,y,z,u]
 I = ideal(u^3, x*y^2, (x+y)*z^2, x^2*u+z*u^2, y^2*u+x*z*u, y^2*z+y*z^2) -- has the betti nums as in Roos
 betti (A = res I) -- shows that the m_2 must be trivial
 R = S/I
-isGolod R -- gives the wrong answer! as one sees by comparing Poincare series, below
+isGolod R 
 H = acyclicClosure(R, EndDegree => 0)
 isHomologyAlgebraTrivial H
 
