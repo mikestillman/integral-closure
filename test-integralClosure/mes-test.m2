@@ -1,46 +1,36 @@
 restart
 debug loadPackage("IntegralClosure", Reload=>true)
 debug needsPackage "PushForward"
-errorDepth=0
+--errorDepth=0
 
 -- bug 1
-R = QQ[x,y]/(x^3-y^2)
-integralClosure ideal x
-I = ideal x
-
-R' = integralClosure R
-describe R'
-phi = map(R', R)
-I' = phi I
-integralClosure I'
-needsPackage "PushForward"
-pushFwd(phi, module I')
-methods pushFwd
-map(module I', (ring I')^1, x)
-pushFwd(phi, oo)
-
--- I in R
-R = QQ[x,y]/(x^3-y^2)
-I = ideal(x)
+D=2
+S = QQ[x,y,z]
+R = S/ker map(QQ[t],S,{t^3,t^5,t^7})
+I = ideal(y,z)
 integralClosure I
 
-i = map(Rbar, Reesi)
-(pres, m, mapf) = pushFwd i
-basisOfDegreeD(LD, pres)
-R' = integralClosure R
-f = map(R', R)
-I' = f I
-I'' = integralClosure I'
-M = pushFwd(f, module I'', NoPrune => true)
--- (matB,k,graphR,graphI,mat,n,varsR,mapf) = pushAuxHgs f
--- -- natural map of I --> M.
--- mapf f I_0
-phi = map(M, module I, M_{0..numgens I-1})
-extendIdeal phi
+D = 1
+Reesi = reesAlgebra I
+(fReesi,fromReesi) = flattenRing Reesi
+Rbar = integralClosure fReesi
+describe Rbar
+RbarfReesi = map(Rbar,fReesi)
+I' = ideal(select(gens fReesi, x-> first degree x === 1))
+M'' = RbarfReesi I'^D/RbarfReesi I'^(D+1)
+RbarR = map(Rbar,R,DegreeMap => d -> prepend(0,d))
+M = pushFwd(RbarR, M'', NoPrune =>true)
+extendIdeal(map(M, module I^D, M_{0..numgens I-1}))
+phi = map(M, module I^D, M_{0..numgens I-1})
+isWellDefined phi
+I^D
+ideal R
+M''
+(gens Rbar)/degree
+M
+syz dual presentation M
 
-
-
-
+ideal Rbar
 
 -- bug 2
 R = QQ[x,y]/(x^3-y^2)
