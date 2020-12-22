@@ -1,7 +1,7 @@
 newPackage(
     "MonomialOrbits",
     Version => "0.9", 
-    Date => "15 December 2020",
+    Date => "18 December 2020",
     Authors => {{Name => "David Eisenbud", 
             Email => "de@msri.org", 
             HomePage => "http://www.msri.org/~de"},
@@ -188,12 +188,12 @@ doc ///
             => "SquareFree"} is given, then only square-free monomial
             ideals are considered.
     Subnodes                                         
-        :Enumerating Monomial ideals with given generator degrees
+        :Enumerating monomial ideals with given generator degrees
             @TO orbitRepresentatives@
-        :Enumerating Monomial ideals with given Hilbert function
+        :Enumerating monomial ideals with given Hilbert function
             @TO hilbertRepresentatives@
-	:Options limiting the type of ideals generated
-	    @TO MonomialType@
+        :Options limiting the type of ideals generated
+            @TO MonomialType@
 ///
 
 doc ///
