@@ -16,7 +16,7 @@ newPackage(
     PackageExports => {
         "MinimalPrimes" -- really helps speed up most computations here. Use minprimes.
         },
-    DebuggingMode => false,
+    DebuggingMode => true,
     AuxiliaryFiles => true
     )
 
@@ -99,6 +99,21 @@ idealInSingLocus Ring := Ideal => opts -> S -> (
 	);
      J
      )
+
+integralClosure(Ring, Ring) := Ring => o -> (B,A) -> (
+    (fB,fromB) := flattenRing B;
+    fC := integralClosure(fB, o);
+    gensA := generators(A, CoefficientRing => ZZ);
+    newvars := drop(gens fC, - #gensA); -- not correct: remove all vars in A, not just toplevel ones!
+    newdegs := drop(degrees fC, - #gensA);
+    aC := A (monoid[newvars, Degrees => newdegs, Join => false]);
+    L := trim sub(ideal fC, aC);
+    C := aC/L;
+    B.icFractions = fB.icFractions;
+    fCtoC := map(C, fC, gens(C, CoefficientRing => coefficientRing fC));
+    B.icMap = fCtoC * fB.icMap * fromB;
+    C
+    )
 
 integralClosure Ring := Ring => o -> (R) -> (
      -- R: Ring, a reduced affine ring. TODO: can we handle integral closures over ZZ as well?
@@ -833,7 +848,6 @@ integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     phi := map(M,module(I^D), mapback matrix inducedMap(degD,zIdealD));
     if isHomogeneous I and isHomogeneous a then assert(isHomogeneous phi);
     assert(isWellDefined phi);
-    error "debug me";
     extendIdeal phi
     )
 integralClosure(Ideal,ZZ) := Ideal => o -> (I,D) -> integralClosure(I, I_0, D, o)
