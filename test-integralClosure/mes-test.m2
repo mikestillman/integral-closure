@@ -4,7 +4,7 @@ debug needsPackage "PushForward"
 --errorDepth=0
 
 -- bug 1
-D=2
+D=1
 S = QQ[x,y,z]
 R = S/ker map(QQ[t],S,{t^3,t^5,t^7})
 I = ideal(y,z)
@@ -71,10 +71,11 @@ ideal Rbar
 -- but using map from degree 0 part of Reesi...
 D = 1
 I = trim I
-Reesi = reesAlgebra I -- this is incorrect!!  The variables are in the wrong order, if we don't do the trim above.
-Rbar = integralClosure(Reesi, R)
---describe Rbar
-I' = ideal(select(gens Reesi, x-> first degree x === 1))
+Reesi = reesAlgebra I -- should have option (default?) for not trimming, as reesIdeal does.
+Rbar = integralClosure(Reesi, ring I)
+degrees Rbar
+describe Rbar
+--I' = ideal(select(gens Reesi, x-> first degree x === 1))
 --RbarReesi = map(Rbar,Reesi)
 ringIbarAmbient = (ring I)[select(gens Rbar, x -> first degree x == 0)]
 Jbar = ideal select((ideal Rbar)_*, f -> first degree f == 0)
@@ -86,6 +87,7 @@ RinR' = map(ringIbar, ring I) -- is this ok?
 --RbarR = map(Rbar, R)
 M'' = basis({D}, Rbar, SourceRing => ringIbar)
 M = coimage M''
+isHomogeneous M
 --IinRbar = trim ideal gens gb sub(I, ringIbar)
 IinRbar = RinR' I -- trim ideal gens gb sub(I, ringIbar)
 phi = map(M, module IinRbar^D, M_{0..numgens I-1})
@@ -93,7 +95,6 @@ isWellDefined phi
 extendIdeal phi
 preimage(map(ringIbar, R), oo)
 -- End of the code...
-
 -----------------------------------
 -- What about this?? I think it is not needed...
 M'' = RbarReesi I'^D/RbarReesi I'^(D+1) -- this should be basis(new grading = D), then kernel.
@@ -119,18 +120,20 @@ ideal Rbar
 -----------------------------------
 
 -- bug 2
-R = QQ[x,y]/(x^3-y^2)
-S = R[z]
+S = QQ[x,y]/(x^3-y^2)
+
 --errorDepth=0
 integralClosure(S, R)
 integralClosure(S, S) -- this doesn't yet...
 integralClosure(S, QQ)
 
 -- Try this: if R = A[x]/I, then the integral closure should be of the form A[y]/J, or R[y]/L...
-S = QQ[x,y,z]
-A = S/ker map(QQ[t],S,{t^3,t^5,t^7})
+restart
+A = QQ[x,y,z]
+S = A/ker map(QQ[t],A,{t^3,t^5,t^7})
 I = ideal(y,z)
-
+a = y
+D = 1
 
 B = reesAlgebra I
 describe B
@@ -198,3 +201,40 @@ integralClosure(I, 2)
 use R'
 I = ideal(y,z)
 integralClosure I -- this will likely be difficult too...
+
+--------------
+--minprimes problem:
+setRandomSeed 0
+kk = ZZ/32003
+S = kk[a,b,c,d]
+phi = map(S,S,{S_0}|toList((numgens S -1):0))
+f = random(4,S)
+g = random(4,S)
+f' = f- phi f
+g' = g- phi g
+If = content(f',S_0)
+Ig = content(g',S_0)
+--Ig = content(g'^2,S_0)
+
+Ifg = content(f'*g',S_0)
+assert((gens(If*Ig) % Ifg)!=0)
+elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
+--slow in extendIdeal!
+--bug when minPrimes is used.
+
+setRandomSeed 0
+kk = ZZ/32003
+S = kk[a,b,c,d]
+phi = map(S,S,{S_0}|toList((numgens S -1):0))
+f = random(3,S)
+g = random(4,S)
+f' = f- phi f
+g' = g- phi g
+If = content(f',S_0)
+Ig = content(g',S_0)
+--Ig = content(g'^2,S_0)
+
+Ifg = content(f'*g',S_0)
+assert((gens(If*Ig) % Ifg)!=0)
+elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
+elapsedTime integralClosure Ifg

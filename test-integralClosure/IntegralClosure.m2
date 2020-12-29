@@ -823,7 +823,7 @@ icPIdeal (RingElement, RingElement, ZZ) := Ideal => (a, D, N) -> (
 ----------------------------------------
 -- Integral closure of ideal -----------
 ----------------------------------------
-
+-*
 integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     S := ring I;
     if a % I != 0 then error "The ring element should be an element of the ideal.";
@@ -853,6 +853,45 @@ integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
     assert(isWellDefined phi);
     extendIdeal phi
     )
+*-
+///
+restart
+debug loadPackage( "IntegralClosure", Reload => true)
+A = QQ[x,y,z]
+S = A/ker map(QQ[t],A,{t^3,t^5,t^7})
+I = ideal(y,z)
+a = y
+D = 1
+integralClosure(I,a,2)
+///
+integralClosure(Ideal, RingElement, ZZ) := opts -> (I,a,D) -> (
+    S := ring I;
+    if a % I != 0 then error "The ring element should be an element of the ideal.";
+    if ((ideal 0_S):a) != 0 then error "The given ring element must be a nonzerodivisor of the ring.";
+    z := local z;
+    w := local w;
+    I = trim I;
+    Reesi := reesAlgebra(I,a,Variable => z);
+    Rbar := integralClosure(Reesi, S,  Variable => w); --opts is missing
+    T := S[select(gens Rbar, x -> first degree x == 0)];
+    J := ideal select((ideal Rbar)_*, f -> first degree f == 0);
+    count := -1;
+    TRbar := map(T,ring J,for x in gens ring J list 
+        if first degree x == 0 
+        then (count = count+1; T_count) 
+        else 0);
+    S' := T/TRbar J;
+    S'S := map(S', S);
+    M'' := basis({D}, Rbar, SourceRing => S');
+    M := coimage M'';
+    IS'D := S'S (I^D);
+    phi := map(M, module IS'D, M_{0..numgens IS'D-1});
+    assert(isWellDefined phi);
+    I' := extendIdeal phi;
+    preimage(map(S', S), I')
+    )
+
+
 integralClosure(Ideal,ZZ) := Ideal => o -> (I,D) -> integralClosure(I, I_0, D, o)
 integralClosure(Ideal,RingElement) := Ideal => o -> (I,a) -> integralClosure(I, a, 1, o)
 integralClosure(Ideal) := Ideal => o -> I -> integralClosure(I, I_0, 1, o)
@@ -3248,12 +3287,17 @@ basisOfDegreeD({2,null}, S)
 --family of inhomogeneous examples suggested by craig:
 --integral dependence of a power series on its derivatives.
 restart
-needs "bug-integralClosure.m2"
-kk = QQ
+--needs "bug-integralClosure.m2"
+kk = ZZ/101
 S = kk[a,b]
 mm = ideal vars S
 T = kk[t]
 f = (ker map(T,S,{t^4,t^6+t^7}))_0
+R = S/f
+R' = integralClosure R
+vars R'
+see ideal R'
+netList (ideal R')_*
 --the simplest plane curve singularity with 2 characteristic pairs,
 --thus NOT quasi-homogeneous.
 --f could be any polynomial, preferably inhomogeneous, since then it's not obvious.
@@ -3262,6 +3306,9 @@ assert(f%(I+f*mm)!=0)--f is not even locally in I
 J = integralClosure I
 assert(f%J != 0)--f is not in the integral closure of I; but 
 assert(f % (J+f*mm) == 0) --f IS locally in the integral closure of I
+
+IR' = sub (I, R')
+elapsedTime integralClosure (IR', Verbosity => 4)
 ---------------------------
 --examples made with Dedekind-Mertens theorem
 --Dedekind-Mertens example
@@ -3331,7 +3378,7 @@ Ig = content(g',S_0)
 Ifg = content(f'*g',S_0)
 assert((gens(If*Ig) % Ifg)!=0)
 elapsedTime assert(gens(If*Ig) % integralClosure(Ifg, Verbosity => 4) == 0)
-
+elapsedTime integralClosure Ifg
 
 
 -- MES: this is me playing around tryiing to find better fractions, cvan be removed.
