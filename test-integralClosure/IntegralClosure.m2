@@ -104,7 +104,7 @@ integralClosure(Ring, Ring) := Ring => o -> (B,A) -> (
     (fB,fromB) := flattenRing B;
     fC := integralClosure(fB, o);
     gensA := generators(A, CoefficientRing => ZZ);
-    newvars := drop(gens fC, - #gensA); -- not correct: remove all vars in A, not just toplevel ones!
+    newvars := drop(gens fC, - #gensA);
     newdegs := drop(degrees fC, - #gensA);
     aC := A (monoid[newvars, Degrees => newdegs, Join => false]);
     L := trim sub(ideal fC, aC);
@@ -128,6 +128,9 @@ integralClosure Ring := Ring => o -> (R) -> (
        error("expected Strategy option to be either an element of, or a list containing some of, "|toString strategyList);
      if #((set strategies) * set {AllCodimensions, RadicalCodim1, Radical}) >= 2 then
        error " expected Strategy option to include at most one of AllCodimensions, Radical, Radical";
+
+     if ultimate(coefficientRing, R) =!= coefficientRing R
+     then return integralClosure(R, coefficientRing R, o);
 
      (S,F) := flattenRing R;
 

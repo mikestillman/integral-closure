@@ -32,6 +32,92 @@ syz dual presentation M
 
 ideal Rbar
 
+
+-- using newer integralClosure(R,A) code:
+D = 1
+Reesi = reesAlgebra I
+Rbar = integralClosure(Reesi, R)
+describe Rbar
+I' = ideal(select(gens Reesi, x-> first degree x === 1))
+RbarReesi = map(Rbar,Reesi)
+RbarR = map(Rbar, R)
+M'' = basis({D}, Rbar, SourceRing => R)
+M = coimage M''
+phi = map(M, module I^D, M_{0..numgens I-1})
+
+M'' = RbarReesi I'^D/RbarReesi I'^(D+1) -- this should be basis(new grading = D), then kernel.
+M = pushFwd(RbarR, M'', NoPrune =>true)
+phi = map(M, module I^D, M_{0..numgens I-1})
+I' = extendIdeal phi -- result.  BUG: this isn't seeming to be isom to a a map of ideals.
+isWellDefined phi
+
+RbarR = map(Rbar,R,DegreeMap => d -> prepend(0,d))
+I' = ideal(select(gens fReesi, x-> first degree x === 1))
+M = pushFwd(RbarR, M'', NoPrune =>true)
+extendIdeal(map(M, module I^D, M_{0..numgens I-1}))
+phi = map(M, module I^D, M_{0..numgens I-1})
+isWellDefined phi
+I^D
+ideal R
+M''
+(gens Rbar)/degree
+M
+syz dual presentation M
+
+ideal Rbar
+
+
+-- take 2.  29 Dec 2020.  using newer integralClosure(R,A) code:
+-- but using map from degree 0 part of Reesi...
+D = 1
+I = trim I
+Reesi = reesAlgebra I -- this is incorrect!!  The variables are in the wrong order, if we don't do the trim above.
+Rbar = integralClosure(Reesi, R)
+--describe Rbar
+I' = ideal(select(gens Reesi, x-> first degree x === 1))
+--RbarReesi = map(Rbar,Reesi)
+ringIbarAmbient = (ring I)[select(gens Rbar, x -> first degree x == 0)]
+Jbar = ideal select((ideal Rbar)_*, f -> first degree f == 0)
+ringIbar = ringIbarAmbient/sub(Jbar, ringIbarAmbient)  -- TODO: don't use sub...
+RinR' = map(ringIbar, ring I) -- is this ok?
+--describe oo
+--map(Rbar, ringIbar) -- map Sbar --> Rbar.
+
+--RbarR = map(Rbar, R)
+M'' = basis({D}, Rbar, SourceRing => ringIbar)
+M = coimage M''
+--IinRbar = trim ideal gens gb sub(I, ringIbar)
+IinRbar = RinR' I -- trim ideal gens gb sub(I, ringIbar)
+phi = map(M, module IinRbar^D, M_{0..numgens I-1})
+isWellDefined phi
+extendIdeal phi
+preimage(map(ringIbar, R), oo)
+-- End of the code...
+
+-----------------------------------
+-- What about this?? I think it is not needed...
+M'' = RbarReesi I'^D/RbarReesi I'^(D+1) -- this should be basis(new grading = D), then kernel.
+M = pushFwd(RbarR, M'', NoPrune =>true)
+phi = map(M, module I^D, M_{0..numgens I-1})
+I' = extendIdeal phi -- result.  BUG: this isn't seeming to be isom to a a map of ideals.
+isWellDefined phi
+
+RbarR = map(Rbar,R,DegreeMap => d -> prepend(0,d))
+I' = ideal(select(gens fReesi, x-> first degree x === 1))
+M = pushFwd(RbarR, M'', NoPrune =>true)
+extendIdeal(map(M, module I^D, M_{0..numgens I-1}))
+phi = map(M, module I^D, M_{0..numgens I-1})
+isWellDefined phi
+I^D
+ideal R
+M''
+(gens Rbar)/degree
+M
+syz dual presentation M
+
+ideal Rbar
+-----------------------------------
+
 -- bug 2
 R = QQ[x,y]/(x^3-y^2)
 S = R[z]
@@ -44,6 +130,8 @@ integralClosure(S, QQ)
 S = QQ[x,y,z]
 A = S/ker map(QQ[t],S,{t^3,t^5,t^7})
 I = ideal(y,z)
+
+
 B = reesAlgebra I
 describe B
 map(B,A) -- this inclusion map is easy...
@@ -76,13 +164,16 @@ degrees oo
 
 -- generators(ZZ or List, Module, CoefficientRing => A): map F --> M, F = free module over A.
 
+-- need: a function to check homogeniety, but not all the grading vectors...
+-- i.e. if B = A[x]/I, and B has one more grading that A, then is I homog wrt this grading.
+
 ------------------------------------------------------------
 -- Examples ------------------------------------------------
 ------------------------------------------------------------
 -- Example 1.
 R = QQ[x,y]/(x^3-y^2)
 I = ideal x
-assert(integralClosure I == ideal(x,y))
+assert(integralClosure I == ideal(x,y)) -- is now failing again...
 integralClosure(I,2)
 
 -- Example 2.
