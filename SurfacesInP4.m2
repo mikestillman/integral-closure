@@ -14,9 +14,27 @@ newPackage("SurfacesInP4",
 
 export {}
 
+readExampleFile = method()
+--beginning of each example is ---*\\s
+--ending of each is beginning of next
+--each example is a string or collection of strings, looking like M2 code.
+--allow several lines of comments (beginning with --)
 
+readExampleFile String := HashTable => name -> (
+    N = lines get name;
+    re = "^--- *";
+    pos = positions(N, s ->match(re,s))
+    apply(pos, p -> regex(re, N#p))
+	, substring(p#0#1,s))
+poss = regex("^---\\s*",s)
+if pos =!= null then substring(pos#0#1,s) else null
+
+#pos       
+netList P4_pos
+    
 
 end--
+name = "SurfacesInP4/P4Surfaces.txt"
 -* Documentation section *-
 beginDocumentation()
 
@@ -65,6 +83,12 @@ TEST /// -* [insert short title for this test] *-
 ///
 
 end--
+positions(N, s -> 
+
+s = "---     ab";
+
+select
+substring pos
 
 -* Development section *-
 restart
@@ -87,5 +111,4 @@ netList P4_pos
 P4_9
 betti res (I = first value P4_9)
 J = saturate I
-betti res J
-degree J
+J == I
