@@ -12,7 +12,12 @@ newPackage("SurfacesInP4",
     DebuggingMode => true
     )
 
-export {}
+export {
+    "readExampleFile",
+    "getRing",
+    "example",
+    "names"
+    }
 
 readExampleFile = method()
 --beginning of each example is ---*\\s
@@ -21,20 +26,59 @@ readExampleFile = method()
 --allow several lines of comments (beginning with --)
 
 readExampleFile String := HashTable => name -> (
-    N = lines get name;
-    re = "^--- *";
-    pos = positions(N, s ->match(re,s))
-    apply(pos, p -> regex(re, N#p))
-	, substring(p#0#1,s))
-poss = regex("^---\\s*",s)
-if pos =!= null then substring(pos#0#1,s) else null
+    N := lines get name;
+    re := "^---+ *(.*)"; -- at least -'s, followed by spaces, then grab the last match.
+    pos := positions(N, s -> match(re,s));
+    indices := for p in pos list (
+            m := last regex(re, N#p);
+            substring(m, N#p)
+            );
+    hashTable for i from 0 to #pos - 1 list indices#i => (
+        p := pos#i;
+        concatenate between("\n", if i == #pos - 1 then
+            for j from p+1 to #N-1 list N#j
+        else
+            for j from p+1 to pos#(i+1)-1 list N#j
+        ))
+    )
 
-#pos       
-netList P4_pos
-    
+getRing = () -> ZZ/31991[getSymbol "x", getSymbol "y", getSymbol "z", getSymbol "u", getSymbol "v"]
+example = method()
+example(String, HashTable) := (ind, exampleHash) -> (
+    if not exampleHash#?ind then error "example does not exist";
+    use getRing();
+    value exampleHash#ind
+    )
+
+names = method()
+names HashTable := (H) -> sort keys H
 
 end--
-name = "SurfacesInP4/P4Surfaces.txt"
+
+regex("^---* *(.*)", "---   ab c d")
+regex("^---* *(.*)", "---   --")
+
+restart
+needsPackage "SurfacesInP4"
+P = readExampleFile "SurfacesInP4/P4Surfaces.txt";
+names P
+
+I = example("rat.d8.g6", P)
+degree I
+(genera I)#1 -- sectional genus
+minimalBetti I
+
+I = example("ab.d10.g6", P)
+
+for k in keys P list (
+    << "doing " << k << endl;
+    I = example(k, P);
+    time {k, degree I, genera I, minimalBetti I}
+    )
+
+I = example("enr.d11.g10", P) -- hmmm, not good
+keys P
+S = ZZ/31991[
 -* Documentation section *-
 beginDocumentation()
 
