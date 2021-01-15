@@ -26,6 +26,7 @@ readExampleFile = method()
 --allow several lines of comments (beginning with --)
 
 readExampleFile String := HashTable => name -> (
+--    N := lines get (currentFileDirectory | “SurfacesInP4/P4Surfaces.txt”);
     N := lines get name;
     re := "^---+ *(.*)"; -- at least -'s, followed by spaces, then grab the last match.
     pos := positions(N, s -> match(re,s));
