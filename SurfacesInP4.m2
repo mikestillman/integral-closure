@@ -14,9 +14,9 @@ newPackage("SurfacesInP4",
 
 export {
     "readExampleFile",
-    "getRing",
     "example",
-    "names"
+    "names",
+    "surfacesP4"
     }
 
 readExampleFile = method()
@@ -42,47 +42,21 @@ readExampleFile String := HashTable => name -> (
         ))
     )
 
-getRing = () -> ZZ/31991[getSymbol "x", getSymbol "y", getSymbol "z", getSymbol "u", getSymbol "v"]
 example = method()
 example(String, HashTable) := (ind, exampleHash) -> (
     if not exampleHash#?ind then error "example does not exist";
-    use getRing();
     value exampleHash#ind
     )
 
 names = method()
 names HashTable := (H) -> sort keys H
 
-end--
+surfacesP4 = readExampleFile "./SurfacesInP4/P4Surfaces.txt"
 
-regex("^---* *(.*)", "---   ab c d")
-regex("^---* *(.*)", "---   --")
-
-restart
-needsPackage "SurfacesInP4"
-P = readExampleFile "SurfacesInP4/P4Surfaces.txt";
-names P
-
-I = example("rat.d8.g6", P)
-degree I
-(genera I)#1 -- sectional genus
-minimalBetti I
-
-I = example("ab.d10.g6", P)
-
-for k in keys P list (
-    << "doing " << k << endl;
-    I = example(k, P);
-    time {k, degree I, genera I, minimalBetti I}
-    )
-
-I = example("enr.d11.g10", P) -- hmmm, not good
-keys P
-S = ZZ/31991[
 -* Documentation section *-
 beginDocumentation()
 
-doc ///
+///
 Key
   SurfacesInP4
 Headline
@@ -99,7 +73,7 @@ SeeAlso
 Subnodes
 ///
 
-doc ///
+///
 Key
 Headline
 Usage
@@ -121,23 +95,37 @@ SeeAlso
 ///
 
 -* Test section *-
+TEST///
+D = currentDirectory()
+--P = readExampleFile (D|"SurfacesInP4/P4Surfaces.txt");
+P = surfacesP4;
+for k in keys P list (
+    deg := null;g := null;
+    I := example(k,P);
+    R := regex("\\.d([0-9]+)\\.",k);
+    if R =!= null and #R > 1 then
+    deg = value substring(R#1,k);
+    
+    R = regex("\\.g([0-9]+)",k);
+    if R =!= null and #R > 1 then        
+    g =  value substring(R#1,k);
+    assert(3 == dim I);
+    assert(deg == degree I);
+    assert(g == (genera I)#1);
+    {k,deg,g}
+    )
+///
+
 TEST /// -* [insert short title for this test] *-
 -- test code and assertions here
 -- may have as many TEST sections as needed
 ///
 
 end--
-positions(N, s -> 
-
-s = "---     ab";
-
-select
-substring pos
-
 -* Development section *-
 restart
 debug needsPackage "SurfacesInP4"
-check "SurfacesInP4"
+check("SurfacesInP4", UserMode =>true)
 
 uninstallPackage "SurfacesInP4"
 restart
@@ -156,3 +144,79 @@ P4_9
 betti res (I = first value P4_9)
 J = saturate I
 J == I
+---
+restart
+needsPackage "SurfacesInP4"
+S = ZZ/43[x,y,z,u,v]
+P = readExampleFile "SurfacesInP4/P4Surfaces.txt";
+names P
+
+I1 = example("enr.d11.g10", P);
+S = ring I1
+use S
+I = value get "enr.d11.m2";
+
+minimalBetti I
+degree I
+(gens sub( I1, S))%I
+(gens I) % (sub( I1, S))
+minimalBetti I1
+regex("^---* *(.*)", "---   ab c d")
+regex("^---* *(.*)", "---   --")
+
+restart
+needsPackage "SurfacesInP4"
+P = readExampleFile "SurfacesInP4/P4Surfaces.txt";
+names P
+
+I = example("rat.d8.g6", P)
+degree I
+(genera I)#1 -- sectional genus
+minimalBetti I
+
+I = example("elliptic.scroll", P);
+describe kk
+minimalBetti I
+degree I
+genera I
+
+for k in keys P list (
+    << "doing " << k << endl;
+    I = example(k, P);
+    time {k, degree I, genera I, minimalBetti I}
+    )
+
+restart
+needsPackage "SurfacesInP4"
+
+
+
+netList oo
+    << "doing " << k << endl;
+    I = example(k, P);
+    time {k, degree I, genera I, minimalBetti I}
+    )
+
+
+netList oo
+I = example("enr.d11.g10", P) -- hmmm, not good
+keys P
+S = ZZ/31991[
+-*
+--bad:
+"bielliptic.d10.g6"
+"bielliptic.d15.g21"
+"enr.d11.g1"
+
+S = ZZ/911[x,y,z,u,v]
+I = value P#"bielliptic.d10.g6";
+minimalBetti I
+
+S = ZZ/911[x,y,z,u,v]
+I = value P#"bielliptic.d15.g21";
+minimalBetti I
+
+S = ZZ/43[x,y,z,u,v]
+I = value P#"enr.d11.g10";
+minimalBetti I
+*-
