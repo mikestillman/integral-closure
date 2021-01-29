@@ -26,8 +26,12 @@ readExampleFile = method()
 --allow several lines of comments (beginning with --)
 
 readExampleFile String := HashTable => name -> (
---    N := lines get (currentFileDirectory | “SurfacesInP4/P4Surfaces.txt”);
-    N := lines get name;
+    filename := if filexists name then name else currentFileDirectory | "SurfacesInP4/" | name;
+    --filename := currentFileDirectory | "SurfacesInP4/" | name;
+    --“SurfacesInP4/P4Surfaces.txt”;
+    << "file: " << filename << endl;
+    N := lines get filename;
+    --N := lines get name;
     re := "^---+ *(.*)"; -- at least -'s, followed by spaces, then grab the last match.
     pos := positions(N, s -> match(re,s));
     indices := for p in pos list (
@@ -52,7 +56,7 @@ example(String, HashTable) := (ind, exampleHash) -> (
 names = method()
 names HashTable := (H) -> sort keys H
 
-surfacesP4 = readExampleFile "./SurfacesInP4/P4Surfaces.txt"
+--surfacesP4 = readExampleFile "./SurfacesInP4/P4Surfaces.txt"
 
 -* Documentation section *-
 beginDocumentation()
@@ -97,9 +101,8 @@ SeeAlso
 
 -* Test section *-
 TEST///
-D = currentDirectory()
---P = readExampleFile (D|"SurfacesInP4/P4Surfaces.txt");
-P = surfacesP4;
+P = readExampleFile "P4Surfaces.txt";
+--P = surfacesP4;
 for k in keys P list (
     deg := null;g := null;
     I := example(k,P);
@@ -117,39 +120,22 @@ for k in keys P list (
     )
 ///
 
-TEST /// -* [insert short title for this test] *-
--- test code and assertions here
--- may have as many TEST sections as needed
-///
-
 end--
 -* Development section *-
 restart
-debug needsPackage "SurfacesInP4"
-check("SurfacesInP4", UserMode =>true)
-
 uninstallPackage "SurfacesInP4"
 restart
 installPackage "SurfacesInP4"
+restart
+debug needsPackage "SurfacesInP4"
+check "SurfacesInP4"
 viewHelp "SurfacesInP4"
 
-P4 = lines get "SurfacesInP4/P4Surfaces.txt";
-P4_{0..10}
 
-S = ZZ/31991[x,y,z,u,v]
-pos = positions(P4,s -> match("--",s))
-pos = drop(pos, 4)
-#pos       
-netList P4_pos
-P4_9
-betti res (I = first value P4_9)
-J = saturate I
-J == I
----
-restart
+
 needsPackage "SurfacesInP4"
 S = ZZ/43[x,y,z,u,v]
-P = readExampleFile "SurfacesInP4/P4Surfaces.txt";
+P = readExampleFile "P4Surfaces.txt";
 names P
 
 I1 = example("enr.d11.g10", P);
