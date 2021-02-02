@@ -1,3 +1,19 @@
+-*
+Basic questions:
+in codim 3:
+
+do licci monomial ideals decrease sum bettis monotonically 
+
+do licci general ideals have plateaus of at most 2 with respect to general links
+
+is homogeneous licci == licci? -- is there a homogeneous algorithm to determine licci?
+DE: write test for "homogeneous improvement", or, better homogeneous licci.(homogenization technique in H-U?)
+
+know that if a general link decreases sum bettis, then there is 
+a homogeneous link that does the same. 
+
+*-
+
 needsPackage "StableResidual"
 needsPackage "MonomialOrbits"
 needsPackage "DGAlgebras"
@@ -5,6 +21,22 @@ needsPackage "LocalRings"
 needsPackage "AInfinity"
 needsPackage "CompleteIntersectionResolutions"
 --help MonomialOrbits
+
+--example from Huneke-Migliore-Nagel-Ulrich of an ideal that is homogeneous licci 
+--but not minimally homog licci
+hmnu = method()
+hmnu Ring := kk -> (
+    R := kk[x,y,z];
+    ideal"x2y+y3-yz2- z3,xy2- xz2,x3z-xyz2,y2z2-z4,x6,z6,xz5")
+///
+restart
+load "Linkage.m2"
+I = hmnu(ZZ/32003)
+R = ring I
+cvwh I
+cvw I
+///
+
 
 clkw = method()
 clkw Ring := kk  -> (
@@ -54,10 +86,19 @@ ideal(q1-z_123*t,q2-z_124*t,q3-z_134*t,q4-z_234*t,u-t^2)
 -- This process leads either to a complete intersection or a Golod ring.
 
 generalLink = J -> (
+    J = if class J === Ideal then J else ideal J;
     if J == ideal(1_(ring J)) then return J;
     S:= ring J;
-    J0 := gens(J)*random(S^(rank source gens J), S^(codim J));
-    J' := if isHomogeneous J then (ideal(J0):(J)) else localTrim (ideal(J0):(J))
+    J0 := ideal (gens(J)*random(S^(rank source gens J), S^(codim J)));
+    elapsedTime K := J0:J;
+    elapsedTime J' := if isHomogeneous K then K else localTrim K
+)
+pregeneralLink = J -> (
+    J = if class J === Ideal then J else ideal J;
+    if J == ideal(1_(ring J)) then return J;
+    S:= ring J;
+    J0 := ideal (gens(J)*random(S^(rank source gens J), S^(codim J)));
+    (J0,J)
 )
 
 doubleLink = J -> generalLink generalLink J
@@ -66,7 +107,7 @@ minHomogLink = J -> (
     S := ring J;
     if J == ideal(1_S) then return J;
     genlist := J_*;
-    deglist :=  unique (genlist/(g -> (degree g)_0));
+    deglist :=  sort unique (genlist/(g -> (degree g)_0));
     D := #deglist;
     II := apply(deglist, d -> ideal select(genlist, g -> (degree g)_0 <= d));
     codims = apply(II, I -> codim I);
@@ -126,8 +167,8 @@ cvw Ideal := Ideal => I ->(
       t2 = sumBettis J2;
       <<(s,t1,t2)<<flush<<endl);
       
-      if t2 == 0 or J2 == ideal(1_(ring I)) then <<"CI"<<endl<<endl else
-      if isGolod (ring J2/J2) then(<<"Golod"<<endl<<localTrim J2<< endl<<endl) else J2
+      if t2 == 0 or J2 == ideal(1_(ring I)) then <<"Licci"<<endl<<endl else
+      if isGolod (ring J2/J2) then(<<"Golod"<<endl<<J2<< endl<<endl) else J2
   )
 
 cvwh = method()
@@ -149,8 +190,8 @@ cvwh Ideal := Ideal => I ->(
       t2 = sumBettis J2;
       <<(s,t1,t2)<<flush<<endl);
       
-      if t2 == 0 or J2 == ideal(1_(ring I)) then <<"CI"<<endl<<endl else
-      if isGolod (ring J2/J2) then(<<"Golod"<<endl<<localTrim J2<< endl<<endl) else J2
+      if t2 == 0 or J2 == ideal(1_(ring I)) then <<"Licci"<<endl<<endl else
+      if isGolod (ring J2/J2) then(<<"Golod"<<endl<<trim J2<< endl<<endl) else trim J2
   )
 
 --      /Applications/Macaulay2-1.16.99/share/Macaulay2/CompleteIntersectionResolutions.m2:1405:44-1426:6: --source code:
@@ -230,15 +271,20 @@ testGolod = I -> (
     G := gens ring I;    
     t1 := all(3, i-> (
 	    g = G_(P_i);
-    gens((I:g_0)*(I:ideal(g_1,g_2)))%I == 0
+    gens((I:ideal g_0)*(I:ideal(g_1,g_2)))%I == 0
     and
-    gens((I:g_0)*(I:g_1))%(g_2*(I:ideal(g_0,g_1))+I) == 0
+    gens((I:ideal g_0)*(I:ideal g_1))%(g_2*(I:ideal(g_0,g_1))+I) == 0
 ))
 )
+
+
+
+
 ///
 S = ZZ/101[x,y,z]
 I = (ideal vars S)^2
 testGolod I
+testGolod1 I
 ///
 
 regularProducts = I -> (mm := ((S^1/M)**extend(res I, koszul gens I0, matrix{{1_S}}));
@@ -248,6 +294,73 @@ localTrim = I -> (
     S := ring I;
     if not S.?maxIdeal then setMaxIdeal ideal vars S;
     ideal localMingens gens I)
+
+hu = I -> (
+    --separate the generators of a monomial ideal
+    --into those that are pure powers and those that
+    --are not, as in the paper of Huneke and Ulrich
+    --on licci monomial ideals.
+    S := ring I;
+    P := (i,j) -> matrix{{S_i*S_j}};
+    Ilist := flatten for i from 0 to #gens S -2 list 
+        for j from i+1 to #gens S -1 list 
+	  ideal (entries(S_i*S_j* contract(P(i,j), gens I)))_0;
+    mix := trim sum Ilist;
+    powers := ideal compress (gens I % mix);
+    (powers, mix)
+    )
+    
+isLicci = I -> (
+    --Huneke-Ulrich test for licci m-primary monomial ideals.
+    S := ring I;
+    if I == ideal(1_S) then return true;
+    <<sumBettis I<<", ";
+    (pure,mix) := hu I;
+    if codim mix > 1 then (<<toString I<<endl; return false);
+    I' := trim (pure:mix);
+   -- <<sumBettis I'<<", ";
+    while codim mix <= 1 do(
+	--<<I'<<endl<<flush;
+        --if I' == ideal(1_S) then return true;	--do we need this?
+        I' = trim (pure:mix);
+	<<sumBettis I'<<", ";
+	if I' == ideal(1_S) then return true;
+	(pure,mix) = hu I';
+	<<endl<<endl;
+	if I' == pure then return true;
+        if codim mix > 1 then (<<toString I'<<endl; 
+	    return false)
+	)
+    )
+
+-- evolution = I -> (
+--     --I should be an m-primary monomial ideal. Track the evolution of the mixed part.
+--     (pure, mix) := hu I;
+--     I' := pure:mix;
+--     I'':= 
+    
+
+       
+///
+restart
+load "Linkage.m2"
+S = ZZ/101[x,y,z]
+I = ideal"x3,y4,z5,xy,xz"
+isLicci I
+
+betti res I
+(pure, mix) = hu I
+I' = pure:mix
+betti res I'
+isLicci I
+betti res I
+(pure, mix) = hu I'
+I'' = pure:mix
+betti res I''
+
+///
+
+
 end--
 
 
@@ -256,9 +369,23 @@ restart
 load "Linkage.m2"
 J = clkw (ZZ/32003);
 R = ring J
-S = ZZ/101[x,y,z]
+S = ZZ/32003[x,y,z]
 Jbar = (map(S,R,random(S^1,S^{16:-1}))) J;
+testGolod1 Jbar
 cvw Jbar
+codim Jbar
+betti res Jbar
+I = generalLink Jbar
+minBetti I
+I = generalLink I
+minBetti I
+
+I = minHomogLink Jbar
+betti res I
+I = minHomogLink I
+betti res I
+
+codim I
 cvwh Jbar
 betti res Jbar
 isGolod(S/Jbar)
@@ -314,8 +441,77 @@ load "Linkage.m2"
 S = ZZ/32003[x,y,z]
 M = ideal vars S
 setMaxIdeal M
-I0 = monomialIdeal"x3,y3,z3"
-II = orbitRepresentatives(S,I0,{3,3,3})
+I0 = monomialIdeal"x3,y4,z5"
+II = orbitRepresentatives(S,I0,{4,4,4,4})
+#II
+L = II/isLicci 
+T = positions(L, ell -> not ell)
+M = II_T
+M/isLicci
+#M
+M0 = monomialIdeal(x^3,x^2*y^2,x*y^3,y^4,x^2*y*z,x*y^2*z,z^5)
+I = generalLink M0;
+elapsedTime I = generalLink I;
+elapsedTime (J0,J) = pregeneralLink ideal(I_*);
+numgens J
+numgens J0
+S' = localRing(S, ideal vars S)
+elapsedTime quotient(J0,J,Strategy => Quotient); -- 15 sec
+elapsedTime quotient(J0,J,Strategy => Iterate); -- 7 -- the winner! and the default.
+T = ZZ/32003[t,x,y,z]
+J0h = ideal apply(J0_*, f-> homogenize(sub(f,T),t));
+Jh = ideal apply(J_*, f-> homogenize(sub(f,T),t));
+elapsedTime  J0h: Jh;
+mingens oo
+
+elapsedTime gb J0;
+elapsedTime gb ideal(J_*);
+for f in J_* list elapsedTime J0:f;
+elapsedTime intersect oo;
+for i from 0 to numgens J -1 list 
+elapsedTime syz (matrix{J_*}|matrix{J0_*});
+elapsedTime groebnerBasis (ideal(J_*), Strategy => "F4");
+elapsedTime G = groebnerBasis (ideal(J0_*), Strategy => "F4");
+m = transpose gens J | (target transpose gens J)**G;
+elapsedTime syz(gb (m, Syzygies => true, SyzygyRows => 1, Strategy => LongPolynomial));
+T = ZZ/32003[t, x,y,z]--, MonomialOrder => Eliminate 1]
+elapsedTime groebnerBasis (t*sub(J0, T)+(1-t)*ideal(sub(J_0,T)) , Strategy => "F4")
+
+--elapsedTime quotient(sub(J0,S'),sub(J,S'),Strategy => Local); --Looooong
+
+
+sumBettis J
+sumBettis I
+J = I
+
+evol = I -> (
+    while I != ideal (1_S) do(
+    <<sumBettis I<<", ";
+    (pure,mix) := hu I;
+    I = pure:mix);
+    <<endl<<endl;
+)    
+M/evol
+
+pure = ideal "x8, y8, z8"
+mix = (ideal"xyz")^5--*ideal"xy,xz,yz"    
+betti res (pure+mix)
+(pure, mix) = hu(pure:mix)
+betti res (pure+mix)
+count = -1
+II/(I -> (count = count+1; << count<<endl; isLicci I;<<endl<<endl))
+
+I = monomialIdeal(x^4,x^2*y,x*y^2,y^4,x^2*z,x*y*z,z^4)
+I == monomialIdeal(x^4,x^2*y,x*y^2,y^4,x^2*z,x*y*z,z^4)
+betti res I
+isLicci I
+I = II_33
+betti res I
+isLicci I
+I = monomialIdeal(x^3,x*y^2,y^4,x*y*z,y^2*z,z^4)
+
+L'/(I-> testGolod I)
+
 --II/(I->annihilator exteriorTorModule I)
 II/(I-> cvw I);
 I = last II
@@ -478,14 +674,55 @@ redd = map(kk, S, {numgens S:0})
 Fbar = redd F
 prune HH Fbar -- fast!
 
-x,y,z
-w
- w
-  w
-  
-  
-Tor^S(R,k) as a module over \wedge Tor_1
 restart
-n = 3
-S = kk[x_1..x_n,y_1..y_n]
+load "Linkage.m2"
+S = ZZ/32003[x,y,z]
+I = ideal"xyz, x3+xz2, y3+yz2, z3, x4+y4-x2y2"
+betti res I
+cvwh I
 
+I = hmnu (ZZ/32003)
+cvwh I
+betti res I
+G = matrix{select (I_*, g -> (degree g)_0 == 6)}
+F = res I
+S = ring I
+m3 =matrix basis(3, I)
+m4 = matrix basis(4, I)
+m6 = matrix basis(6, I)
+G3 = (gens I)*m3*random(source m3, S^{-3})
+G4 = (gens I)*m4*random(source m4, S^{-4})
+G6 = (gens I)*m6*random(source m6, S^{-6})
+J = ideal(G3|G4|G6)
+codim J
+I' = J:I
+betti res I'
+source gens I
+target basis(3,I)
+gens I
+makeHomotopies1(G3,F)
+makeHomotopies1(G3,F)
+
+m3 =matrix basis(3, I')
+m4 = matrix basis(4, I')
+m5 = matrix basis(5, I')
+G3 = (gens I')*m3*random(source m3, S^{-3})
+G4 = (gens I')*m4*random(source m4, S^{-4})
+G5 = (gens I')*m5*random(source m5, S^{-5})
+J = ideal(G3|G4|G6)
+codim J
+I'' = J:I'
+betti res I'
+betti res I''
+
+m3 =matrix basis(3, I')
+m4 = matrix basis(4, I')
+m5 = matrix basis(5, I')
+G3 = matrix{select(I'_*,g-> (degree g)_0 == 3)}
+G4 = matrix{select(I'_*,g-> (degree g)_0 == 4)}
+G5 = matrix{select(I'_*,g-> (degree g)_0 == 5)}
+
+F = res I'
+makeHomotopies1(G3, F)
+makeHomotopies1(G4, F)
+makeHomotopies1(G5, F)
