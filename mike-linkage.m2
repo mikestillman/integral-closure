@@ -39,8 +39,49 @@ elapsedTime gens gb J0;
 elapsedTime gens gb ideal(J_*);
 J0 = ideal J0_*;
 J = ideal J_*;
-elapsedTime groebnerBasis (ideal(J_*), Strategy => "F4");
 elapsedTime G = groebnerBasis (ideal(J0_*), Strategy => "F4");
+elapsedTime groebnerBasis (ideal(J_*), Strategy => "F4");
+leadTerm gens gb J0;
+
+
+
+T = ZZ/32003[e,x,y,z,MonomialOrder => Eliminate 1]
+JT0 = sub(J0, T);
+hJT0 = gens gb homogenize(JT0,e);
+--eJT0 = (flatten entries hJT0);
+L = (leadTerm hJT0);
+L1 = flatten entries gens ideal sub(L, e=>1)
+realinit = flatten entries gens trim ideal sub(L, e=>1)
+realpositions = flatten apply(realinit, m -> positions (L1, ell-> ell == m))
+localgb = hJT0_realpositions;
+
+loc = (ZZ/32003){x,y,z}
+phi = map(loc,T,{1,x,y,z})
+locJ0 = phi localgb;
+leadTerm locJ0
+fJ0 = forceGB locJ0;
+R = loc/(ideal locJ0)
+f = locJ_0
+sub(f, R) -- bug
+locJ = sub(J, loc);
+(locJ)_0 % fJ0
+
+
+J_0
+f = sub(J_0,T) -e
+JT = ideal (e*f-1) + JT0
+elapsedTime groebnerBasis (ideal(JT_*), Strategy => "F4");
+leadTerm oo
+
+T = (ZZ/32003){x,y,z}
+JT0 = sub(J0, T);
+f = sub(J_0,T)
+JT = ideal (e*f-1) + JT0
+gens gb JT0;
+netList JT0_*
+elapsedTime JT0:ideal f;
+elapsedTime groebnerBasis (ideal(JT_*), Strategy => "F4");
+leadTerm oo
 
 J0 = ideal J0_*;
 J = ideal J_*;
