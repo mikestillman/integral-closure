@@ -726,3 +726,27 @@ F = res I'
 makeHomotopies1(G3, F)
 makeHomotopies1(G4, F)
 makeHomotopies1(G5, F)
+
+---------------------
+
+ring r=32003,(x,y,z),(c,ls);
+ideal id1=maxideal(3);
+ideal id2=x2+xyz,y2-z3y,z3+y5xz;
+ideal id6=quotient(id1,id2);
+id6;
+==> id6[1]=z
+==> id6[2]=y
+==> id6[3]=x
+quotient(id2,id1);
+==> _[1]=z2
+==> _[2]=yz
+==> _[3]=y2
+==> _[4]=xz
+==> _[5]=xy
+==> _[6]=x2
+module m=x*freemodule(3),y*freemodule(2);
+ideal id3=x,y;
+quotient(m,id3);
+==> _[1]=[1]
+==> _[2]=[0,1]
+==> _[3]=[0,0,x]

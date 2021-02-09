@@ -119,3 +119,40 @@ m = transpose gens J | (target transpose gens J)**G;
 elapsedTime syz(gb (m, Syzygies => true, SyzygyRows => 1, Strategy => LongPolynomial));
 T = ZZ/32003[t, x,y,z]--, MonomialOrder => Eliminate 1]
 elapsedTime groebnerBasis (t*sub(J0, T)+(1-t)*ideal(sub(J_0,T)) , Strategy => "F4")
+
+
+--------------------
+LIB "random.lib";
+LIB "modules.lib";
+ring r=32003,(x,y,z),ds;
+ideal m = (x^3,x^2*y^2,x*y^3,y^4,x^2*y*z,x*y^2*z,z^5);
+m;
+ideal j = randomid(m, 3);
+ideal m1 = quotient(j,m);
+def F = res(m,0);
+print(betti (F),"betti");
+def s1 = std(m1);
+def F1 = fres(s1,0);
+print(betti (F1),"betti");
+
+
+
+
+ideal id1=maxideal(3);
+ideal id2=x2+xyz,y2-z3y,z3+y5xz;
+ideal id6=quotient(id1,id2);
+id6;
+quotient(id2,id1);
+==> _[1]=z2
+==> _[2]=yz
+==> _[3]=y2
+==> _[4]=xz
+==> _[5]=xy
+==> _[6]=x2
+module m=x*freemodule(3),y*freemodule(2);
+ideal id3=x,y;
+quotient(m,id3);
+==> _[1]=[1]
+==> _[2]=[0,1]
+==> _[3]=[0,0,x]
+ 
