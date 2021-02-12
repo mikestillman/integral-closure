@@ -169,19 +169,19 @@ simplify FractionalIdeal := (F) -> (
      	  -- of F is liftable to the coefficient ring of R
      	  R := ring F;
      	  K := coefficientRing R;
-     	  B := getBasis R;
+     	  B := noetherBasis R;
      	  denom := denominator F;
      	  if liftable(denom,K) then denom = lift(denom,K) else (
-	       F = noetherize F;
-	       denom = denominator F
-	       );
+	          F = noetherize F;
+	          denom = denominator F
+	          );
      	  cfs := last coefficients(gens numerator F, Monomials=>B);
      	  cfs = lift(cfs, K);
      	  denom = lift(denom, K);
      	  G := gcd prepend(denom, flatten entries cfs);
      	  makeFractionalIdeal(promote(denom//G, R), trim ideal(matrix{B} * (cfs//G)))
      	  ))
-
+    
 simplify FractionalRing := (F) -> new FractionalRing from F
 
 simplifyNonNoether = method()
@@ -203,37 +203,38 @@ simplifyNonNoether FractionalIdeal := (F) -> (
 
 fractions = method()
 fractions FractionalIdeal := I -> (
-     R := ring I;
-     if inNoetherForm R 
-     then (
-       L := noetherField R;
-       nums := apply(flatten entries gens numerator I, i-> sub(i,L));
-       denom := sub(denominator I, coefficientRing L);
-       --apply(nums, p -> 1/denom * p)
-       for p in nums list (
-	     g := 1/denom * p;
-	     gdenom := (terms g)/leadCoefficient/denominator//lcm;
-	     resultDenom := if gdenom == 1 then 1_R else factor gdenom;
-	     (hold sub(gdenom * g, noetherRing ring g)) / resultDenom
-	    )
-       )
-     else (
-	  S := ambient ring I;
-	  denom = denominator I;
-     	  denomS := lift(denom, S);
-          for f in flatten entries gens numerator I list (
-	       fS := lift(f,S);
-	       g := gcd(denomS, fS);
-	       if g == 1 then (hold f)/denom
-	       else (
-		    fS = fS//g;
-		    den := denomS//g;
-		    f = promote(fS,R);
-		    den = promote(den,R);
-		    (hold f)/den
-		    )
-	  )
-     ))
+    R := ring I;
+    if inNoetherForm R 
+    then (
+        L := frac R;
+        nums := apply(flatten entries gens numerator I, i-> sub(i,L));
+        denom := sub(denominator I, coefficientRing L);
+        --apply(nums, p -> 1/denom * p)
+        for p in nums list (
+	        g := 1/denom * p; -- an element in L.
+	        gdenom := (terms g)/leadCoefficient/denominator//lcm;
+	        resultDenom := if gdenom == 1 then 1_R else factor gdenom;
+	        (hold sub(gdenom * g, R)) / resultDenom
+	        )
+        )
+    else (
+	    S := ambient ring I;
+	    denom = denominator I;
+        denomS := lift(denom, S);
+        for f in flatten entries gens numerator I list (
+	        fS := lift(f,S);
+	        g := gcd(denomS, fS);
+	        if g == 1 then (hold f)/denom
+	        else (
+		        fS = fS//g;
+		        den := denomS//g;
+		        f = promote(fS,R);
+		        den = promote(den,R);
+		        (hold f)/den
+		        )
+	        )
+        )
+    )
 
 ----------------------------------------------------------
 
@@ -471,7 +472,7 @@ traceRadical(RingElement, FractionalIdeal) := (Q, J) -> (
      K := coefficientRing R;
      if not ring Q === K then error "expected first argument to be an element of the coefficientRing of the second.";
      traceR := traceForm R;
-     B := getBasis R;
+     B := noetherBasis R;
      if char K > 0 and char K <= #B then 
        << "warning: characteristic is too small, this algorithm may not produce the entire integral closure" << endl;
      G := matrix{B} ** gens numerator J;
@@ -738,7 +739,7 @@ getIntegralEquationNoether(RingElement, RingElement, Ring) := (num, denom, Kt) -
      K := coefficientRing R;
      denom = lift(denom,K);     
      if not K === coefficientRing Kt then error "expected third argument to be polynomial ring over coefficient ring of ring of first argument";
-     B := getBasis R;
+     B := noetherBasis R;
      n := #B;
      M := matrix ({{1_K}}|toList (n-1:{0}));
      i := 1;
@@ -1124,11 +1125,10 @@ viewHelp FractionalIdeals
   kx = coefficientRing noetherRing B
   assert(kkx === frac kx)
   -- frac B -- perhaps this should be set to noetherField B?
-  assert(getBasis B == {1, u, u^2})
-  assert(multiplication u * multiplication u == multiplication u^2)
-  assert(multiplication (u^2+u) == (multiplication u)^2 + multiplication u)
+  assert(noetherBasis B == {1, u, u^2})
+  assert(multiplicationMap u * multiplicationMap u == multiplicationMap u^2)
+  assert(multiplicationMap (u^2+u) == (multiplicationMap u)^2 + multiplicationMap u)
   traceForm B
-  traceFormAll B
 ///
 
 ---- examples from IntegralClosure/examples.m2

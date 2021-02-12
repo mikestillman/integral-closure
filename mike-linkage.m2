@@ -33,8 +33,27 @@ elapsedTime I = generalLink I;
 elapsedTime (J0,J) = pregeneralLink ideal(I_*);
 numgens J
 numgens J0
+loc = (ZZ/32003){x,y,z}
 
-
+-- simplify an ideal I in the local ring.  Perhaps we are assuming it is finite length.
+simplifyIdeal = (I, loc) -> (
+    vs := for x in gens ring I list (
+        elim := eliminate(I, toList(set gens ring I - set{x}));
+        if numgens elim == 0 then continue;
+        x^((terms elim_0)/degree/first//min)
+        );
+    J := trim(I + ideal vs);
+    Jloc := sub(J, loc);
+    ideal gens gb Jloc)
+P = simplifyIdeal(I, loc)
+P_0
+(P_0 - 9943*z*P_1 + 11263*z^2*P_1 + 10170*z^3*P_1)  -- this gives y*z in the ideal, therefore x*z, therefore x*y
+use ring P
+(x*y) % P
+(x*z) % P
+(y*z) % P
+(z^2) % P
+P
 elapsedTime gens gb J0;
 elapsedTime gens gb ideal(J_*);
 J0 = ideal J0_*;
@@ -42,22 +61,50 @@ J = ideal J_*;
 elapsedTime G = groebnerBasis (ideal(J0_*), Strategy => "F4");
 elapsedTime groebnerBasis (ideal(J_*), Strategy => "F4");
 leadTerm gens gb J0;
-
-
+fz = eliminate({x,y},J0);
+fy = eliminate({x,z},J0);
+fx = eliminate({y,z},J0);
+use ring J0
+J0 = trim(ideal(x*z^2, x^4, y^4, z^7) + J0);
+see ideal gens gb J0
 
 T = ZZ/32003[e,x,y,z,MonomialOrder => Eliminate 1]
 JT0 = sub(J0, T);
-hJT0 = gens gb homogenize(JT0,e);
+hJT0 = ideal gens gb homogenize(JT0,e);
 --eJT0 = (flatten entries hJT0);
-L = (leadTerm hJT0);
+L = (leadTerm gens gb hJT0);
 L1 = flatten entries gens ideal sub(L, e=>1)
 realinit = flatten entries gens trim ideal sub(L, e=>1)
 realpositions = flatten apply(realinit, m -> positions (L1, ell-> ell == m))
-localgb = hJT0_realpositions;
+localgb = ideal (gens hJT0)_realpositions;
+see localgb
+
+(e^100*x^2) % hJT0;
+localgb_2
+use ring J0
+eliminate(J0, {x,y}); -- gives z^7 in the ideal (as it is the lead term, in antidegree ordering)
+eliminate(J0, {x,z}); -- y^4 is in the ideal
+eliminate(J0, {y,z}); -- x^4 is in the ideal
+trim(ideal(x^4, y^4, z^7) + J0);
+
 
 loc = (ZZ/32003){x,y,z}
+
 phi = map(loc,T,{1,x,y,z})
 locJ0 = phi localgb;
+gens gb oo
+
+use ring I
+eliminate({x,y}, I)
+eliminate({x,z}, I)
+eliminate({y,z}, I)
+I = trim(ideal(x*y*z,z^5,y^2,x^2) + I)
+hI = homogenize(sub(I, T), e)
+IT = ideal gens gb 
+Iloc = sub(I, loc)
+gens gb Iloc;
+see ideal oo
+
 leadTerm locJ0
 fJ0 = forceGB locJ0;
 R = loc/(ideal locJ0)
@@ -156,3 +203,4 @@ quotient(m,id3);
 ==> _[2]=[0,1]
 ==> _[3]=[0,0,x]
  
+-- consider minbase

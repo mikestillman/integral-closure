@@ -567,9 +567,10 @@ createCoefficientRing(Ring, List) := RingMap => opts -> (R, L) -> (
       -- create the matrix over the base: of size #elems of A x (numgens R + numgens A)
       monsR := reverse append(gens R, 1_R);
       (mons, cfs) := coefficients(f.matrix, Monomials => monsR);
+      ev0 := map(kk, R, toList((numgens R) : 0));
       cfs = map((ring cfs)^(numrows cfs),,cfs); -- clear out the degree information so 'lift' 
         -- in this next line succeeds.
-      M1 := -id_(kk^#lins) || lift(cfs_lins, kk);
+      M1 := -id_(kk^#lins) || ev0 cfs_lins; -- lift(cfs_lins, kk); -- BUG: this last part fails if cfs_lines is in multigraded ring?
       M := gens gb M1;
       inM := leadTerm M;
       inM0 := submatrix(inM, {#lins+1 .. numrows M - 1},);
