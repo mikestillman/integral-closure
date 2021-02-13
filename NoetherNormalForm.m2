@@ -65,7 +65,8 @@ inNoetherForm Ring := Boolean => (R) -> R.?NoetherInfo
 --   "basis of ring" -- really, a generating set, over coefficient ring
 --   "basis of field" -- generating set, over coefficient field
 --   "traces of generators" -- in field, or in the ring?
---   "trace form"
+--   "field trace form"
+--   "ring trace form"
 --   "noether map" -- isomorphism back to the original ring.
 setNoetherInfo = method()
 setNoetherInfo(Ring, Ring) := (B, KB) -> (
@@ -145,7 +146,28 @@ multiplicationMap RingElement := (m) -> (
      lift(cf,coefficientRing R)
      )
 
+-- R should be a noether ring, or the corresponding fraction field.
+-- NEW TODO: this needs to be computed using a basis of the field...!  
+computeTraces = (R) -> (
+    B := noetherBasis R;
+    traces := for b in B list trace multiplicationMap b;
+    matrix{traces}
+    )
+
+tracesOfBasis = method()
+tracesOfBasis Ring := (R) -> (
+    NI := noetherInfo R;
+    if not NI#?"ring traces" then NI#"ring traces" = computeTraces NI#"ring";
+    if not NI#?"field traces" then NI#"field traces" = computeTraces NI#"field";
+    if R === NI#"ring" then NI#"ring traces"
+    else if R === NI#"field" then NI#"field traces"
+    else error "internal error in basisOfRing"
+    )
+
+-- REMOVE THIS ONE.
+-- TODO: this needs to handle both R, RK (noether ring and fraction field of it
 -- private function.
+
 setTraces = (NI) -> (
     RK := NI#"field";
     B := noetherBasis RK;
@@ -153,14 +175,21 @@ setTraces = (NI) -> (
         m := multiplicationMap b;
         --numerator lift(trace m, coefficientRing RK)
         t := lift(trace m, coefficientRing RK);
-        tdenom := lift(denominator t, coefficientRing ring t);
-        1/tdenom * numerator t
+        t
+        -- these two lines are not needed?
+        -- tdenom := lift(denominator t, coefficientRing ring t);
+        -- 1/tdenom * numerator t
         );
     NI#"traces" = matrix{traces};
     )
 
--- trace: if f is in R, then trace(f) is in A?
+-- TODO: this needs to handle both R, RK (noether ring and fraction field of it
+-- TODO: this should perhaps be placed as a method for R, RK.
+-- trace: if f is in R, then trace(f) is in A? TODO: fix this info.
 --        if f is in KR, then trace(f) is in KA.
+
+-- TODO: remove this one.
+
 trace RingElement := (f) -> (
     -- Currently, if f is in R, then result is in frac A.
     --            if f is in frac R, then result is in frac A.
@@ -169,23 +198,38 @@ trace RingElement := (f) -> (
     RK := NI#"field";
     if not NI#?"traces" then setTraces NI;
     traces := NI#"traces";
-    f = promote(f,RK);
+    if R =!= RK then f = promote(f,RK);
     M := last coefficients(f, Monomials => noetherBasisMatrix RK);
     g := (traces * M)_(0,0);
     g = lift(g, coefficientRing RK);
-    --stopgap for lifts from frac QQ[x] to QQ[x] not working 5-26-11
-    --when works, change below to return lift(g, coefficientRing R)
-    gdenom := denominator g;
-    if gdenom == 1 then numerator g else (
-        gdenom = lift(gdenom, coefficientRing ring gdenom);
-        1/gdenom * numerator g
-        )
+    if R =!= RK then g = lift(g, coefficientRing R);
+    g
+    -- --stopgap for lifts from frac QQ[x] to QQ[x] not working 5-26-11
+    -- --when works, change below to return lift(g, coefficientRing R)
+    -- gdenom := denominator g;
+    -- if gdenom == 1 then numerator g else (
+    --     gdenom = lift(gdenom, coefficientRing ring gdenom);
+    --     1/gdenom * numerator g
+    --     )
     )
 
+-- Do not keep this (new, but not as good) version.
+-- trace RingElement := (f) -> (
+--     -- Currently, if f is in R, then result is in frac A.
+--     --            if f is in frac R, then result is in frac A.
+--     R := ring f;
+--     NI := noetherInfo R;
+--     traces := tracesOfBasis R;
+--     B := noetherBasisMatrix R;
+--     M := lift(last coefficients(f, Monomials => B), coefficientRing R);
+--     (traces * M)_(0,0)
+--     )
+
+-- TODO: this needs to handle both R, RK (noether ring and fraction field of it
+-*
 traceForm = method()
 traceForm Ring := (R) -> (
-    NI := noetherInfo R; -- will error if not in the correct form (TODO: 
-      -- it could possibly add the info to place it into form, if it is already so)
+    NI := noetherInfo R; -- will error if not in the correct form.
     RK := NI#"field"; -- same as frac R.
     if not NI#?"trace form" then NI#"trace form" = (
         S := noetherBasis RK;
@@ -199,6 +243,30 @@ traceForm Ring := (R) -> (
         matrix M
         );
     NI#"trace form"
+    )
+*-
+
+computeTraceForm = method()
+computeTraceForm Ring := (R) -> (
+    S := noetherBasis R;
+    K := coefficientRing R;
+    M := mutableMatrix(K, #S, #S);
+    for i from 0 to #S-1 do
+    for j from i to #S-1 do (
+        f := trace(S#i * S#j);
+        M_(i,j) = M_(j,i) = f;
+        );
+    matrix M
+    )
+
+traceForm = method()
+traceForm Ring := (R) -> (
+    NI := noetherInfo R;
+    if not NI#?"ring traceform" then NI#"ring traceform" = computeTraceForm NI#"ring";
+    if not NI#?"field traceform" then NI#"field traceform" = computeTraceForm NI#"field";
+    if R === NI#"ring" then NI#"ring traceform"
+    else if R === NI#"field" then NI#"field traceform"
+    else error "internal error in traceForm"
     )
 
 isComputablePolynomialRing = method()
@@ -802,7 +870,7 @@ doc ///
     Text
       Given a ring...
     Example
-      S = ZZ/101[a..d]
+      S = QQ[a..d];
       I = monomialCurveIdeal(S, {1,3,4})
       R = S/I
       B = noetherForm {a,d}
@@ -814,7 +882,11 @@ doc ///
       The trace form is only defined for the fraction field?
       Where is the result defined?
     Example
+      A = coefficientRing B
+      KA = coefficientRing frac B
+      assert(KA === frac A)
       traceForm frac B
+      det oo
     Text
   Caveat
     One must have created this ring with @TO noetherForm@.
@@ -867,12 +939,16 @@ doc ///
       I = monomialCurveIdeal(S, {1,3,4})
       R = S/I
       B = noetherForm {a,d}
+      bas = noetherBasis B
+      bas/trace
       bas = noetherBasis frac B
       bas/trace
-      trace b -- fails?
+      use B
+      trace(b*c)
       use frac B
-      trace c
+      trace(b*c)
       traceForm frac B
+      traceForm B
   Caveat
     One must have created this ring with @TO noetherForm@.
   SeeAlso
@@ -1299,11 +1375,20 @@ TEST ///
   L = frac B
   describe B
   describe L
-  noetherBasis B
-  noetherBasis L
-  multiplicationMap B_0
+  basisB = noetherBasis B
+  basisL = noetherBasis L
+  assert(#basisB == 4)
+  assert(#basisL == 4)
+  assert(all(basisB, m -> ring m === B))
+  assert(all(basisL, m -> ring m === L))
+  M0 = multiplicationMap B_0
   (noetherBasis B)/multiplicationMap/trace
   (noetherBasis L)/multiplicationMap/trace
+  trB = (noetherBasis B)/trace
+  trL = (noetherBasis L)/trace
+  A = coefficientRing B
+  assert all(trB, f -> ring f === A)
+  assert all(trL, f -> ring f === frac A)
   trace y
   trace multiplicationMap y == trace y
   trace multiplicationMap y_L == trace y_L
@@ -1311,6 +1396,13 @@ TEST ///
   trace M
   trace(y_L)
   trace y
+  
+  TB = traceForm B -- should be over A
+  TL = traceForm L -- should be over frac kk[x]
+  assert(ring TB === A)
+  assert(ring TL === frac A)
+  assert(ring trace B_0 === coefficientRing B)
+  assert(ring trace L_0 === coefficientRing L)
 ///
 
 TEST ///
