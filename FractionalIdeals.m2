@@ -316,7 +316,8 @@ Ends FractionalIdeal := opts -> (J) -> (
               );
           h
           );
-    timing(H1 := (f*I):I);
+--    timing(H1 := (f*I):I);
+    H1 := (f*I):I);
     H := compress ((gens H1) % f);
     fractionalRing(f,ideal(matrix{{f}} | H))
     )
@@ -963,7 +964,9 @@ TEST ///
     
   integralClosureDenominator(R, a) -- not valid (? why not??)
   fractions oo -- hmmm, d is a denominator, not a...
-///
+  det traceForm frac R
+  noetherBasis frac R
+ ///
 
 TEST ///
 -- of simplification of fractional ideals, NOT in Noether position
@@ -1035,7 +1038,7 @@ TEST ///  -- test of getIntegralEquation
     y2w4-xy2z2t-w3t3"
   I = sub(I, {t => t+z})
   A = S/I
-  
+codim I == length res I -- perfect ideal
   elapsedTime integralClosure A
   see ideal oo
   use A
@@ -1045,9 +1048,16 @@ TEST ///  -- test of getIntegralEquation
 --  elapsedTime integralClosureDenominator(A, {t,z}) -- FAILS right now.
     
   R = noetherForm{w,t}
+  traceForm R
   factor det traceForm R
-  elapsedTime J1 = integralClosureDenominator(A, w) -- slower than actual integralClosure...
-
+  elapsedTime J1 = integralClosureDenominator(A, w)
+fractions J1
+  elapsedTime J2 = integralClosureDenominator(A, t)
+fractions J2
+  elapsedTime J3 = integralClosureDenominator(A, t*w)
+fractions J3
+dim I
+fractions J1
   kx = coefficientRing R
   time F = getIntegralEquation(x, 1_kx, kx[T]) -- should return MONIC polynomial!
   assert(degree(T,F) == 23)
@@ -1152,6 +1162,9 @@ end--
 restart
 uninstallAllPackages()
 
+uninstallPackage "NoetherNormalForm" 
+uninstallPackage "FractionalIdeals" -- no doc yet, but loads.
+
 restart
 installPackage "NoetherNormalForm" 
 installPackage "FractionalIdeals" -- no doc yet, but loads.
@@ -1180,16 +1193,18 @@ viewHelp FractionalIdeals
 
   B = noetherForm({v})
   -- Basically, 4 rings get created:
-  noetherField B
-  noetherRing B -- do we need this?
-  kkx = coefficientRing noetherField B -- this is the fraction field of B.
-  kx = coefficientRing noetherRing B
+  L = frac B
+  B === ring numerator 1_L
+describe L
+  kkx = coefficientRing L -- this is the fraction field of B.
+  kx = coefficientRing B
   assert(kkx === frac kx)
   -- frac B -- perhaps this should be set to noetherField B?
   assert(noetherBasis B == {1, u, u^2})
   assert(multiplicationMap u * multiplicationMap u == multiplicationMap u^2)
   assert(multiplicationMap (u^2+u) == (multiplicationMap u)^2 + multiplicationMap u)
   traceForm B
+  traceForm L
 ///
 
 ---- examples from IntegralClosure/examples.m2
