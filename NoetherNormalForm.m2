@@ -240,9 +240,13 @@ TEST/// -- of finiteOverCoefficients
 isFiniteOverCoefficientRing = method()
 isFiniteOverCoefficientRing Ring := Boolean => (R) -> (
     if R.?NoetherInfo then return true;
-    if not (try (coefficientRing R; true) else false) then return false;
+    if isField R then return true;
     if not isAffineRing R then return false; 
     A := coefficientRing R;
+    --if not (try (coefficientRing R; true) else false) then return false;
+    --if there is a coefficientRing R then does nothing; if not then the whole funct returns false.
+    if isField A then return(dim R ===0);
+
     if not isField A and not isComputablePolynomialRing A then (
 	    if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field" << endl;
 	    return false);
@@ -655,17 +659,23 @@ noetherForm RingMap := Ring => opts -> (f) -> (
     kk := coefficientRing R;
     if not isCommutative A then 
         error "expected source of ring map to be a commutative ring";
-    if A === kk then return R; -- BUG TODO: this does not check that R is in Noether position, and doesn't set Noether data either...
     if not isAffineRing R then 
         error "expected an affine ring";
     if not isAffineRing A then 
         error "expected an affine ring";
-    if not ( kk === coefficientRing A) then 
+    if not (kk === A or kk === coefficientRing A) then 
         error "expected polynomial rings over the same ring";
     gensk := generators(kk, CoefficientRing => ZZ);
     if not all(gensk, x -> promote(x,R) == f promote(x,A)) then 
         error "expected ring map to be identity on coefficient ring";
- -- AAA    
+--check finiteness
+
+    if A === kk then (
+	setNoetherInfo(R, frac R);
+	return R);
+    
+    
+     -- AAA    
 
     ambientB := A[gens R, MonomialOrder => (monoid R).Options.MonomialOrder,
         Degrees => apply(degrees R, f.cache.DegreeMap)
@@ -693,20 +703,24 @@ noetherForm Ring := Ring => opts -> R -> (
     phi := map(R,A,for x in xv list F^-1 x);
     noetherForm (phi, Remove => opts.Remove)
     )
-
+///
+restart
+debug needsPackage "NoetherNormalForm"
+///
 TEST ///
   -- Zero dimensional noetherForm...
 
   R = QQ[x,y]/(x^4-3, y^3-2);
   phi = map(R, QQ, {})
-  assert inNoetherForm B -- fails
+  assert inNoetherForm R -- fails
   
   kk = ZZ/32003
   R = kk[x,y]/(x^4-3, y^3-2);
   phi = map(R, kk, {})
   isWellDefined phi  -- ok
   B = noetherForm R
-  assert inNoetherForm B -- fails
+  setNoetherInfo(R,frac R)
+  assert inNoetherForm B
 
   kk = QQ
   R = kk[x,y]/(x^4-3, y^3-2);
