@@ -637,12 +637,13 @@ noetherForm List := Ring => opts -> (xv) -> (
     )
 
 -- Input: a ring map F : A --> R such that:
---   (a) A is a polynomial ring over a field
+--   (a) A is a polynomial ring over a field, TODO: should allow a field too!
 --   (b) R is a quotient of a polynomial ring over the same field
 --   (c) R is a finite A-module
 -- Output:
 --   A ring B = A[vars]/I
 --     which is isomorphic to R (the isomorphism is available as `noetherMap B`)
+--     if A is the base field of R, then B should be the same as A.
 -- Notes
 --   (a) the `noetherMap B` is stored in B, not the original R.
 --   (b) if the image of a variable is a variable, that variable is not in `vars`
@@ -654,7 +655,7 @@ noetherForm RingMap := Ring => opts -> (f) -> (
     kk := coefficientRing R;
     if not isCommutative A then 
         error "expected source of ring map to be a commutative ring";
-    if A === kk then return R;
+    if A === kk then return R; -- BUG TODO: this does not check that R is in Noether position, and doesn't set Noether data either...
     if not isAffineRing R then 
         error "expected an affine ring";
     if not isAffineRing A then 
@@ -688,10 +689,39 @@ noetherForm Ring := Ring => opts -> R -> (
     (F, J, xv) := noetherNormalization R;
     kk := coefficientRing R;
     t := opts.Variable;
-    A := kk[t_0..t_(#xv-1)];
+    A := if #xv == 0 then kk else kk[t_0..t_(#xv-1)];
     phi := map(R,A,for x in xv list F^-1 x);
     noetherForm (phi, Remove => opts.Remove)
     )
+
+TEST ///
+  -- Zero dimensional noetherForm...
+
+  R = QQ[x,y]/(x^4-3, y^3-2);
+  phi = map(R, QQ, {})
+  assert inNoetherForm B -- fails
+  
+  kk = ZZ/32003
+  R = kk[x,y]/(x^4-3, y^3-2);
+  phi = map(R, kk, {})
+  isWellDefined phi  -- ok
+  B = noetherForm R
+  assert inNoetherForm B -- fails
+
+  kk = QQ
+  R = kk[x,y]/(x^4-3, y^3-2);
+  phi = map(R, kk, {})
+  -- TODO: isWellDefined phi -- fails... BUG in Core... git issue #1998
+  assert inNoetherForm B -- fails
+
+  kk = GF(27)
+  R = kk[x,y]/(x^4-3, y^3-2);
+  phi = map(R, kk, {})
+  isWellDefined phi  -- ok
+  assert inNoetherForm B -- fails
+
+    
+///
 
 beginDocumentation()
 

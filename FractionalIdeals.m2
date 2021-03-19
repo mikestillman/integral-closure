@@ -1,27 +1,27 @@
 newPackage(
-        "FractionalIdeals",
-        Version => "0.1", 
-        Date => "6 June 2009",
-        Authors => {
-	     {Name => "Charley Crissman", 
-		  Email => "", 
-		  HomePage => ""
-          },
-         {Name => "David Eisenbud", 
-             Email => "de@msri.org", 
-             HomePage => "http://www.msri.org/~de/"
-             },
-	     {Name => "Mike Stillman", 
-              	  Email => "mike@math.cornell.edu", 
-                  HomePage => "http://www.math.cornell.edu/~mike"}},
-        Headline => "fractional ideals given a domain, possibly in Noether normal position",
-        PackageExports => {
-            "NoetherNormalForm",
-            "Elimination", -- for discriminant.
-            "IntegralClosure" -- for Index, Verbosity
+    "FractionalIdeals",
+    Version => "0.1", 
+    Date => "6 June 2009",
+    Authors => {
+        {Name => "Charley Crissman", 
+            Email => "", 
+            HomePage => ""
             },
-        DebuggingMode => true
-        )
+        {Name => "David Eisenbud", 
+            Email => "de@msri.org", 
+            HomePage => "http://www.msri.org/~de/"
+            },
+        {Name => "Mike Stillman", 
+            Email => "mike@math.cornell.edu", 
+            HomePage => "http://www.math.cornell.edu/~mike"}},
+    Headline => "fractional ideals given a domain, possibly in Noether normal position",
+    PackageExports => {
+        "NoetherNormalForm",
+        "Elimination", -- for discriminant.
+        "IntegralClosure" -- for Index, Verbosity
+        },
+    DebuggingMode => true
+    )
 
 export {
     "factorize",
@@ -46,6 +46,7 @@ export {
 exportMutable {
     "traveLevel"
     }
+
 -- The following is currently needed in fractionalRingPresentation
 -- generatorSymbols = value Core#"private dictionary"#"generatorSymbols"
 importFrom_Core { "generatorSymbols" }
@@ -753,18 +754,30 @@ getIntegralEquationNoether(RingElement, RingElement, Ring) := (num, denom, Kt) -
      M := matrix ({{1_K}}|toList (n-1:{0}));
      i := 1;
      while ker M == 0 do (
-	  nextPower := num^i;
-	  newCol := lift(last coefficients(nextPower, Monomials => B), K);
-	  M = newCol | M;
-	  i = i + 1;
-	  );
-     intEqn := flatten entries gens ker M;
+         nextPower := num^i;
+         newCol := lift(last coefficients(nextPower, Monomials => B), K);
+         M = newCol | M;
+         i = i + 1;
+         );
+     intEqn := flatten entries gens gb ker M; -- TODO: could this have more than one element?
      if not all(#intEqn, (i -> (intEqn#i) % (denom^i) == 0)) then return null;
+     -- This next set of lines is supposed to make the equation monic...  
+     -- TODO: make sure this happens
+     -- e.g.: c might be in a ring without a coefficient ring.
+     leadcoeff := first intEqn;
+     if leadcoeff != 1 then (
+         if -leadcoeff == 1 then 
+             intEqn = - intEqn
+         else (
+             c := lift(1/leadcoeff, coefficientRing Kt);
+             intEqn = c * intEqn
+             )
+         );
      t := Kt_0;
      m := #intEqn - 1;
      result := sum for i from 0 to m list (
-	  ((intEqn#i) // (denom^i)) * t^(m-i)
-	  );
+         ((intEqn#i) // (denom^i)) * t^(m-i)
+         );
      result
      )
 
@@ -799,86 +812,87 @@ getIntegralEquationNonNoether(RingElement,RingElement,Ring) := (num, denom, Rt) 
      --  If R is a poly ring over kk, then 
      R := ring num;
      if ring denom =!= R then
-       try promote(denom, R) else error "different rings";
+         try promote(denom, R) else error "different rings";
      if coefficientRing Rt === coefficientRing R and inNoetherForm R
-       then getIntegralEquation(num,denom,Rt)
-       else (
-	    -- 2 options for the ring Rt: it should be R[T], or K[T], where
-	    -- K consists of some of the variables of R
-	    -- case 1: coefficientRing Rt === R
-	    if coefficientRing Rt === R then (
-		 -- steps:
-		 --  1. lift ideal of R to a ring with generators = gens of R and T.
-		 --  2. compute the saturation
-		 --  3. find the element, if any.
-		 --  4. move it to Rt
-		 J := ideal R;
-		 kk := coefficientRing R;
-		 S := ring J;
-		 S1 := kk (monoid [gens Rt, gens S]);
-		 StoS1 := map(S1,S,drop(gens S1, 1));
-		 S1toRt := map(Rt,S1,generators(Rt, CoefficientRing => kk));
-		 denomS1 := StoS1 lift(denom,S);
-		 numS1 := StoS1 lift(num,S);
-		 J = (StoS1 J) + ideal(S1_0 * denomS1 - numS1);
-		 time Jsat := ideal gens gb saturate(J, denomS1);
-		 findMinimalEquation := (Jsat, x) -> (
-		      L := Jsat_*;
-		      P := for i from 0 to #L-1 list (
-		      	   d := isMonic(L#i,S1_0);
-			   if d === null then continue else {d,i});
-		      result := if P === {} 
-		      then null 
-		      else L#((min P)#1);
-		      result
-		      );
-		 time F := findMinimalEquation(Jsat, S1_0);
-		 if F === null then null else (
-		      G := S1toRt F;
-		      c := lift(leadCoefficient G, kk);
-		      if c != 1 then G = 1/c * G;
-		      G)
-     	    )
-       ))
+         then getIntegralEquation(num,denom,Rt)
+         else (
+             -- 2 options for the ring Rt: it should be R[T], or K[T], where
+             -- K consists of some of the variables of R
+             -- case 1: coefficientRing Rt === R
+             if coefficientRing Rt === R then (
+                 -- steps:
+                 --  1. lift ideal of R to a ring with generators = gens of R and T.
+                 --  2. compute the saturation
+                 --  3. find the element, if any.
+                 --  4. move it to Rt
+                 J := ideal R;
+                 kk := coefficientRing R;
+                 S := ring J;
+                 S1 := kk (monoid [gens Rt, gens S]);
+                 StoS1 := map(S1,S,drop(gens S1, 1));
+                 S1toRt := map(Rt,S1,generators(Rt, CoefficientRing => kk));
+                 denomS1 := StoS1 lift(denom,S);
+                 numS1 := StoS1 lift(num,S);
+                 J = (StoS1 J) + ideal(S1_0 * denomS1 - numS1);
+                 time Jsat := ideal gens gb saturate(J, denomS1);
+                 findMinimalEquation := (Jsat, x) -> (
+                     L := Jsat_*;
+                     P := for i from 0 to #L-1 list (
+                         d := isMonic(L#i,S1_0);
+                         if d === null then continue else {d,i});
+                     result := if P === {} 
+                     then null 
+                     else L#((min P)#1);
+                     result
+                     );
+                 time F := findMinimalEquation(Jsat, S1_0);
+                 if F === null then null else (
+                     G := S1toRt F;
+                     c := lift(leadCoefficient G, kk);
+                     if c != 1 then G = 1/c * G;
+                     G)
+                 )
+             )
+    )
 
 integralEqnNonNoether = (num, denom, Rt, maxN) -> (
-     -- Find a smallest degree monic equation for num/denom over R
-     -- assumption: num/denom IS integral!
-     -- num, denom in a domain R
-     -- Rt = R[T], (name T is not relevant)
-     -- maxN is the largest degree to consider (infinity allowed)
-     -- return: null, if no equation found within the given bound, or
-     --  an element of Rt, if one is found.
-     M := ideal(denom);
-     numI := num;
-     i := 1;
-     while i <= maxN do (
-	  if numI % M == 0 then (
-	       cfs := flatten entries(numI // gens M);
-	       T := Rt_0;
-	       F := T^i - sum(i, j -> cfs#j * T^(i-j-1));
-	       return F;
-	       );
-	  M = denom * ((ideal numI) + M);
-	  numI = num * numI;
-	  i = i+1;
-	  );
-     null)
+    -- Find a smallest degree monic equation for num/denom over R
+    -- assumption: num/denom IS integral!
+    -- num, denom in a domain R
+    -- Rt = R[T], (name T is not relevant)
+    -- maxN is the largest degree to consider (infinity allowed)
+    -- return: null, if no equation found within the given bound, or
+    --  an element of Rt, if one is found.
+    M := ideal(denom);
+    numI := num;
+    i := 1;
+    while i <= maxN do (
+        if numI % M == 0 then (
+            cfs := flatten entries(numI // gens M);
+            T := Rt_0;
+            F := T^i - sum(i, j -> cfs#j * T^(i-j-1));
+            return F;
+            );
+        M = denom * ((ideal numI) + M);
+        numI = num * numI;
+        i = i+1;
+        );
+    null
+    )
 
 getIntegralEquation = method(Options => {DegreeLimit => infinity})
 getIntegralEquation(RingElement,RingElement,Ring) := opts -> (num, denom, Rt) -> (
-     R := ring num;
-     denomR := denom;
-     if ring denomR =!= R then
-       try denomR = promote(denom, R) else error "different rings";
-     if coefficientRing Rt === coefficientRing R and inNoetherForm R
-       then getIntegralEquationNoether(num,denomR,Rt)
-       else if coefficientRing Rt === R
-         then 
-	   integralEqnNonNoether(num,denomR,Rt,opts.DegreeLimit)
-	   --getIntegralEquationNonNoether(num,denomR,Rt)  -- this one is usually too slow
-	 else error "cannot understand what ring the monic equation should be over"
-     )
+    R := ring num;
+    denomR := denom;
+    if ring denomR =!= R then
+        try denomR = promote(denom, R) else error "different rings";
+    if coefficientRing Rt === coefficientRing R and inNoetherForm R then
+        getIntegralEquationNoether(num,denomR,Rt)
+    else if coefficientRing Rt === R then
+        integralEqnNonNoether(num,denomR,Rt,opts.DegreeLimit)
+        --getIntegralEquationNonNoether(num,denomR,Rt)  -- this one is usually too slow
+    else error "cannot understand what ring the monic equation should be over"
+    )
 
 getIntegralEquation(RingElement,Ring) :=
 getIntegralEquation(Divide,Ring) := opts -> (fr, Rt) -> (
@@ -903,28 +917,51 @@ getIntegralEquation FractionalIdeal := opts -> I -> (
      apply(flatten entries gens numerator I, num -> getIntegralEquation(num,denom,Kt,opts))
      )
 
+-- This is meant for debugging only?
 checkMonicEquation = (num, denom, F) -> (
-     -- num and denom should be elements in a domain R
-     -- F should be a polynomial in R[T] (variable name is not relevant)
-     sub(F, {(ring F)_0 => num/denom})
-     )
+    -- num and denom should be elements in a domain R
+    -- F should be a polynomial in R[T] (variable name is not relevant)
+    sub(F, {(ring F)_0 => num/denom})
+    )
 
 possibleDenominators = method()
 possibleDenominators(RingElement, RingElement) := (num,denom) -> trim((ideal denom) : num)
-possibleDenominators(RingElement) := (f) -> possibleDenominators(numerator f, value denominator f)
+possibleDenominators RingElement := (f) -> possibleDenominators(numerator f, value denominator f)
 possibleDenominators(List) := (L) -> (
-     L1 := for f in L list possibleDenominators f;
-     trim intersect L1
-     )
+    L1 := for f in L list possibleDenominators f;
+    trim intersect L1
+    )
 
 newDenominator = method()
 newDenominator(FractionalIdeal, RingElement) := (F,g) -> (
-     if ring g =!= ring F then try g = promote(g,ring F) else error "denominator cannot be promoted to ring of ideal";
-     J := g * gens numerator F;
-     if J % denominator F != 0 then error "denominator cannot be used";
-     fractionalIdeal(g, ideal(J // denominator F))
-     )
+    if ring g =!= ring F then try g = promote(g,ring F) else error "denominator cannot be promoted to ring of ideal";
+    J := g * gens numerator F;
+    if J % denominator F != 0 then error "denominator cannot be used";
+    fractionalIdeal(g, ideal(J // denominator F))
+    )
 ------------------------------------------------------
+TEST ///
+-*
+  restart
+  needsPackage "FractionalIdeals"
+*-
+  -- of getIntegralEquation, checkMonicEquation, possibleDenominators, newDenominator
+  -- of elements in rings in Noether position.
+  -- TODO: which of these do we wish to keep?
+
+  -- test 1: just find monic equations for elements in a Noether ring
+  R = QQ[x,y]/(x^4-3, y^3-2)
+  B = noetherForm R
+  getIntegralEquation(x+y, QQ[t]) -- fails
+  getIntegralEquation(x+y, 1_R, QQ[t]) -- fails
+
+  R = QQ[x,y,z]/(x^4-3, y^3-2)
+  noetherForm R
+  getIntegralEquation(x+y, B[t]) -- gives trivial equation
+  F = getIntegralEquation(x+y, (coefficientRing B)[t])
+  assert(leadCoefficient F == 1)
+  assert(sub(F, {t => x+y}) == 0)
+///
 
 beginDocumentation()
 
@@ -939,6 +976,15 @@ doc ///
   Caveat
     Not ready for use
 ///
+
+-- TODO:
+-- 1. FractionalRings and Ideals:
+--   ideal membership
+--   for Noether: does the ring generate over A or B? (A = k[indep vars], B = A[vars]/I)
+--        (or over frac A or frac B?)
+--   basis (or generating set) over A, vs over B, vs ring generating set.
+--   Hom not working yet for these.
+--   way to go back and forth from Noether form?
 
 TEST ///
 -- of simplification of fractional ideals, in Noether position
