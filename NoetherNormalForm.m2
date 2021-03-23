@@ -171,9 +171,8 @@ trace RingElement := (f) -> (
     RK := NI#"field";
     traces := getTraces NI;
     if R =!= RK then f = promote(f,RK);
-    M := last coefficients(f, Monomials => noetherBasisMatrix RK);
+    M := lift(last coefficients(f, Monomials => noetherBasisMatrix RK), coefficientRing RK);
     g := (traces * M)_(0,0);
-    g = lift(g, coefficientRing RK);
     if R =!= RK then g = lift(g, coefficientRing R);
     g
     )
@@ -213,28 +212,90 @@ isComputablePolynomialRing Ring := Boolean => R ->(
     not instance(k, FractionField)
     )
 
+-- TODO: this function is not general enough?
 isFiniteOverCoefficients1 = method()
-isFiniteOverCoefficients1 Ring := Boolean => R ->(
-   g := gens gb ideal R;
-   S := coefficientRing R;
-   lt := flatten entries (leadTerm g%promote(ideal vars S,ring g));
-   #select(lt/support , l->#l==1) == numgens R
-   )
+isFiniteOverCoefficients1 Ring := Boolean => R -> (
+    g := gens gb ideal R;
+    S := coefficientRing R;
+    lt := flatten entries (leadTerm g%promote(ideal vars S,ring g));
+    #select(lt/support , l->#l==1) == numgens R
+    )
     
 TEST/// -- of finiteOverCoefficients
+-*
+  restart
+*-
   debug needsPackage "NoetherNormalForm"
   R1 = ZZ/5[a,b][x,y]/intersect(ideal (a*(x-1),y), ideal(x^2,y^2))
   R2 = ZZ/5[a,b][x,y]/intersect(ideal (a*x-1,y), ideal(x^2,y^2))
   R3 = ZZ/5[a,b][x,y]/intersect(ideal ((a-1)*x-1,y), ideal(x^2,y^2))
   R4 = QQ[a,b][x,y]
-  R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
 
-  assert(
-    isFiniteOverCoefficients1 R1 == false and
-    isFiniteOverCoefficients1 R2 == false and
-    isFiniteOverCoefficients1 R3== false and
-    isFiniteOverCoefficients1 R4== false and
-    isFiniteOverCoefficients1 R5== true)
+  R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
+  R6 = QQ[x,y]/(x^2-1, x*y^3-3)
+  R7 = GF(27)[x,y]/(x^2-1, y^3-a)
+  R8 = GF(27)[x,y]/(x^2-1, x*y^3-a)
+
+  R9 = QQ[x,y]/(x^2, x*y^3-3) -- is trivial.
+  x = symbol x; y = symbol y
+  R10 = QQ[a..d]/(b^2-a, b*c-d)
+
+  assert not isFiniteOverCoefficients1 R1
+  assert not isFiniteOverCoefficients1 R2
+  assert not isFiniteOverCoefficients1 R3
+  assert not isFiniteOverCoefficients1 R4
+  
+  assert isFiniteOverCoefficients1 R5
+  assert isFiniteOverCoefficients1 R6
+  assert isFiniteOverCoefficients1 R7 -- WRONG
+  assert not isFiniteOverCoefficients1 R8 
+
+  assert not isFiniteOverCoefficientRing R1
+  assert not isFiniteOverCoefficientRing R2
+  assert not isFiniteOverCoefficientRing R3
+  assert not isFiniteOverCoefficientRing R4
+  
+  assert isFiniteOverCoefficientRing R5
+  assert isFiniteOverCoefficientRing R6
+  assert isFiniteOverCoefficientRing R7 -- WRONG
+  assert not isFiniteOverCoefficientRing R8
+
+  assert not isFiniteOverCoefficients1 R9
+  assert not isFiniteOverCoefficients1 R10
+
+  assert not isFiniteOverCoefficientRing R9
+  assert not isFiniteOverCoefficientRing R10
+
+  assert not isFiniteOverCoefficientRing ZZ
+  assert isFiniteOverCoefficientRing (ZZ/32003)
+  assert isFiniteOverCoefficientRing QQ
+  assert isFiniteOverCoefficientRing (frac (QQ[a,b]))
+
+  assert isFiniteOverCoefficientRing ( (frac (QQ[a,b]))[x]/(a*x^2-1))
+  
+  A = (frac (QQ[a,b]));
+  R11 = A[x]/(a*x^2-1)
+  assert isFiniteOverCoefficientRing R11 -- WRONG...
+
+  A = (frac (ZZ[a,b]));
+  R12 = A[x]/(a*x^2-1)
+  assert isFiniteOverCoefficientRing R12 -- WRONG...
+
+  A = toField(QQ[a]/(a^2-a-1))
+  R13 = A[x,y]/(x^2-a, a*y^3-x)
+  assert isFiniteOverCoefficientRing R13
+
+  kk = toField(QQ[a]/(a^2-a-1))
+  A = kk[t]
+  R14 = A[x,y]/(x^2-a*t, a*y^3-x-t)
+  assert isFiniteOverCoefficientRing R14
+  
+  assert not isFiniteOverCoefficientRing(ZZ[]/32743287482974) -- ??
+  
+  A = ZZ/101[a,b]
+  B = A[x,y]/(x^2+y^2)
+  R15 = B[z]/(z^3-1)
+  assert not isFiniteOverCoefficientRing R15 -- over B or over A?  Do we need to be more specific?
 ///
 
 isFiniteOverCoefficientRing = method()
@@ -245,7 +306,8 @@ isFiniteOverCoefficientRing Ring := Boolean => (R) -> (
     A := coefficientRing R;
     --if not (try (coefficientRing R; true) else false) then return false;
     --if there is a coefficientRing R then does nothing; if not then the whole funct returns false.
-    if isField A then return(dim R ===0);
+
+    --    if isField A then return(dim R ===0);
 
     if not isField A and not isComputablePolynomialRing A then (
 	    if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field" << endl;
@@ -668,12 +730,14 @@ noetherForm RingMap := Ring => opts -> (f) -> (
     gensk := generators(kk, CoefficientRing => ZZ);
     if not all(gensk, x -> promote(x,R) == f promote(x,A)) then 
         error "expected ring map to be identity on coefficient ring";
---check finiteness
+    --check finiteness
+    -- if not isFiniteOverCoefficientRing(A, R) then 
+    --     error "expected ring to be finite over coefficients";
 
     if A === kk then (
-	setNoetherInfo(R, frac R);
-	return R);
-    
+        setNoetherInfo(R, R);
+	    return R
+        );
     
      -- AAA    
 
@@ -703,38 +767,54 @@ noetherForm Ring := Ring => opts -> R -> (
     phi := map(R,A,for x in xv list F^-1 x);
     noetherForm (phi, Remove => opts.Remove)
     )
-///
+
+TEST ///
+-*
 restart
 debug needsPackage "NoetherNormalForm"
-///
-TEST ///
+*-
   -- Zero dimensional noetherForm...
 
   R = QQ[x,y]/(x^4-3, y^3-2);
   phi = map(R, QQ, {})
-  assert inNoetherForm R -- fails
+  noetherForm phi
+  assert inNoetherForm R
   
   kk = ZZ/32003
   R = kk[x,y]/(x^4-3, y^3-2);
   phi = map(R, kk, {})
   isWellDefined phi  -- ok
   B = noetherForm R
-  setNoetherInfo(R,frac R)
-  assert inNoetherForm B
+  assert inNoetherForm R
 
   kk = QQ
   R = kk[x,y]/(x^4-3, y^3-2);
   phi = map(R, kk, {})
   -- TODO: isWellDefined phi -- fails... BUG in Core... git issue #1998
-  assert inNoetherForm B -- fails
+  assert inNoetherForm B
 
   kk = GF(27)
-  R = kk[x,y]/(x^4-3, y^3-2);
+  R = kk[x,y]/(x^4-2, y^5-2);
   phi = map(R, kk, {})
   isWellDefined phi  -- ok
-  assert inNoetherForm B -- fails
+  B = noetherForm R
+  noetherBasis B
+  traceForm B -- (now works). (used to fail! due to the bug below, which is now git issue #1999)
 
-    
+  kk = QQ
+  R = kk[x,y]/(x^4-2, y^5-2);
+  phi = map(R, kk, {})
+  B = noetherForm R
+  noetherBasis B
+  traceForm B
+  det oo
+
+  -- bug in M2 #1999  
+  -- kk = ZZ/101
+  -- R = kk[x]
+  -- f = matrix(kk, {{1,1}})  
+  -- g = map(R^{0,1},, {{1,1},{1,1}})
+  -- f*g
 ///
 
 beginDocumentation()
