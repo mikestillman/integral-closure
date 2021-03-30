@@ -55,29 +55,112 @@ newTaylor(ZZ,MonomialIdeal) := Matrix => (d,I) -> (
     Ilists = flatten(I_*/exponents);
     btarget = subsets(toList(0..#Ilists-1), d-1);
     bsource = subsets(toList(0..#Ilists-1), d);
-    
+  
+    elapsedTime (  
     degtarget = apply (subsets( Ilists, d-1),s -> sum lcmlist s);
     degsource = apply (subsets( Ilists, d),s -> sum lcmlist s);
+    );
     
     rows = hashTable for i from 0 to #btarget-1 list btarget#i => i;
     cols = hashTable for i from 0 to #bsource-1 list bsource#i => i;          
 
+    elapsedTime rcpairs = flatten apply(bsource, b-> apply(#b, i->(b,drop(b,{i,i}), (-1)^i)));
+    elapsedTime elems := apply(rcpairs,
+            p -> (rows#(p_1), cols#(p_0)) => 
+                    p_2*S_(lcmlist Ilists_(p_0) - lcmlist Ilists_(p_1)));
+    elapsedTime map(S^(-degtarget), S^(-degsource), elems)
+    )
+
+newTaylor(ZZ,MonomialIdeal) := Matrix => (d,I) -> (
+    S := ring I;
+    Ilists = flatten(I_*/exponents);
+    btarget = subsets(toList(0..#Ilists-1), d-1);
+    bsource = subsets(toList(0..#Ilists-1), d);
+  
+    elapsedTime (  
+    degtarget = apply (subsets( Ilists, d-1),s -> sum lcmlist s);
+    degsource = apply (subsets( Ilists, d),s -> sum lcmlist s);
+    );
+    
+    rows = hashTable for i from 0 to #btarget-1 list btarget#i => i;
+    cols = hashTable for i from 0 to #bsource-1 list bsource#i => i;          
+
+    elapsedTime rcpairs = flatten apply(bsource, b-> apply(#b, i->(b,drop(b,{i,i}), (-1)^i)));
+
+    elapsedTime (    
+    rowLcms = for b in btarget list lcmlist Ilists_b;
+    colLcms = for b in bsource list lcmlist Ilists_b;
+    );
+    
+    elapsedTime elems := apply(rcpairs,
+            p -> (rows#(p_1), cols#(p_0)) => 
+                    p_2*S_(colLcms#(cols#(p_0)) - rowLcms#(rows#(p_1))));
+                
+    elapsedTime map(S^(-degtarget), S^(-degsource), elems)
+    )
+-- above version is twice as fast as one above that.
+
+newTaylor(ZZ,MonomialIdeal) := Matrix => (d,I) -> (
+    S := ring I;
+    Ilists = flatten(I_*/exponents);
+    
+    btarget = subsets(toList(0..#Ilists-1), d-1);
+    bsource = subsets(toList(0..#Ilists-1), d);
+  
+    degtarget = apply (subsets( Ilists, d-1),s -> sum lcmlist s);
+    degsource = apply (subsets( Ilists, d),s -> sum lcmlist s);
+
+    rows = hashTable for i from 0 to #btarget-1 list (
+        b := btarget#i;
+        blcm := lcmlist Ilists_b;
+        b => {i, blcm}
+        );
+
+    cols = hashTable for i from 0 to #bsource-1 list (
+        b := bsource#i;
+        blcm := lcmlist Ilists_b;
+        b => {i, blcm}
+        );
+
     rcpairs = flatten apply(bsource, b-> apply(#b, i->(b,drop(b,{i,i}), (-1)^i)));
-    map(S^(-degtarget), S^(-degsource), apply(rcpairs, p -> (rows#(p_1), cols#(p_0)) => 
-	    p_2*S_(lcmlist Ilists_(p_0) - lcmlist Ilists_(p_1))
-	    ))
-)
+
+    monomsS = new MutableHashTable;
+    elems := apply(rcpairs,
+            p -> (
+                r := rows#(p_1); -- {index, lcm}
+                c := cols#(p_0);
+                e := c#1 - r#1;
+                mylcm = if not monomsS#?e then 
+                           monomsS#e = S_e
+                        else 
+                           monomsS#e;
+                (r#0, c#0) => p_2 * mylcm
+                ));
+    << "#elems = " << #elems << " and #monomsS = " << #(keys monomsS) << endl;
+                
+    Ftar := S^(-degtarget);
+    Fsrc := S^(-degsource);
+    
+    map(Ftar, Fsrc, elems)
+    )
 
 
 ///
 restart
 load "taylor.m2"
+needsPackage "Complexes"
 S = ZZ/101[a,b,c]
 I = monomialIdeal"a3bc,a2b3,ab2c2,a2c3"
 I = monomialIdeal(basis(3,S))
-elapsedTime K = chainComplex for i from 2 to numgens I list newTaylor(i,I)
+I = monomialIdeal(basis(4,S))
+elapsedTime taylorResolution I
+elapsedTime K = complex for i from 2 to numgens I list elapsedTime newTaylor(i,I)
+elapsedTime newTaylor(8, I);
 K.dd^2
 isHomogeneous K
+
+elapsedTime for i from 0 to 50000 do S_{1,3,2};
+elapsedTime newTaylor(7,I);
 ///
 end--
 restart
