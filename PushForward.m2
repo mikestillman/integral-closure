@@ -429,3 +429,25 @@ N = B^1 ++ (B^1/(x))
 f = map(B,A)
 pushFwd(f,N)
 pushFwd f
+
+-- example bug -----------------------------------
+-- DE + MES
+TEST ///      
+-*
+  restart
+  needsPackage "NoetherNormalForm"
+*-
+  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  A = frac(kk[s,t])
+  L = A[symbol a.. symbol d]/(d-t, a-s, b*c-s*t, b^2-(s/t)*c^2)
+  describe L
+  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
+
+  -- simpler example which fails
+  L = A[symbol b, symbol c]/(b*c-s*t, b^2-(s/t)*c^2)
+  describe L
+  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
+
+///
