@@ -275,7 +275,9 @@ TEST/// -- of finiteOverCoefficients
   
   A = (frac (QQ[a,b]));
   R11 = A[x]/(a*x^2-1)
+  coefficientRing R11 === A
   assert isFiniteOverCoefficientRing R11 -- WRONG...
+  assert not isFiniteOverCoefficientRing A -- WRONG...
 
   A = (frac (ZZ[a,b]));
   R12 = A[x]/(a*x^2-1)
@@ -1657,6 +1659,8 @@ TEST ///
   traceForm L
 
   R = QQ[a..d]/(b^2-a, b*c-d)
+  B = noetherForm{a,d};
+  presentation B
   assert try (B = noetherForm{a,d}; false) else true  -- should give an error message
 ///
 
