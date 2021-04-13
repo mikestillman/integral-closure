@@ -7,7 +7,7 @@ newPackage(
                   HomePage => "http://www3.nd.edu/~craicu"}},
         Headline => "push forwards of finite ring maps",
 	Keywords => {"Commutative Algebra"},
-        DebuggingMode => false
+        DebuggingMode => true
         )
         
 --note, this version has a slight change added by Karl Schwede.  It has an option to turn off the prune calls.
@@ -147,7 +147,8 @@ pushAuxHgs(RingMap):=(f)->
 	  (mons,cfs):=coefficients((phi b)%I,Monomials=>mat,Variables=>yvars);
 	  toA cfs	  
 	  );
-     
+
+--error "debug me";     
      matB,k,R,I,mat,n,varsA,mapf
      )
 
@@ -446,8 +447,44 @@ TEST ///
   ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
 
   -- simpler example which fails
+  -- FIX THIS: should not create a graph ring.
+  restart
+  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  A = frac(kk[s,t])
   L = A[symbol b, symbol c]/(b*c-s*t, b^2-(s/t)*c^2)
   describe L
-  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
+  inc = map(L, A)
+  pushFwd inc -- fails
+  --  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
+
+  -- FIX THIS: should not create a graph ring.
+  restart
+  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  A = kk[s,t]
+  L = A[symbol b, symbol c]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
+  describe L
+  inc = map(L, A)
+  pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
+
+  -- FIX ME?
+  restart
+  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  A = QQ
+  L = A[symbol b, symbol c]/(b*c-13, b^3-c^2)
+  describe L
+  inc = map(L, A)
+  (LA, bas, pf) = pushFwd inc -- this works
+  pf(b^2+c^2) -- maybe a better way?
+
+///
+
+///
+-- Case 1. 
+-- ring map is f : A --> B = A[xs]/I, A is a polynomial ring, quotient field, basic field.
 
 ///
