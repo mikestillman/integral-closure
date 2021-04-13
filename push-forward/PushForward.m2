@@ -104,6 +104,25 @@ makeModule(Module,RingMap,Matrix):=(N,f,matB)->
 pushAuxHgs=method()
 pushAuxHgs(RingMap):=(f)->
 (
+     if isInclusionOfCoefficientRing f then(
+	 R := target f;
+	 mat = basis R;
+         mat:=lift(basis(R/(r+ideal(xvars))),R);
+         k:=numgens source mat;
+         matB:=sub(mat,matrix{varsB|toList(m:0_B)});
+
+         phi:=map(R,B,matrix{yvars});
+         toA:=map(A,R,flatten{n:0_A,varsA});
+         mapf:=(b)->(
+             (mons,cfs):=coefficients((phi b)%I,Monomials=>mat,Variables=>yvars);
+	     toA cfs	  
+	  );
+
+--error "debug me";     
+     matB,k,R,I,mat,n,varsA,mapf
+	 );
+
+
      A:=source f;
      B:=target f;
      pols:=f.matrix;
@@ -152,6 +171,20 @@ pushAuxHgs(RingMap):=(f)->
      matB,k,R,I,mat,n,varsA,mapf
      )
 
+isInclusionOfCoefficientRing = method()
+isInclusionOfCoefficientRing RingMap := Boolean => inc -> (
+    --checks whether the map is the inclusion of the coefficientRing
+    if source inc =!= coefficientRing target inc then return false;
+    inc vars source inc == promote (vars source inc, target inc)
+    )
+
+isFiniteOverCoefficientRing = method()
+isFiniteOverCoefficientRing Ring := Boolean => R -> (
+    I := leadTerm ideal R;
+    
+    
+    
+    
 beginDocumentation()
 
 document{
@@ -433,9 +466,31 @@ pushFwd f
 
 -- example bug -----------------------------------
 -- DE + MES
+TEST///
+debug needsPackage "PushForward"
+kk = ZZ/101
+A = kk[s]
+B = A[t]
+C = B[u]
+f = map(C,B)
+g = map(C,B,{t})
+assert(isInclusionOfCoefficientRing f)
+assert(isInclusionOfCoefficientRing g)
+
+kk = ZZ/101
+A = frac (kk[s])
+B = A[t]
+C = B[u]
+f = map(C,B)
+g = map(C,B,{t})
+assert(isInclusionOfCoefficientRing f)
+assert(isInclusionOfCoefficientRing g)
+///
+
 TEST ///      
 -*
   restart
+ 
   needsPackage "NoetherNormalForm"
 *-
   needsPackage "PushForward"
@@ -449,24 +504,37 @@ TEST ///
   -- simpler example which fails
   -- FIX THIS: should not create a graph ring.
   restart
-  needsPackage "PushForward"
+  debug needsPackage "PushForward"
   s = symbol s; t = symbol t  
   kk = ZZ/101
   A = frac(kk[s,t])
   L = A[symbol b, symbol c]/(b*c-s*t, b^2-(s/t)*c^2)
+--test for finiteness:
+ge = flatten select((flatten entries leadTerm ideal L)/support, ell -> #ell ==1)
+set ge === set gens ring ideal L
+
+
+
+leadTerm ideal L
+basis L
   describe L
   inc = map(L, A)
   pushFwd inc -- fails
   --  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
-
   -- FIX THIS: should not create a graph ring.
   restart
-  needsPackage "PushForward"
+debug  needsPackage "PushForward"
   s = symbol s; t = symbol t  
   kk = ZZ/101
   A = kk[s,t]
   L = A[symbol b, symbol c]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
   describe L
+
+(flatten entries leadTerm ideal L)/support
+oo/exponents
+
+oo/leadMonomial
+
   inc = map(L, A)
   pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
 
@@ -481,6 +549,18 @@ TEST ///
   (LA, bas, pf) = pushFwd inc -- this works
   pf(b^2+c^2) -- maybe a better way?
 
+--non-finite example
+  restart
+  debug needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  A = frac(kk[s,t])
+  L = A[symbol b, symbol c]/(b^2-(s/t)*c^2 - c, c^3)
+basis L
+  describe L
+  inc = map(L, A)
+pushForward(inc, A^1)
+  pushFwd inc -- fails
 ///
 
 ///
