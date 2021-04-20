@@ -23,7 +23,8 @@ pushFwd(RingMap):=o->(f)->
      deglenB:=degreeLength B;
      psh:= pushAuxHgs f;
      matB:=psh_0;
-     mapfaux:=psh_7;
+--     mapfaux:=psh_7;
+     mapfaux:=psh_1;     
      local ke;
      local freeA;
 
@@ -63,13 +64,15 @@ pushFwd(RingMap,ModuleMap):=o->(f,d)->
    
      psh:=pushAuxHgs g;
      matB:=psh_0;
-     k:=psh_1;
-     R:=psh_2;
-     I:=psh_3;
-     mat:=psh_4;
-     n:=psh_5;
-     varsA:=psh_6;
-     mapf:=psh_7;
+
+--     k:=psh_1;
+--    R:=psh_2;
+--     I:=psh_3;
+--     mat:=psh_4;
+--     n:=psh_5;
+--     varsA:=psh_6;
+--     mapf:=psh_7;
+     mapf:=psh_1;     
           
      pushM:=makeModule(M,g,matB);
      pushN:=makeModule(N,g,matB);
@@ -78,6 +81,7 @@ pushFwd(RingMap,ModuleMap):=o->(f,d)->
      gR:=matB**matrix d;
      c:=numgens source gR;
      l:=numgens target gR;
+     k := numcols matB;
      matMap=mutableMatrix(A,k*l,c);
      
      for i1 from 0 to c-1 do
@@ -102,25 +106,26 @@ makeModule(Module,RingMap,Matrix):=(N,f,matB)->
      )
 
 pushAuxHgs=method()
-pushAuxHgs(RingMap):=(f)->
-(
-     if isInclusionOfCoefficientRing f then (
--*         
-	 R := target f;
-	 mat = basis R;
-         mat:=lift(basis(R/(r+ideal(xvars))),R);
-         k:=numgens source mat;
-         matB:=sub(mat,matrix{varsB|toList(m:0_B)});
+pushAuxHgs(RingMap):=(f)-> (
 
-         phi:=map(R,B,matrix{yvars});
-         toA:=map(A,R,flatten{n:0_A,varsA});
+     if isInclusionOfCoefficientRing f then (
+     --case when the source of f is the coefficient ring of the target:
+     <<"in the coeff ring case"<<endl;	 
+	 if not isFiniteOverCoefficientRing target f then error"expected a finite map";
+    	 A := source f;
+	 B := target f;
+	 matB := basis B;
+--         mat:=lift(basis(R/(r+ideal(xvars))),R);
+--         k:=numgens source mat;
+--         matB:=sub(mat,matrix{varsB|toList(m:0_B)});
+--         phi:=map(R,B,matrix{yvars});
+--         toA:=map(A,R,flatten{n:0_A,varsA});
+             
          mapf:=(b)->(
-             (mons,cfs):=coefficients((phi b)%I,Monomials=>mat,Variables=>yvars);
-	     toA cfs	  
+             (mons,cfs):=coefficients(b,Monomials=>matB);
+	     lift(cfs, A)
 	  );
---error "debug me";     
-     matB,k,R,I,mat,n,varsA,mapf
-*-     
+         return(matB,mapf)
 	 );
 
      A:=source f;
@@ -159,7 +164,7 @@ pushAuxHgs(RingMap):=(f)->
      mat:=lift(basis(R/(r+ideal(xvars))),R);
      k:=numgens source mat;
      matB:=sub(mat,matrix{varsB|toList(m:0_B)});
-
+assert(k == numcols matB);
      phi:=map(R,B,matrix{yvars});
      toA:=map(A,R,flatten{n:0_A,varsA});
      mapf:=(b)->(
@@ -168,7 +173,8 @@ pushAuxHgs(RingMap):=(f)->
 	  );
 
 --error "debug me";     
-     matB,k,R,I,mat,n,varsA,mapf
+--     matB,k,R,I,mat,n,varsA,mapf
+     matB,mapf     
      )
 
 isInclusionOfCoefficientRing = method()
@@ -224,7 +230,8 @@ document{
   g
   pf(a*b - c^2)
   ///,
-  TEX "In a previous version of this package, the third output was a function which assigned to each element of the target of ", TT "f", " its representation as an element of a free module which surjected onto the pushed forward module."
+  Caveat => {TEX "In a previous version of this package, the third output was a function which assigned to each element of the target of ", TT "f", " its representation as an element of a free module 
+      which surjected onto the pushed forward module."}
   }
 
 document{
@@ -413,7 +420,6 @@ kk=ZZ/101
 n=3
 
 PA=kk[x_1..x_(2*n)]
-iA=ideal
 iA=ideal apply(toList(1..n),i->(x_(2*i-1)^i-x_(2*i)^(i+1)))
 A=PA/iA
 
@@ -442,11 +448,12 @@ pN = pushFwd(f,N)
 assert(isFreeModule pN)
 assert(numgens pN == 3) 
 ///
-end
+end--
 
 restart
 uninstallPackage"PushForward"
 installPackage"PushForward"
+x = symbol x;y= symbol y;
 check PushForward
 viewHelp PushForward
 kk = QQ
@@ -466,6 +473,10 @@ pushFwd f
 
 -- example bug -----------------------------------
 -- DE + MES
+
+///
+restart
+///
 TEST///
 debug needsPackage "PushForward"
 kk = ZZ/101
