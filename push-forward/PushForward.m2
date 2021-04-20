@@ -104,7 +104,8 @@ makeModule(Module,RingMap,Matrix):=(N,f,matB)->
 pushAuxHgs=method()
 pushAuxHgs(RingMap):=(f)->
 (
-     if isInclusionOfCoefficientRing f then(
+     if isInclusionOfCoefficientRing f then (
+-*         
 	 R := target f;
 	 mat = basis R;
          mat:=lift(basis(R/(r+ideal(xvars))),R);
@@ -117,11 +118,10 @@ pushAuxHgs(RingMap):=(f)->
              (mons,cfs):=coefficients((phi b)%I,Monomials=>mat,Variables=>yvars);
 	     toA cfs	  
 	  );
-
 --error "debug me";     
      matB,k,R,I,mat,n,varsA,mapf
+*-     
 	 );
-
 
      A:=source f;
      B:=target f;
@@ -180,10 +180,10 @@ isInclusionOfCoefficientRing RingMap := Boolean => inc -> (
 
 isFiniteOverCoefficientRing = method()
 isFiniteOverCoefficientRing Ring := Boolean => R -> (
-    I := leadTerm ideal R;
-    
-    
-    
+    I := ideal leadTerm ideal R;
+    ge := flatten select(I_*/support, ell -> #ell == 1);
+    set ge === set gens ring I
+    )
     
 beginDocumentation()
 
@@ -509,43 +509,38 @@ TEST ///
   kk = ZZ/101
   A = frac(kk[s,t])
   L = A[symbol b, symbol c]/(b*c-s*t, b^2-(s/t)*c^2)
---test for finiteness:
-ge = flatten select((flatten entries leadTerm ideal L)/support, ell -> #ell ==1)
-set ge === set gens ring ideal L
-
-
-
-leadTerm ideal L
-basis L
+  basis L
   describe L
   inc = map(L, A)
+  assert isInclusionOfCoefficientRing inc
+  assert isFiniteOverCoefficientRing L
   pushFwd inc -- fails
   --  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
+
   -- FIX THIS: should not create a graph ring.
   restart
-debug  needsPackage "PushForward"
+  debug  needsPackage "PushForward"
   s = symbol s; t = symbol t  
   kk = ZZ/101
   A = kk[s,t]
   L = A[symbol b, symbol c]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
   describe L
-
-(flatten entries leadTerm ideal L)/support
-oo/exponents
-
-oo/leadMonomial
-
+  basis L
   inc = map(L, A)
+  assert isInclusionOfCoefficientRing inc
+  assert isFiniteOverCoefficientRing L
   pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
 
   -- FIX ME?
   restart
-  needsPackage "PushForward"
+  debug needsPackage "PushForward"
   s = symbol s; t = symbol t  
   A = QQ
   L = A[symbol b, symbol c]/(b*c-13, b^3-c^2)
   describe L
   inc = map(L, A)
+  assert isInclusionOfCoefficientRing inc
+  assert isFiniteOverCoefficientRing L
   (LA, bas, pf) = pushFwd inc -- this works
   pf(b^2+c^2) -- maybe a better way?
 
