@@ -200,6 +200,106 @@ document{
   Caveat => "Works only for maps of rings finitely generated over a base field "
   }
 
+doc ///
+    Key
+        (pushFwd, RingMap)
+    Headline
+        push forward of a finite ring map
+    Usage
+        pushFwd f
+    Inputs
+        f:RingMap
+    Outputs
+        :Sequence
+            (1) a presentation of the target of $f$ as a module over
+            the source, (2) the matrix of generators of the target of
+            $f$ as a module over the source, and (3) a map that
+            assigns to each element of the target of $f$ its
+            representation as an element of the pushed forward module
+    Description
+        Text
+            Given a ring map $f : A \to R$, $R$ can be considered as a module over $A$.
+            If this module is finite, this method returns this module.  And some other stuff...  Write this!
+        Example
+            kk = QQ;
+            S = kk[a..d];
+            I = monomialCurveIdeal(S, {1,3,4})
+            R = S/I
+            A = kk[a,d];
+            use R
+            F = map(R,A)
+            (M,g,pf) = pushFwd F;
+            M
+            g
+            pf(a*b - c^2)
+    Caveat
+    SeeAlso
+///
+
+doc ///
+    Key
+        (pushFwd, RingMap, Module)
+    Headline
+        push forward of a module via a finite ring map
+    Usage
+        N = pushFwd(f, M)
+    Inputs
+        f:RingMap
+            from a ring $A$ to a ring $R$
+        M:Module
+            an $R$-module, which via $f$ is a finite $A$-module
+    Outputs
+        N:Module
+    Description
+        Text
+            Given a (not necessarily finite) ring map $f : A \to R$, the $R$-module $M$ can be considered as a module over $A$.
+            If $M$ is finite, this method returns the corresponding $A$-module.
+        Example
+            kk = QQ;
+            A = kk[t];
+            B = kk[x,y]/(x*y);
+            use B;
+            i = ideal(x)
+            f = map(B,A,{x})
+            pushFwd(f,module i)
+    Caveat
+    SeeAlso
+///
+
+doc ///
+    Key
+        (pushFwd, RingMap, ModuleMap)
+    Headline
+        push forward of a module map via a finite ring map
+    Usage
+        gA = pushFwd(f, g)
+    Inputs
+        f:RingMap
+            from a ring $A$ to a ring $R$
+        g:ModuleMap
+            (a matrix), $g : M_1 \to M_2$ of modules over $R$
+    Outputs
+        gA:ModuleMap
+    Description
+        Text
+            If $M_1$ and $M_2$ are both finite generated as $A$-modules, via $f$, this returns the induced map
+            on $A$-modules.
+        Example
+            kk = QQ
+            R = kk[a,b]
+            S = kk[z,t]
+            f = map(S,R,{z^2,t^2})
+            M = S^1/ideal(z^3,t^3)
+            g = map(M,M,matrix{{z*t}})
+            p = pushFwd(f,g)
+            source p == pushFwd(f, source g)
+            target p == pushFwd(f, target g)
+            kerg = pushFwd(f,ker g)
+            kerp = prune ker p
+    Caveat
+    SeeAlso
+///
+
 document{
   Key => pushFwd,
   Headline => "push forward",
@@ -211,66 +311,66 @@ document{
      }
   }   
 
-document{
-  Key => (pushFwd,RingMap),
-  Headline => "push forward of a finite ring map",
-  Usage => "pushFwd f",
-  Inputs => { "f" },
-  Outputs => {{"a presentation of the target of ",TT "f", " as a module over the source"},{"the matrix of generators of the target of ",TT "f"," as a module over the source"},{"a map that assigns to each element of the target of ", TT "f"," its representation as an element of the pushed forward module"}},
-  EXAMPLE lines ///
-  kk = QQ
-  S = kk[a..d]
-  I = monomialCurveIdeal(S, {1,3,4})
-  R = S/I
-  A = kk[a,d]
-  use R
-  F = map(R,A)
-  (M,g,pf) = pushFwd F;
-  M
-  g
-  pf(a*b - c^2)
-  ///,
-  Caveat => {TEX "In a previous version of this package, the third output was a function which assigned to each element of the target of ", TT "f", " its representation as an element of a free module 
-      which surjected onto the pushed forward module."}
-  }
+-- document{
+--   Key => (pushFwd,RingMap),
+--   Headline => "push forward of a finite ring map",
+--   Usage => "pushFwd f",
+--   Inputs => { "f" },
+--   Outputs => {{"a presentation of the target of ",TT "f", " as a module over the source"},{"the matrix of generators of the target of ",TT "f"," as a module over the source"},{"a map that assigns to each element of the target of ", TT "f"," its representation as an element of the pushed forward module"}},
+--   EXAMPLE lines ///
+--   kk = QQ
+--   S = kk[a..d]
+--   I = monomialCurveIdeal(S, {1,3,4})
+--   R = S/I
+--   A = kk[a,d]
+--   use R
+--   F = map(R,A)
+--   (M,g,pf) = pushFwd F;
+--   M
+--   g
+--   pf(a*b - c^2)
+--   ///,
+--   Caveat => {TEX "In a previous version of this package, the third output was a function which assigned to each element of the target of ", TT "f", " its representation as an element of a free module 
+--       which surjected onto the pushed forward module."}
+--   }
 
-document{
-  Key => (pushFwd,RingMap,Module),
-  Headline => "push forward of a module",
-  Usage => "pushFwd(f,N)",
-  Inputs => { "f", "N" },
-  Outputs => {{"a presentation of ",TT "N", " as a module over the source of ",TT "f"}},
-  TEX "Given a (not necessarily finite) ring map $f:A \\rightarrow{} B$ and a $B$-module $N$ which is finite over $A$, the function returns a presentation of $N$ as an $A$-module.",
-  PARA{},
-  EXAMPLE lines ///
-  kk = QQ
-  A = kk[t]
-  B = kk[x,y]/(x*y)
-  use B
-  i = ideal(x)
-  f = map(B,A,{x})
-  pushFwd(f,module i)
-  ///
-  }
+-- document{
+--   Key => (pushFwd,RingMap,Module),
+--   Headline => "push forward of a module",
+--   Usage => "pushFwd(f,N)",
+--   Inputs => { "f", "N" },
+--   Outputs => {{"a presentation of ",TT "N", " as a module over the source of ",TT "f"}},
+--   TEX "Given a (not necessarily finite) ring map $f:A \\rightarrow{} B$ and a $B$-module $N$ which is finite over $A$, the function returns a presentation of $N$ as an $A$-module.",
+--   PARA{},
+--   EXAMPLE lines ///
+--   kk = QQ
+--   A = kk[t]
+--   B = kk[x,y]/(x*y)
+--   use B
+--   i = ideal(x)
+--   f = map(B,A,{x})
+--   pushFwd(f,module i)
+--   ///
+--   }
 
-document{
-  Key => (pushFwd,RingMap,ModuleMap),
-  Headline => "push forward of a map of modules",
-  Usage => "pushFwd(f,d)",
-  Inputs => { "f", "d" },
-  Outputs => {{"the push forward of the map d"}},
-  EXAMPLE lines ///
-  kk = QQ
-  R = kk[a,b]
-  S = kk[z,t]
-  f = map(S,R,{z^2,t^2})
-  M = S^1/ideal(z^3,t^3)
-  g = map(M,M,matrix{{z*t}})
-  p = pushFwd(f,g)
-  kerg = pushFwd(f,ker g)
-  kerp = prune ker p
-  ///
-  }
+-- document{
+--   Key => (pushFwd,RingMap,ModuleMap),
+--   Headline => "push forward of a map of modules",
+--   Usage => "pushFwd(f,d)",
+--   Inputs => { "f", "d" },
+--   Outputs => {{"the push forward of the map d"}},
+--   EXAMPLE lines ///
+--   kk = QQ
+--   R = kk[a,b]
+--   S = kk[z,t]
+--   f = map(S,R,{z^2,t^2})
+--   M = S^1/ideal(z^3,t^3)
+--   g = map(M,M,matrix{{z*t}})
+--   p = pushFwd(f,g)
+--   kerg = pushFwd(f,ker g)
+--   kerp = prune ker p
+--   ///
+--   }
 
 doc ///
 Key
@@ -283,7 +383,6 @@ Description
   This is an optional argument for the @TO pushFwd@ function. Its default value is {\tt false},
   which means that the presentation of a pushed forward module is pruned by default. If NoPrune 
   is set to {\tt true}, then the prune calls in pushFwd are turned off.
- 
  Example
   R5=QQ[a..e]
   R6=QQ[a..f]
@@ -291,8 +390,8 @@ Description
   G=map(R6,R5,{a+b+c+d+e+f,b,c,d,e})
   notpruned = pushFwd(G,M,NoPrune => true)
   pruned = pushFwd(G,M)
- 
 ///
+
 --test 0
 TEST ///
 
@@ -461,8 +560,10 @@ R = kk[x,y]/(x^2-y^3-y^5)
 R' = integralClosure R
 pr = pushFwd map(R',R)
 pf = last pr;
+pr_0
 pf w_(0,0)
 target oo == pr_0
+pushFwd(map(R',R), R'^1)
 ---
 A = QQ
 B = QQ[x]/(x^2)
@@ -573,4 +674,17 @@ pushForward(inc, A^1)
 -- Case 1. 
 -- ring map is f : A --> B = A[xs]/I, A is a polynomial ring, quotient field, basic field.
 
+///
+
+///
+    Key
+    Headline
+    Usage
+    Inputs
+    Outputs
+    Description
+        Text
+        Example
+    Caveat
+    SeeAlso
 ///
