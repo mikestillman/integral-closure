@@ -547,37 +547,6 @@ pN = pushFwd(f,N)
 assert(isFreeModule pN)
 assert(numgens pN == 3) 
 ///
-end--
-
-restart
-uninstallPackage"PushForward"
-installPackage"PushForward"
-x = symbol x;y= symbol y;
-check PushForward
-viewHelp PushForward
-kk = QQ
-R = kk[x,y]/(x^2-y^3-y^5)
-R' = integralClosure R
-pr = pushFwd map(R',R)
-pf = last pr;
-pr_0
-pf w_(0,0)
-target oo == pr_0
-pushFwd(map(R',R), R'^1)
----
-A = QQ
-B = QQ[x]/(x^2)
-N = B^1 ++ (B^1/(x))
-f = map(B,A)
-pushFwd(f,N)
-pushFwd f
-
--- example bug -----------------------------------
--- DE + MES
-
-///
-restart
-///
 TEST///
 debug needsPackage "PushForward"
 kk = ZZ/101
@@ -597,6 +566,65 @@ f = map(C,B)
 g = map(C,B,{t})
 assert(isInclusionOfCoefficientRing f)
 assert(isInclusionOfCoefficientRing g)
+///
+TEST///
+  debug  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  A = kk[s,t]
+  L = A[symbol b, symbol c, Join => false]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
+  isHomogeneous L
+  describe L
+  basis L
+  inc = map(L, A)
+  assert isInclusionOfCoefficientRing inc
+  assert isFiniteOverCoefficientRing L
+  (M,B,pf) = pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
+  assert( B*presentation M  == 0)
+  assert(numcols B == 5)
+///
+TEST///
+kk = QQ
+A = kk[x]
+pushFwd map(R,A)
+R = A[y, Join=> false]/(y^7-x^3-x^2)
+(M,B,pf) = pushFwd map(R,A)
+assert(isFreeModule M and rank M == 7)
+assert(B == basis R)
+assert( pf(y+x)- matrix {{x}, {1}, {0}, {0}, {0}, {0}, {0}} == 0)
+R' = integralClosure R
+(M,B,pf) = pushFwd map(R',R)
+use R
+assert(M == cokernel(map(R^{{0}, {-3}},R^{{-6}, {-4}},{{-x^2-x,y^4}, {y^3,-x}})))
+assert(pf w_(2,0) - matrix {{0}, {1}} == 0)
+///
+
+end--
+
+restart
+uninstallPackage"PushForward"
+installPackage"PushForward"
+x = symbol x;y= symbol y;
+check PushForward
+viewHelp PushForward
+
+
+
+target oo == pr_0
+pushFwd(map(R',R), R'^1)
+---
+A = QQ
+B = QQ[x]/(x^2)
+N = B^1 ++ (B^1/(x))
+f = map(B,A)
+pushFwd(f,N)
+pushFwd f
+
+-- example bug -----------------------------------
+-- DE + MES
+
+///
+restart
 ///
 
 TEST ///      
@@ -630,19 +658,6 @@ TEST ///
   --  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
 
   -- FIX THIS: should not create a graph ring.
-  restart
-  debug  needsPackage "PushForward"
-  s = symbol s; t = symbol t  
-  kk = ZZ/101
-  A = kk[s,t]
-  L = A[symbol b, symbol c]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
-  describe L
-  basis L
-  inc = map(L, A)
-  assert isInclusionOfCoefficientRing inc
-  assert isFiniteOverCoefficientRing L
-  pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
-
   -- FIX ME?
   restart
   debug needsPackage "PushForward"
