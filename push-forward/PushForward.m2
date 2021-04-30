@@ -1,7 +1,7 @@
 newPackage(
         "PushForward",
-        Version => "0.1",
-        Date => "November 1, 2015",
+        Version => "0.5",
+        Date => "April 30, 2021",
         Authors => {{Name => "Claudiu Raicu", 
                   Email => "craicu@nd.edu", 
                   HomePage => "http://www3.nd.edu/~craicu"}},
@@ -16,6 +16,9 @@ export {"pushFwd", "NoPrune"}
 
 pushFwd=method(Options => {NoPrune => false})
 pushFwd(RingMap):=o->(f)->
+--pfB is B^1 as an A-module
+--matB is the set of monomials in B that form a set of generators as an A-module
+--mapf takes as arg an element of B, and returns ??
 (
      A:=source f;
      B:=target f;
@@ -237,28 +240,29 @@ doc ///
     Inputs
         f:RingMap
     Outputs
-        :Sequence
-            (1) a presentation of the target of $f$ as a module over
-            the source, (2) the matrix of generators of the target of
-            $f$ as a module over the source, and (3) a map that
-            assigns to each element of the target of $f$ its
-            representation as an element of the pushed forward module
+        :Sequence 
+	 If $f: A -> B$ then the function returns
+            (1) B^1 as a module over A
+            (2) a 1-row matrix of elements of B whose entries generate B as A-module.
+            (3) a function that
+            assigns to each element B its
+            representation as an element of the A-module B^1.
     Description
         Text
-            Given a ring map $f : A \to R$, $R$ can be considered as a module over $A$.
+            Given a ring map $f : A \to B$, $B$ can be considered as a module over $A$.
             If this module is finite, this method returns this module.  And some other stuff...  Write this!
         Example
             kk = QQ;
             S = kk[a..d];
             I = monomialCurveIdeal(S, {1,3,4})
-            R = S/I
+            B = S/I
             A = kk[a,d];
-            use R
-            F = map(R,A)
-            (M,g,pf) = pushFwd F;
+            f = map(R,A)
+            (M,g,pf) = pushFwd f;
             M
             g
-            pf(a*b - c^2)
+            use B
+	    pf(a*b - c^2)
     Caveat
     SeeAlso
 ///
