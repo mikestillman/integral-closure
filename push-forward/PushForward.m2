@@ -23,7 +23,6 @@ pushFwd(RingMap):=o->(f)->
      deglenB:=degreeLength B;
      psh:= pushAuxHgs f;
      matB:=psh_0;
---     mapfaux:=psh_7;
      mapfaux:=psh_1;     
      local ke;
      local freeA;
@@ -64,14 +63,6 @@ pushFwd(RingMap,ModuleMap):=o->(f,d)->
    
      psh:=pushAuxHgs g;
      matB:=psh_0;
-
---     k:=psh_1;
---    R:=psh_2;
---     I:=psh_3;
---     mat:=psh_4;
---     n:=psh_5;
---     varsA:=psh_6;
---     mapf:=psh_7;
      mapf:=psh_1;     
           
      pushM:=makeModule(M,g,matB);
@@ -94,6 +85,38 @@ pushFwd(RingMap,ModuleMap):=o->(f,d)->
           if (o.NoPrune == false) then prune map(pushN,pushM,matrix matMap) else map(pushN,pushM,matrix matMap)
      )
 
+pushFwd Ring := Sequence => opts -> (R) -> (
+    -- TODO: stash the matB, pf?  Make accessor functions to go to/from gens of R over A, or M to M_A.
+    pushFwd map(R, coefficientRing R)
+    )
+
+pushFwd Module := Module => opts -> (M) -> (
+    -- TODO
+    )
+
+pushFwd ModuleMap := ModuleMap => opts -> (M) -> (
+    -- TODO
+    )
+
+-- TODO: given: M = pushFwd N, get the maps from N --> M (i.e. stash it somewhere).
+--   also, we want the map going backwards too: given an element of M, lift it to N.
+
+
+-- makeModule
+-- internal function which implements the push forward of a module.
+-- input: 
+--   N     : Module, a module over B
+--   f     : RingMap, A --> B
+--   matB  : matrix over B, with one row, whose entries form a basis for B over A.
+--           in fact, it can be any desired subset of A-generators of B, as well.
+-- output:
+--   the module N as an A-module.
+-- notes:
+--   if A is a field, this should be easier?
+--   the map mp is basically
+--     A^k --> auxN (over B)
+--   and its kernel are the A-relations of the elements auxN
+
 makeModule=method()
 makeModule(Module,RingMap,Matrix):=(N,f,matB)->
 (
@@ -105,31 +128,35 @@ makeModule(Module,RingMap,Matrix):=(N,f,matB)->
      (super ke)/ke
      )
 
+-- what if B is an algebra over A (i.e. A is the coefficient ring of B)
+-*
+    TODO.
+    g = gens gb ideal L
+    m = lift(matB, ring g)
+    coker last coefficients(g, Monomials => m)
+*-
+
 pushAuxHgs=method()
 pushAuxHgs(RingMap):=(f)-> (
 
+    A:=source f;
+    B:=target f;
+
+    matB := null;
+    mapf := null;
+    
      if isInclusionOfCoefficientRing f then (
      --case when the source of f is the coefficient ring of the target:
      <<"in the coeff ring case"<<endl;	 
 	 if not isFiniteOverCoefficientRing target f then error"expected a finite map";
-    	 A := source f;
-	 B := target f;
-	 matB := basis B;
---         mat:=lift(basis(R/(r+ideal(xvars))),R);
---         k:=numgens source mat;
---         matB:=sub(mat,matrix{varsB|toList(m:0_B)});
---         phi:=map(R,B,matrix{yvars});
---         toA:=map(A,R,flatten{n:0_A,varsA});
-             
-         mapf:=(b)->(
-             (mons,cfs):=coefficients(b,Monomials=>matB);
+	 matB = basis B;
+         mapf = (b)->(
+             (mons,cfs) := coefficients(b,Monomials=>matB);
 	     lift(cfs, A)
-	  );
+	     );
          return(matB,mapf)
 	 );
 
-     A:=source f;
-     B:=target f;
      pols:=f.matrix;
           
      FlatA:=flattenRing A;
@@ -163,11 +190,11 @@ pushAuxHgs(RingMap):=(f)-> (
 
      mat:=lift(basis(R/(r+ideal(xvars))),R);
      k:=numgens source mat;
-     matB:=sub(mat,matrix{varsB|toList(m:0_B)});
-assert(k == numcols matB);
+     matB = sub(mat,matrix{varsB|toList(m:0_B)});
+     assert(k == numcols matB);
      phi:=map(R,B,matrix{yvars});
      toA:=map(A,R,flatten{n:0_A,varsA});
-     mapf:=(b)->(
+     mapf = (b)->(
 	  (mons,cfs):=coefficients((phi b)%I,Monomials=>mat,Variables=>yvars);
 	  toA cfs	  
 	  );
@@ -547,31 +574,40 @@ pN = pushFwd(f,N)
 assert(isFreeModule pN)
 assert(numgens pN == 3) 
 ///
-TEST///
-debug needsPackage "PushForward"
-kk = ZZ/101
-A = kk[s]
-B = A[t]
-C = B[u]
-f = map(C,B)
-g = map(C,B,{t})
-assert(isInclusionOfCoefficientRing f)
-assert(isInclusionOfCoefficientRing g)
 
-kk = ZZ/101
-A = frac (kk[s])
-B = A[t]
-C = B[u]
-f = map(C,B)
-g = map(C,B,{t})
-assert(isInclusionOfCoefficientRing f)
-assert(isInclusionOfCoefficientRing g)
-///
 TEST///
+-*
+  restart
+*-
+  debug needsPackage "PushForward"
+  kk = ZZ/101
+  A = kk[s]
+  B = A[t]
+  C = B[u]
+  f = map(C,B)
+  g = map(C,B,{t})
+  assert(isInclusionOfCoefficientRing f)
+  assert(isInclusionOfCoefficientRing g)
+
+  kk = ZZ/101
+  A = frac (kk[s])
+  B = A[t]
+  C = B[u]
+  f = map(C,B)
+  g = map(C,B,{t})
+  assert(isInclusionOfCoefficientRing f)
+  assert(isInclusionOfCoefficientRing g)
+///
+
+TEST///
+-*
+  restart
+*-
   debug  needsPackage "PushForward"
   s = symbol s; t = symbol t  
   kk = ZZ/101
   A = kk[s,t]
+  -- note: this ideal is NOT the rational quartic, and in fact has an annihilator over A.
   L = A[symbol b, symbol c, Join => false]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
   isHomogeneous L
   describe L
@@ -583,26 +619,69 @@ TEST///
   assert( B*presentation M  == 0)
   assert(numcols B == 5)
 ///
+
 TEST///
-kk = QQ
-A = kk[x]
-pushFwd map(R,A)
-R = A[y, Join=> false]/(y^7-x^3-x^2)
-(M,B,pf) = pushFwd map(R,A)
-assert(isFreeModule M and rank M == 7)
-assert(B == basis R)
-assert( pf(y+x)- matrix {{x}, {1}, {0}, {0}, {0}, {0}, {0}} == 0)
-R' = integralClosure R
-(M,B,pf) = pushFwd map(R',R)
-use R
-assert(M == cokernel(map(R^{{0}, {-3}},R^{{-6}, {-4}},{{-x^2-x,y^4}, {y^3,-x}})))
-assert(pf w_(2,0) - matrix {{0}, {1}} == 0)
+-*
+  restart
+*-
+  debug  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  A = kk[s,t]
+  L = A[symbol b, symbol c, Join => false]/(b*c-s*t,c^3-b*t^2,s*c^2-b^2*t,b^3-s^2*c)
+  isHomogeneous L
+  describe L
+  basis L
+  inc = map(L, A)
+  assert isInclusionOfCoefficientRing inc
+  assert isFiniteOverCoefficientRing L
+  (M,B,pf) = pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
+  assert( B*presentation M  == 0)
+  assert(numcols B == 5)
+///
+
+TEST///
+-*
+  restart
+*-
+  debug  needsPackage "PushForward"
+  s = symbol s; t = symbol t  
+  kk = ZZ/101
+  L = kk[s, symbol b, symbol c, t]/(b*c-s*t, t*b^2-s*c^2, b^3-s*c^2, c^3 - t*b^2)
+  A = kk[s,t]
+  isHomogeneous L
+  inc = map(L, A)
+  (M,B,pf) = pushFwd inc
+  assert( B * inc presentation M  == 0)
+  assert(numcols B == 5)
+  pushForward(inc, L^1)
+///
+
+TEST///
+-*
+  restart
+  needsPackage "PushForward"
+*-
+  kk = QQ
+  A = kk[x]
+  R = A[y, Join=> false]/(y^7-x^3-x^2)
+  pushFwd map(R,A)
+  (M,B,pf) = pushFwd map(R,A)
+  assert(isFreeModule M and rank M == 7)
+  assert(B == basis R)
+  assert( pf(y+x)- matrix {{x}, {1}, {0}, {0}, {0}, {0}, {0}} == 0)
+  R' = integralClosure R
+  (M,B,pf) = pushFwd map(R',R)
+  use R
+  assert(M == cokernel(map(R^{{0}, {-3}},R^{{-6}, {-4}},{{-x^2-x,y^4}, {y^3,-x}})))
+  assert(pf w_(2,0) - matrix {{0}, {1}} == 0)
 ///
 
 end--
 
 restart
 uninstallPackage"PushForward"
+restart
 installPackage"PushForward"
 x = symbol x;y= symbol y;
 check PushForward
@@ -624,7 +703,28 @@ pushFwd f
 -- DE + MES
 
 ///
-restart
+  restart
+  needsPackage "PushForward"
+  
+
+  -- This one works
+  kk = ZZ/101
+  A = kk[s,t]
+  C = A[x,y,z]/(x^2, y^2, z^2)
+  phi = map(C,A)
+  f = map(C^1, A^4, phi, {{x,s*y,t*y, z}})
+  ker f
+
+  -- This one fails, degrees are screwed up.
+  kk = ZZ/101
+  A = kk[s,t]
+  B = frac A
+  C = B[x,y,z]/(x^2, y^2, z^2)
+  phi = map(C,B)
+  f = map(C^1, B^3, phi, {{x,s*y,z}})
+  ker f
+  
+
 ///
 
 TEST ///      
