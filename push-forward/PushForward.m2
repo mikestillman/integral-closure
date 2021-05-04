@@ -12,7 +12,14 @@ newPackage(
         
 --note, this version has a slight change added by Karl Schwede.  It has an option to turn off the prune calls.
 
-export {"pushFwd", "NoPrune"}
+export {
+    "pushFwd", 
+    "NoPrune"
+    }
+
+isFinite RingMap := Boolean => f -> (
+    -- TODO.  Also, should the name change?
+    )
 
 pushFwd=method(Options => {NoPrune => false})
 pushFwd(RingMap):=o->(f)->
@@ -35,7 +42,6 @@ pushFwd(RingMap):=o->(f)->
      mapf := (b) -> g*(mapfaux b); 
      pfB,matB,mapf
      )
-
 
 pushFwd(RingMap,Module):=o->(f,N)->
 (
@@ -241,13 +247,15 @@ doc ///
         f:RingMap
     Outputs
         :Sequence 
-	 If $f: A -> B$ then the function returns
-            (1) B^1 as a module over A
-            (2) a 1-row matrix of elements of B whose entries generate B as A-module.
-            (3) a function that
-            assigns to each element B its
-            representation as an element of the A-module B^1.
     Description
+        Text
+            If $f: A -> B$ is a ring map, and $B$ is finitely generated as an $A$-module,
+            then the function returns
+            (1) $M \cong B^1$ as $A$-modules,
+            (2) a 1-row matrix of elements of B whose entries generate B as A-module,
+            (3) a function that
+            assigns to each element $b \in B$, a matrix $A^1 \to M$,
+            where the image of 1 is the element $b \in M$.
         Text
             Given a ring map $f : A \to B$, $B$ can be considered as a module over $A$.
             If this module is finite, this method returns this module.  And some other stuff...  Write this!
