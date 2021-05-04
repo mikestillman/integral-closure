@@ -45,19 +45,7 @@ monomialsInDegree = (d, R, type) -> (
 orbitRepresentatives = method(Options=>{MonomialType => "All"})
 
 orbitRepresentatives(Ring, VisibleList) := List => o -> (R, degs) -> (
-    G := permutations R;
-    result := {monomialIdeal 0_R};
-    rawMonsMat := matrix{{}};
-    mons := {};
-    for d in degs do (
-        rawMonsMat = if o.MonomialType === "SquareFree" then squareFree(d,R)
-                     else basis(d,R);
-        mons = flatten entries sort(rawMonsMat, 
-                     DegreeOrder => Ascending, MonomialOrder => Descending);
-        result = normalForms(sumMonomials(result, mons), G)
-        );
-    result
-    )
+    orbitRepresentatives(R,monomialIdeal 0_R, degs, o))
 
 orbitRepresentatives(Ring, MonomialIdeal, VisibleList) := List => o -> (R, I, degs) -> (
     G := permutations R;
@@ -70,6 +58,17 @@ orbitRepresentatives(Ring, MonomialIdeal, VisibleList) := List => o -> (R, I, de
                      DegreeOrder => Ascending, MonomialOrder => Descending);
         result = normalForms(sumMonomials(result, mons), G)
         );
+    result
+    )
+
+orbitRepresentatives(Ring, MonomialIdeal, Ideal ,ZZ) := List => o -> (R, I, startmons, numelts) -> (
+    G := permutations R;
+    result := {I};
+    mons := flatten entries sort(gens startmons,
+                    DegreeOrder => Ascending, MonomialOrder => Descending);
+    apply(numelts, i-> (
+        result = normalForms(sumMonomials(result, mons), G)
+        ));
     result
     )
 
@@ -362,7 +361,8 @@ TEST///
   I = monomialIdeal"a3,b3,c3"
   assert(#orbitRepresentatives(S,{3,3,3}) == 25)
   assert(#orbitRepresentatives(S,I,{3}) == 2)
-
+  assert(#orbitRepresentatives(S,monomialIdeal 0_S, (ideal vars S)^3, 3) == 25)
+  assert(#orbitRepresentatives(S,I, (ideal vars S)^3, 1) == 2)
   R = ZZ/101[a..f]
   assert(
       orbitRepresentatives(R,{4,5}, MonomialType => "SquareFree") 
