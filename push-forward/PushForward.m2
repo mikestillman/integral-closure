@@ -2,9 +2,17 @@ newPackage(
         "PushForward",
         Version => "0.5",
         Date => "April 30, 2021",
-        Authors => {{Name => "Claudiu Raicu", 
-                  Email => "craicu@nd.edu", 
-                  HomePage => "http://www3.nd.edu/~craicu"}},
+        Authors => {
+            {Name => "Claudiu Raicu", 
+                Email => "craicu@nd.edu", 
+                HomePage => "http://www3.nd.edu/~craicu"},
+            {Name => "David Eisenbud", 
+                Email => "de@msri.org", 
+                HomePage => "http://www.msri.org/~de"},
+            {Name => "Mike Stillman", 
+                Email => "mike@math.cornell.edu", 
+                HomePage => "http://pi.math.cornell.edu/~mike"}
+            },
         Headline => "push forwards of finite ring maps",
 	Keywords => {"Commutative Algebra"},
         DebuggingMode => true
@@ -229,12 +237,31 @@ isFiniteOverCoefficientRing Ring := Boolean => R -> (
     
 beginDocumentation()
 
-document{
-  Key => PushForward,
-  Headline => "pushforward functor for finite ring maps",
-  EM "PushForward", " is a package that implements the pushforward functor for finite ring maps",
-  Caveat => "Works only for maps of rings finitely generated over a base field "
-  }
+doc ///
+    Key
+        PushForward
+    Headline
+        methods to compute the pushforward of a module along a ring map
+    Description
+        Text
+            Given a ring map $f \colon A \to B$, and a $B$-module $M$,
+            $M$ has the structure of an $A$-module, and if this module is
+            finitely generated over $A$, the routine @TO pushFwd@ in this package
+            will compute such an $A$-module.  This is also functorial, in that if a 
+            map of $B$-modules (both of which are finitely generated over $A$), then
+            @TO (pushFwd, RingMap, ModuleMap)@ will return the induced map
+            on $A$-modules.
+            
+            In an algebraic sense, this is really a pull back, but thinking geometrically,
+            the functions here implement the push forward of a module (or sheaf).
+            
+            This package was originally implemented by Claudiu Raicu, some changes were
+            introduced by Karl Schwede, and later by David Eisenbud and Mike Stillman.
+    Subnodes
+        (pushFwd, RingMap)
+        (pushFwd, RingMap, Module)
+        (pushFwd, RingMap, ModuleMap)
+///
 
 doc ///
     Key
@@ -265,7 +292,7 @@ doc ///
             I = monomialCurveIdeal(S, {1,3,4})
             B = S/I
             A = kk[a,d];
-            f = map(R,A)
+            f = map(B,A)
             (M,g,pf) = pushFwd f;
             M
             g
@@ -284,15 +311,17 @@ doc ///
         N = pushFwd(f, M)
     Inputs
         f:RingMap
-            from a ring $A$ to a ring $R$
+            from a ring $A$ to a ring $B$
         M:Module
-            an $R$-module, which via $f$ is a finite $A$-module
+            a $B$-module, which via $f$ is a finite $A$-module
     Outputs
         N:Module
     Description
         Text
-            Given a (not necessarily finite) ring map $f : A \to R$, the $R$-module $M$ can be considered as a module over $A$.
-            If $M$ is finite, this method returns the corresponding $A$-module.
+            Given a (not necessarily finite) ring map $f : A \to B$,
+            the $B$-module $M$ can be considered as a module over $A$.
+            If $M$ is finite, this method returns the corresponding
+            $A$-module.
         Example
             kk = QQ;
             A = kk[t];
@@ -301,7 +330,6 @@ doc ///
             i = ideal(x)
             f = map(B,A,{x})
             pushFwd(f,module i)
-    Caveat
     SeeAlso
 ///
 
@@ -314,9 +342,9 @@ doc ///
         gA = pushFwd(f, g)
     Inputs
         f:RingMap
-            from a ring $A$ to a ring $R$
+            from a ring $A$ to a ring $B$
         g:ModuleMap
-            (a matrix), $g : M_1 \to M_2$ of modules over $R$
+            (a matrix), $g : M_1 \to M_2$ of modules over $B$
     Outputs
         gA:ModuleMap
     Description
@@ -325,17 +353,16 @@ doc ///
             on $A$-modules.
         Example
             kk = QQ
-            R = kk[a,b]
-            S = kk[z,t]
-            f = map(S,R,{z^2,t^2})
-            M = S^1/ideal(z^3,t^3)
+            A = kk[a,b]
+            B = kk[z,t]
+            f = map(B,A,{z^2,t^2})
+            M = B^1/ideal(z^3,t^3)
             g = map(M,M,matrix{{z*t}})
             p = pushFwd(f,g)
             source p == pushFwd(f, source g)
             target p == pushFwd(f, target g)
             kerg = pushFwd(f,ker g)
             kerp = prune ker p
-    Caveat
     SeeAlso
 ///
 
