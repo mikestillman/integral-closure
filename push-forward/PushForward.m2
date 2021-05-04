@@ -51,6 +51,11 @@ pushFwd(RingMap):=o->(f)->
      pfB,matB,mapf
      )
 
+pushFwd(Ring):= Sequence => o-> B -> pushFwd(map(B, coefficientRing B), o)
+pushFwd(Module):= Module => o-> M -> pushFwd(map(ring M, coefficientRing ring M), M, o)
+pushFwd(ModuleMap):= ModuleMap => o-> d  ->pushFwd(map(ring d, coefficientRing ring d), d, o)
+
+
 pushFwd(RingMap,Module):=o->(f,N)->
 (
      B:=target f;
@@ -102,19 +107,8 @@ pushFwd(RingMap,ModuleMap):=o->(f,d)->
           if (o.NoPrune == false) then prune map(pushN,pushM,matrix matMap) else map(pushN,pushM,matrix matMap)
      )
 
-pushFwd Ring := Sequence => opts -> (R) -> (
-    -- TODO: stash the matB, pf?  Make accessor functions to go to/from gens of R over A, or M to M_A.
-    pushFwd map(R, coefficientRing R)
-    )
 
-pushFwd Module := Module => opts -> (M) -> (
-    -- TODO
-    )
-
-pushFwd ModuleMap := ModuleMap => opts -> (M) -> (
-    -- TODO
-    )
-
+-- TODO: stash the matB, pf?  Make accessor functions to go to/from gens of R over A, or M to M_A.
 -- TODO: given: M = pushFwd N, get the maps from N --> M (i.e. stash it somewhere).
 --   also, we want the map going backwards too: given an element of M, lift it to N.
 
@@ -164,7 +158,6 @@ pushAuxHgs(RingMap):=(f)-> (
     
      if isInclusionOfCoefficientRing f then (
      --case when the source of f is the coefficient ring of the target:
-     <<"in the coeff ring case"<<endl;	 
 	 if not isFiniteOverCoefficientRing target f then error"expected a finite map";
 	 matB = basis B;
          mapf = (b)->(
@@ -266,17 +259,20 @@ doc ///
 doc ///
     Key
         (pushFwd, RingMap)
+	(pushFwd, Ring)
     Headline
         push forward of a finite ring map
     Usage
         pushFwd f
+        pushFwd B	
     Inputs
         f:RingMap
+	    or a ring B, and the map is taken to be the natural map from coefficientRing B
     Outputs
         :Sequence 
     Description
         Text
-            If $f: A -> B$ is a ring map, and $B$ is finitely generated as an $A$-module,
+            If $f: A \to B$ is a ring map, and $B$ is finitely generated as an $A$-module,
             then the function returns
             (1) $M \cong B^1$ as $A$-modules,
             (2) a 1-row matrix of elements of B whose entries generate B as A-module,
@@ -305,13 +301,16 @@ doc ///
 doc ///
     Key
         (pushFwd, RingMap, Module)
+	(pushFwd, Module)
     Headline
         push forward of a module via a finite ring map
     Usage
         N = pushFwd(f, M)
+	N = pushFwd M
     Inputs
         f:RingMap
             from a ring $A$ to a ring $B$
+	 	    or the natural map from coefficientRing B if f not specified
         M:Module
             a $B$-module, which via $f$ is a finite $A$-module
     Outputs
@@ -336,13 +335,16 @@ doc ///
 doc ///
     Key
         (pushFwd, RingMap, ModuleMap)
+        (pushFwd, ModuleMap)	
     Headline
         push forward of a module map via a finite ring map
     Usage
         gA = pushFwd(f, g)
+        gA = pushFwd g
     Inputs
         f:RingMap
             from a ring $A$ to a ring $B$
+    	 	 or the natural map from A = coefficientRing ring g if f is not specified
         g:ModuleMap
             (a matrix), $g : M_1 \to M_2$ of modules over $B$
     Outputs
@@ -704,8 +706,11 @@ TEST///
   kk = QQ
   A = kk[x]
   R = A[y, Join=> false]/(y^7-x^3-x^2)
-  pushFwd map(R,A)
   (M,B,pf) = pushFwd map(R,A)
+  (M1,B1,pf1) = pushFwd R
+  assert(pushFwd(R^3) == pushFwd(map(R,A), R^3))
+  assert((M1,B1) == (M,B))
+  assert(pushFwd matrix{{y}} == pushFwd(map(R,A),matrix{{y}}))
   assert(isFreeModule M and rank M == 7)
   assert(B == basis R)
   assert( pf(y+x)- matrix {{x}, {1}, {0}, {0}, {0}, {0}, {0}} == 0)
