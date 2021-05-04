@@ -27,13 +27,46 @@ M0 = monomialIdeal(x^3,x^2*y^2,x*y^3,y^4,x^2*y*z,x*y^2*z,z^5)
 end--
 
 restart
+setRandomSeed 0
 load "mike-linkage.m2"
 I = generalLink M0;
 elapsedTime I = generalLink I;
 elapsedTime (J0,J) = pregeneralLink ideal(I_*);
 numgens J
 numgens J0
+
+elapsedTime K=(J0:J);
+mm = ideal vars S
+K/(mm*K);
+Kbar = oo;
+debugLevel = 3
+K1 = ideal gens trim Kbar;
+netList( K1_*)
+K1l = simplifyIdeal(K1, loc);
+
+netList K1l_*
+factor(K1l_1)
+numgens K
+res K
+
+S' = localRing(S, ideal vars S)
+K' = sub(K,S');
+numgens K'
+--elapsedTime trim K'; doesn't seem to complete
+J0' = sub(J0,S');
+J' = sub(J,S');
+elapsedTime K' = quotient(J0', J', MinimalGenerators => false);
+K'bar = K'/((max S')*K');
+elapsedTime pK' = prune K'bar;
+trim J'
+numgens J'
+
 loc = (ZZ/32003){x,y,z}
+L0 = sub(J0,loc);
+L = sub(J,loc);
+M = sub(K,loc);
+elapsedTime (L0:L);
+
 
 -- simplify an ideal I in the local ring.  Perhaps we are assuming it is finite length.
 simplifyIdeal = (I, loc) -> (
@@ -45,6 +78,16 @@ simplifyIdeal = (I, loc) -> (
     J := trim(I + ideal vs);
     Jloc := sub(J, loc);
     ideal gens gb Jloc)
+
+L = simplifyIdeal (J,loc);
+--elapsedTime(L0:L); not good: > 123 sec
+see L
+see trim L
+numgens J1
+netList J1_*
+codim J1
+gens(J1)%sub(J0,loc)
+
 P = simplifyIdeal(I, loc)
 P_0
 (P_0 - 9943*z*P_1 + 11263*z^2*P_1 + 10170*z^3*P_1)  -- this gives y*z in the ideal, therefore x*z, therefore x*y

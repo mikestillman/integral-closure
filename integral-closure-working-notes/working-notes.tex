@@ -1,0 +1,301 @@
+\documentclass{amsart}
+\usepackage{enumerate}
+\usepackage{amssymb}
+\usepackage{graphicx}
+%\usepackage{draftcopy}
+
+\usepackage[paper=letterpaper,width=7in,height=9.25in,centering]{geometry}
+
+\title{Working notes: Integral closure}
+\author{Charley Crissman and Michael Stillman}
+\date{\today}
+
+\theoremstyle{definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{algorithm}[theorem]{Algorithm}
+
+\DeclareMathOperator{\sigSym}{sig}
+\DeclareMathOperator{\lcm}{lcm}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\Hom}{Hom}
+\DeclareMathOperator{\Gal}{Gal}
+\newcommand{\mmorSym}{\phi}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\q}{\mathfrak{q}}
+\newcommand{\ra}{\rightarrow}
+\newcommand{\La}{{\mathcal{L}_p}}
+\newcommand{\s}{\ensuremath{^*}}
+\newcommand{\p}{\ensuremath{^\prime}}
+\newcommand{\pp}{\ensuremath{^{\prime\prime}}}
+\newcommand{\biimp}{\Leftrightarrow}
+\newcommand{\imp}{\Rightarrow}
+\newcommand{\impby}{\Leftarrow}
+\newcommand{\defeq}{\stackrel{\text{\tiny def}}{=}}
+\newcommand{\proj}[1]{\overline{#1}}
+\newcommand{\mbasis}[1]{\boldsymbol{e}_{#1}}
+\newcommand{\sig}[1]{\sigSym\left({#1}\right)}
+\newcommand{\origBasis}{\mathcal G}
+\newcommand{\extendBasis}[1]{\origBasis_{#1}}
+\newcommand{\mmor}[1]{\mmorSym\left({#1}\right)}
+\newcommand{\Rone}{(\text{R}_1)}
+\newcommand{\Stwo}{(\text{S}_2)}
+
+\newcommand{\set}[1]{\left\{{#1}\right\}}
+\newcommand{\setBuilder}[2]{\left\{{#1}\left|{#2}\right.\right\}}
+\newcommand{\setBuilderBarLeft}[2]{\left\{\left.{#1}\right|{#2}\right\}}
+\newcommand{\idealBuilder}[2]{\left\langle#1\left|#2\right.\right\rangle}
+\newcommand{\idealBuilderBarLeft}[2]{\left\langle\left.#1\right|#2\right\rangle}
+\newcommand{\ideal}[1]{\left\langle{#1}\right\rangle}
+\newcommand{\hd}[1]{\text{in}(#1)}
+\newcommand{\hdp}[1]{\hd{\proj{#1}}}
+\newcommand{\card}[1]{\left|#1\right|}
+\newcommand{\spair}[2]{\mathcal{S}({#1},{#2})}
+
+\newcommand{\grobner}{Gr\"obner}
+\newcommand{\galg}{signature Buchberger algorithm}
+\newcommand{\varProd}{\mathbbm{x}}
+
+\newcommand{\proofPart}[1]{{\bf $\boldsymbol{#1}$:}}
+\newcommand{\proofSubPart}[1]{{\underline{${#1}$:}}}
+\newcommand{\proofCase}[1]{\proofPart{\text{The case }#1}}
+
+\begin{document}
+
+\maketitle
+\setcounter{tocdepth}{1}
+\tableofcontents
+
+%notational conventions: S = Noeth ring we want to Normalize
+%                        R = Noether normalization of S
+%                        A = arbitrary Noetherian ring (i.e. used in proofs where the ring is not thought of as S or R)
+
+\section{Introduction}
+Suppose that $S$ is a Noetherian ring whose integral closure $\overline{S}$ is module-finite over $S$.  We wish to compute the integral closure $\overline{S}$.  A basic algorithm for doing so is as follows:
+
+\begin{algorithm}\label{alg:basic}
+\begin{enumerate}
+\item Choose a nonzero element $d$ in the conductor of $S$.
+\item Compute the radical $\sqrt{dS}$.
+\item Compute $S' = \Hom(\sqrt{dS},\sqrt{dS})$.  If $S' = S$, we are done.  Otherwise, replace $S$ by $S'$ and repeat the computation, varying $d$ if desired. 
+\end{enumerate}
+\end{algorithm}
+
+A simple way to see correctness of this algorithm is the following lemma:
+\begin{lemma}\label{lemma:conductor}
+Let $A$ be a Noetherian ring, suppose that $I$ is an ideal in the conductor of $A$, and let $J=\sqrt{I}$.  Then $\Hom(J,J) \subseteq A$ if and only if $A$ is integrally closed.
+\end{lemma}
+\begin{proof}
+One direction is obvious: elements of $\Hom(J,J)$ are integral over $A$ by the Cayley-Hamilton theorem, so if $A$ is integrally closed, then $\Hom(J,J) \subseteq A$.\\
+On the other hand, suppose that $\Hom(J,J) \subseteq A$.  We are given that $J^n$ is in the conductor of $A$ for some $n$, i.e. $J^n \bar{A} \subseteq A$ for some $n$.  Choose $n$ minimal with this property, and suppose that $n > 0$.  Then $(J^n\bar{A})^2 \subseteq J \cdot (J^n\bar{A}) \subseteq J$.  Since $J$ is radical, it follows that $J^n\bar{A} \subseteq J$.  But then $J^{n-1}\bar{A} \subseteq \Hom(J,J) = A$, contradicting the minimality of $n$.  Thus $n=0$, i.e. $\bar{A}\subseteq A$, so $A$ is integrally closed.
+\end{proof}
+
+\begin{corollary}\label{cor:stable}
+If $S$ is as in Algorithm \ref{alg:basic} and $P$ is a prime of $S$ such that $S_P$ is a discrete valuation ring, then $\overline{S}_P = S_P$.
+\end{corollary}
+\begin{proof}
+For any nonzero ideal $I$ of $S$, we have $\Hom(I,I)_P = \Hom(I_P,I_P) = S_P$ since $S_P$ is integrally closed.  Hence $S_P = S'_P$ after each iteration of the algorithm, so $\overline{S}_P = S_P$.
+\end{proof}
+
+In Sections \ref{sec:trrad} and \ref{sec:hom}, we concentrate on the case when a Noether normalization $R$ of $S$ is known; in general, finding such a Noether normalization may be prohibitively expensive.  Although a Noether normalization is not necessary for the algorithm, having one allows many optimizations that greatly increase the performance of the algorithm.  For example, in Section \ref{sec:trrad}, we will see that having a Noether normalization allows us to compute $\sqrt{dS}$ much more efficiently, provided that $d\in R$.
+
+In Section \ref{sec:hom} we will also show that Algorithm \ref{alg:basic} can be refined as follows:
+\begin{algorithm}\label{alg:factored}
+In Algorithm \ref{alg:basic}, suppose that $d = f_1\ldots f_n$ is a factorization of $d$ such that no $f_i$ is a zerodivisor mod $f_j$.  For each $i$ from $1$ to $n$, run Algorithm \ref{alg:basic} (until termination) with $d=f_i$, replacing $S$ by the result each time.  Then the final value of $S$ is the desired integral closure.
+\end{algorithm}
+
+\section{The trace form and the trace radical}\label{sec:trrad}
+Let $R$ be an integrally closed domain with field of fractions $K$, let $L$ be a finite extension of $K$, let $S \subseteq L$ be an integral extension of $R$, and let $\q\leq R$ be a radical ideal.  We wish to compute the radical of $\q S$.  Assume moreover that the degree of $L$ over $K$ is less than the characteristic of $K$.
+
+\begin{definition}
+With notation as above, the $\q$-\emph{trace radical} in $S$ consists of all $a \in S$ such that $\tr(ab) \in \q$ for all $b\in S$.  See for example \cite{Tr} for a discussion of the trace radical when $R = k[x]$.
+\end{definition}
+
+It is easy to see that the $\q$-trace radical contains $\sqrt{\q S}$.  Indeed, the trace of any element of $\sqrt{\q S}$ must lie in $\sqrt{\q S}\cap R = \q$ (using here that $\q$ is a radical ideal).
+
+On the other hand, we claim that the $\q$-trace radical is in fact equal to $\sqrt{\q S}$.
+
+First consider the case when $\q$ is prime.  Let $a\in S$ be an element of the $\q$-trace radical.  Then in particular $\tr (a^n)\in \q$ for all $n > 0$.  Let
+$$x^n + b_1 x^{n-1} + \cdots + b_n$$
+be an integral equation for $a$ over $R$.  By \cite{AM} Prop 5.15, we have that $a\in \sqrt{\q S}$ if and only if $b_i \in \q$ for all $i$.  Newton's identities give that, at least if we take traces in $K(a)$ (where the integral equation for $a$ is the characteristic polynomial of the matrix of $a$), we have:
+$$\tr(a^k) + b_1 \tr(a^{k-1}) + \cdots + b_{k-1} \tr(a) = -kb_k.$$
+Inductively applying these formulae, we deduce that if $\tr(a^k) \in \q$ for all $k$, then each $b_i$ is in $\q$, so $a\in \sqrt{\q S}$.  Note that this uses that the degree of $L$ over $K$ is less than the characteristic of $K$ twice: first, in that we want the trace of $a^k$ over $L$ and over $K(a)$ to differ by a unit, and second, in that we want to invert $k$ in the equation above.\\
+
+The advantage of the $\q$-trace radical over $\sqrt{\q S}$ is that it is easy to compute: let $w_1, \ldots w_n$ (not the same $n$ as above) be a generating set for $S$ as an $R$-module.  It is easy to see that $r_1 w_1 + \cdots + r_n w_n$ is in the $\q$-trace radical if and only if $(\tr(w_iw_j))_{i,j} \cdot (r_1, \ldots, r_n)^t \in (\q R)^n$.  We can find all such tuples $(r_1, \ldots, r_n)$ via a Gr\"obner basis calculation.  Taking intersections, we see that this formula applies even if $\q$ is radical but not prime.
+
+\section{Hom}\label{sec:hom}
+%some introductory text here
+
+\subsection{Theory}
+
+We give some introductory results before proving the key result, Lemma \ref{lemma:hom}.
+\begin{proposition}\label{prop:inverse}
+Let $A$ be a Noetherian ring, and let $P\leq R$ be a prime ideal of depth 1.  Then $P^{-1} := \Hom(P,A) \supsetneq A$. 
+\end{proposition}
+\begin{proof}
+Let $x\in P$ be a non-zerodivisor.  If $P = (x)$, then $\frac{1}{x} \in P^{-1}\setminus A$.  Otherwise, by the assumption on the depth of $P$, $P/(x)$ consists of zerodivisors in $A/(x)$, so $P$ is contained in an associated prime of $(x)$.  Hence there is some $y \in A\setminus (x)$ such that $y\cdot P \subseteq (x)$.  Then $\frac{y}{x} \in P^{-1}\setminus A$.
+\end{proof}
+
+\begin{proposition}\label{prop:ptimespinverse}
+Let $A$ be a local Noetherian domain with maximal ideal $P$, and suppose that $A$ is not a discrete valuation ring.  Then $P\cdot P^{-1}  = P$.
+\end{proposition}
+\begin{proof}
+Let $x\in P\setminus\{0\}$ be arbitrary.  Since $P$ is not principal, we cannot have $\frac{1}{x} \in P^{-1}$, as otherwise every element of $P$ would be divisible by $x$.  Hence for any $y\in P^{-1}$, $xy$ is not a unit, so $xy\in P$.  Thus $P\cdot P^{-1} \subseteq P$.  On the other hand $A\subseteq P^{-1}$, so $P \subseteq P\cdot P^{-1}$. 
+\end{proof}
+
+\begin{corollary}\label{cor:dvr}
+Let $A$ be a local Noetherian domain with maximal ideal $P$, and suppose that $P$ has depth $1$.  Then $\Hom(P,P) = A$ if and only if $A$ is a discrete valuation ring.
+\end{corollary}
+\begin{proof}
+If $A$ is a discrete valuation ring, then $\Hom(P,P) = A$ since any element of the fraction field multiplying $P$ into $P$ must have non-negative valuation.  (Alternatively, $A$ is integrally closed and every element of $\Hom(P,P)$ is integral).\\
+
+On the other hand, if $A$ is not a discrete valuation ring, then Propositions \ref{prop:inverse} and \ref{prop:ptimespinverse} show that $A \subsetneq P^{-1} \subseteq \Hom(P,P)$.
+\end{proof}
+
+The following lemma is a slight reformulation of Lemma 6.5.2 of \cite{Va}. It is the basis for several refinements of Algorithm \ref{alg:basic}.
+\begin{lemma}\label{lemma:hom}
+Let $A$ be a Noetherian domain, let $L$ be a (nonzero) radical ideal of $A$, and let $A' = \Hom(L,L)$.  Let $P$ be a depth-1 prime of $A$ containing $L$.  Then $A_P$ is a discrete valuation ring if and only if $A'_P = A_P$.
+\end{lemma}
+\begin{proof}
+We immediately reduce to the case that $A$ is local with maximal ideal $P$.  We have to show that $A = \Hom(L,L)$ if and only if $A$ is a discrete valuation ring.  One direction is obvious: if $A$ is a discrete valuation ring, it is integrally closed, so $\Hom(L,L) = A$ for every nonzero ideal $L$ of $A$.
+
+On the other hand, suppose that $A = \Hom(L,L)$.  We claim first that $L = P$.  To see this, suppose that $L\neq P$ and let $Q$ be a minimal prime of $L$.  Then we must have $P^{-1}\cdot L \subseteq Q$.  Otherwise, localizing at $Q$, we would have $(P^{-1})_Q \cdot L_Q = A_Q$.  But $(P^{-1})_Q = \Hom(P_Q, A_Q) = \Hom(A_Q, A_Q) = A_Q$, so this is impossible.  But now, since $Q$ was an arbitrary minimal prime of $L$ and $L$ is radical, we have $P^{-1}\cdot L \subseteq L$.  Hence $P^{-1}\subseteq \Hom(L,L) = A$, contradicting our assumption that $P$ has depth 1.
+
+So, we have shown that $L = P$.  But now $A = \Hom(P,P)$, so $A$ is a discrete valuation ring by Corollary \ref{cor:dvr}.
+\end{proof}
+
+The relationship of Lemma \ref{lemma:hom} to integral closure is clarified by the observation that Serre's criterion has the following simple reformulation:
+\begin{proposition}\label{prop:serre}
+A Noetherian domain $A$ is integrally closed if and only if for each depth-1 prime $p\leq A$, $A_P$ is a discrete valuation ring.
+\end{proposition}
+\begin{proof}
+We have to show that the condition of the proposition is equivalent to Serre's $\Rone$ and $\Stwo$ conditions.  The $\Rone$ condition is a special case of the condition, since height 1 primes have depth 1.  As for the $\Stwo$ condition, let $P$ be a prime of height at least 2.  Then $P$ violates $\Stwo$ if and only if $P$ has depth 1, in which case $A_P$ certainly cannot be a d.v.r., since it has dimension at least $2$.
+\end{proof}
+
+We also need the following, which is Proposition 6.4.2 of \cite{Va}.
+\begin{proposition}\label{prop:s2}
+Let $A$ be a Noetherian domain satisfying $\Stwo$, and let $L$ be an unmixed ideal of codimension 1.  Then $\Hom(L,L)$ satisfies $\Stwo$.
+\end{proposition}
+\begin{proof}
+We start by showing that $L$ is an $\Stwo$ $A$-module.  We have to show that for each prime $P$ of codimension $2$, $L_P$ has depth $2$ as an $A_P$-module.  If $P$ does not contain $L$, this is obvious, since $L_P = A_P$ and $A_P$ has depth $2$ by the assumption that $A$ satisfies $\Stwo$.  So, suppose that $P$ contains $L$.  Consider the sequence:
+$$ 0 \ra L \ra A \ra A/L \ra 0.$$
+The long exact sequence of local cohomology gives:
+$$ 0 \ra H^0_P(L) \ra H^0_P(A) \ra H^0_P(A/L) \ra H^1_P(L) \ra H^1_P(A).$$
+The groups $H^0_P(A)$ and $H^1_P(A)$ are zero by the assumption that $A$ satisfies $\Stwo$.  And the group $H^0_P(A/L)$ is zero since $P$ is not an associated prime of $L$ by the unmixedness assumption.  Hence $H^0_P(L) = H^1_P(L) = 0$, so $L$ has depth at least $2$ on $P$.
+
+Now, let $B = \Hom(L,L)$, and let $Q$ be a prime of $B$ of codimension $2$.  Let $P = Q\cap A$.  Then $P$ has codimension $2$, so we can find an $L$-regular sequence $\{x,y\}$ in $P$.  We will show that $\{x,y\}$ is a regular sequence in $Q$.  Certainly $x$ remains a non-zerodivisor as an element of the domain $B$.  Consider the sequence
+$$0 \ra B \xrightarrow{\cdot x} B \ra \Hom(L/xL, L/xL)$$
+which comes from applying $\Hom(L, -)$ to $0 \ra L \xrightarrow{\cdot x} L \ra L/xL$.  Since $\{x,y\}$ is $L$-regular, the map $\cdot y: L/xL \ra L/xL$ is a regular element of $\Hom(L/xL, L/xL)$, so $y$ is also a regular element of the subring $B/xB$.
+\end{proof}
+
+\subsection{Applications}
+\begin{proposition}
+In Algorithm \ref{alg:basic}, we can factor $d$ and run the algorithm successively on each factor.  In other words, Algorithm \ref{alg:factored} correctly computes the integral closure.
+\end{proposition}
+\begin{proof}
+Let $R, S, d$ be as in Algorithm \ref{alg:basic}.  Consider how primes change when we run Algorithm \ref{alg:basic}.  If $P$ is a prime of $S$ which does not contain $d$, then $\Hom(\sqrt{dS},\sqrt{dS})_P = S_P$, so $S_P$ is unchanged throughout the algorithm.  Since we know that Algorithm \ref{alg:basic} produces the integral closure, each depth-1 prime of $S$ violating the condition of Prop \ref{prop:serre} must contain $d$.
+
+Suppose we factor $d = f_1\cdots f_k$ in the ring $R$, and that each $f_i$ is a nonzerodivisor mod $f_j$ for $i\neq j$.  Then each depth-1 prime of $S$ violating the condition of Prop \ref{prop:serre} contains precisely one of the $f_i$.  Run Algorithm \ref{alg:basic} with $d = f_i$ for some $i$.  Let $L = \sqrt{f_iS} \leq S$.  The algorithm terminates when $\Hom(L,L) = S$, so by Lemma \ref{lemma:hom}, we have that after running the algorithm with $d=f_i$, each prime of the resulting ring $S$ lying over $f_i$ satisfies $\Rone$ and $\Stwo$.  On the other hand, the local rings of primes not containing $f_i$ are left unchanged during this iteration of the algorithm, so when we have run the algorithm for all $f_i$, no ``bad primes'' remain. 
+\end{proof}
+
+\begin{proposition}
+Let $S$ be a ring satisfying the $\Stwo$ condition, and suppose that $I$ is an ideal in the conductor of $S$.  Let $P_1, \ldots, P_n$ be the codimension-1 primes in a primary decomposition of $I$, and let $J = P_1\cap \cdots \cap P_n$.  Then
+\begin{enumerate}
+\item\label{prop:part1} If $\Hom(J,J) = S$, then $S$ is integrally closed.  In particular, if the conductor of $S$ has codimension $2$ or more, then $S$ is integrally closed.
+\item\label{prop:part2} If $R$ is a Noether normalization of $S$, then any element of $R\cap J$ can be used as $d$ in Algorithm \ref{alg:basic}.
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+Proof of (\ref{prop:part1}): From Lemma \ref{lemma:conductor}, we know that if $S$ is integrally closed if and only if $\Hom(\sqrt{I},\sqrt{I}) = S$.  By Lemma \ref{lemma:hom}, it follows that all depth-1 primes violating Prop \ref{prop:serre} must contain $I$.  Since $S$ is assumed to satisfy $\Stwo$, all ``bad primes'' must have height 1, so must be among $P_1, \ldots, P_n$.  Again by Lemma \ref{lemma:hom}, we conclude that if $\Hom(J,J) = R$, then $R$ must be integrally closed.\\
+
+Proof of (\ref{prop:part2}): Since every ``bad prime'' of $S$ with height 1 contains $d$, and primes not containing $d$ have their localizations unchanged by Algorithm \ref{alg:basic}, it is clear that after running Algorithm \ref{alg:basic}, the resulting $S$ satisfies $\Rone$.  Moreover, by Prop \ref{prop:s2}, each $\Hom(\sqrt{dS},\sqrt{dS})$ retains the $\Stwo$ property. 
+\end{proof}
+
+
+\section{Discriminants}
+This section is based primarily on \cite{Na}.
+
+\begin{definition}
+Let $S$ be an extension of the ring $R$, let $Q$ be a prime ideal of $S$, and let $P = R\cap Q$.  We say that $Q$ is \emph{unramified over} $R$ if
+\begin{enumerate}
+\item The extension of residue fields $S_{Q}/Q$ over $R_P/P$ is separable, and
+\item $PS_{Q} = QS_{Q}$.
+\end{enumerate}
+
+The importance of this definition for integral closure lies in the following simple observation: suppose that $S$ is finite over $R$ and $Q$ is a height-1 prime of $S$ which is unramified over $R$.  Then if $P = Q\cap R$ is regular, so is $Q$.
+\end{definition}
+
+\begin{definition}
+Let $R$ be a Noetherian domain which is integrally closed in its field of fractions $K$, and let $S$ be a finite integral extension of $R$ with field of fractions $L$.  Suppose moreover that $L$ is separable over $K$, and that $S$ is free of rank $n$ as an $R-module$; note that $n$ must necessarily be the degree of $L$ over $K$.  Let $a_1, \ldots, a_n$ be a basis for $S$ over $R$.  The \emph{discriminant} of $S$ over $R$ is the determinant of the matrix $(\tr (a_ia_j))_{i,j}$.  It is an element of $R$ which is well-defined up to units of $R$.
+
+An equivalent definition is as follows: let $L'$ be the smallest extension of $L$ such that $L'$ is Galois over $K$ and let $G$ be the Galois group of $L$.  Let $G^*$ be the subgroup of $G$ consisting of all $\sigma \in G$ such that $\sigma(a_i) = a_i$ for all $i$.  Then $G^*$ is precisely the subgroup of $\Gal(L'/K)$ fixing $L$.  In particular, $G^*$ has index $n$ in $G$.  Let $\sigma_1, \ldots, \sigma_n$ be representatives of the cosets of $G^*$.  Then the discriminant of $S$ over $R$ is the square of the determinant of the matrix $(\sigma_i(a_j))_{i,j}$.
+\end{definition}
+
+The discriminant provides a potentially useful choice for $d$ in our algorithm, provided we start with a ring $S$ satisfying the $\Stwo$ condition.  The utility of the discriminant is based on the following:
+\begin{theorem}\label{thm:disc}
+Let $S$ and $R$ be as above, and let $d$ be the discriminant of $S$ over $R$.  Let $P$ be a prime ideal of $R$ not containing $d$.  Then every prime ideal $Q$ of $S$ lying over $P$ is unramified.
+\end{theorem}
+\begin{proof}
+See \cite{Na}, pp. 159-161.  %We did not work out all of the proof of Theorem 41.2, namely parts (4) and (6).
+                             %I could not work out why L must be separable over S/q in that proof.
+\end{proof}
+
+Since we assume that $R$ is integrally closed and so satisfies $\Rone$, any unramified prime of $S$ is also regular.  Hence if $S$ satisfies $\Stwo$, all ``bad primes'' of $S$ lie over $(d)$, so $d$ is an acceptable input for Algorithm \ref{alg:basic}.
+
+Unfortunately, the theorem requires that $S$ be free over $R$.  However, the discriminant of any free subring of $S$ suffices to detect a superset of the primes violating $\Rone$, since regular height-1 primes never lose $\Rone$ at later stages of the integral closure.  Refining this slightly, we have:
+\begin{proposition}
+Let $R$ be an integrally closed ring with field of fractions $K$, and let $S$ be an integral extension of $R$ with field of fractions $L$.  Suppose that $L$ is finite and separable over $K$, and let $n$ be the degree of $L$ over $K$.  Let $D$ be the ideal generated by discriminants of all rank-$n$ $R$-free subrings of $S$, and let $Q$ be a height-1 prime of $S$.  Suppose that $D\nsubseteq Q$.  Then $Q$ is unramified over $R$.  In particular, $S_{Q}$ is a discrete valuation ring.
+\end{proposition}
+\begin{proof}
+Note first that there exists a rank-$n$ $R$-free subring of $S$.  Indeed, since $L$ is finite and separable over $K$, we can find an element $\alpha \in L$ such that $L = K(\alpha)$.  Since $L = KS$, we can write $\alpha = ks$ for some $k\in K$, $s\in S$.  Then certainly $L=K(s)$ as well. 
+Let
+$$b_0x^n + b_1 x^{n-1} + \cdots + b_n$$
+be an algebraic equation (of minimal degree) for $s$ over $K$.  Clearing denominators, we can assume $b_i\in R$ for all $i$, so that in particular $b_0s \in S$.  Then $b_0s$ is also a generator for $L$ over $K$, and satisfies the polynomial
+$$f(x) = x^n + b_1 x^{n-1} + b_0b_2x^{n-2} + b_0^2b_3 x^{n-3} + \cdots + b_0^{n-1}b_n.$$
+Since $f(x)$ is both an integral equation for $b_0s$ over $R$ and the minimal polynomial of $b_0s$ over $K$, it follows that $R[b_os]$ is a rank-$n$ $R$-free subring of $S$.
+
+Now, let $Q$ be a height-1 prime of $S$, and suppose that $P = Q\cap R$ does not contain $D$.  Then there exists some rank-$n$ $R$-free subring $S'$ of $S$ such that $P$ does not contain the discriminant of $S'$ over $R$.  Hence $Q' = Q \cap S'$ is unramified over $P$ by Theorem \ref{thm:disc}.  Since $R$ is integrally closed, it follows that $Q'$ is regular, i.e. $S'_{Q'}$ is a discrete valuation ring.  Let $\overline{S'} = \overline{S}$ be the integral closure of $S$.  Certainly $S'_{Q'} \subseteq S_{Q'} \subseteq \overline{S'}_{Q'}$.  Since we know from Corollary \ref{cor:stable} that $\overline{S'}_{Q'} = S'_{Q'}$, we conclude that $S'_{Q'} = S_{Q'}$.  It immediately follows that $Q$ is unramified over $S'$, hence also over $R$.
+\end{proof}
+
+\section{Rees valuations and power series}
+\textbf{***Under construction***}
+
+Suppose that $d\in R'$ is an element of the conductor of $R'$.  Any element of the integral closure of $R'$ can be written as $\frac{a}{d}$ with $a\in R'$.  If
+$$x^n + b_1 x^{n-1} + \cdots + b_n$$
+is an integral equation for $\frac{a}{d}$, then clearing denominators gives that $a$ satisfies the equation
+$$x^n + db_1 x^{n-1} + d^2b_2 x^{n-2} + \cdots + d^nb_n.$$
+Hence we have
+\begin{lemma}
+Let $R'$ be a domain and let $\frac{a}{d}$ be an element of the field of fractions of $R'$.  Then $\frac{a}{d}$ is integral over $R$ if and only if $a$ is integral over the ideal $(d)$.  In particular, if $d$ is in the conductor of $R'$, then the integral closure of $R'$ is $\frac{1}{d} \cdot \overline{(d)}$.
+\end{lemma}
+
+\section{Questions}
+\begin{enumerate}
+\item Does the discriminant of a free \emph{submodule} of $R'$ also suffice to detect ramification in $R'$?
+\item Suppose $R'$ is free over $R = k[x_1,\ldots, x_n]$, and let $d$ be the discriminant of an $R$-basis.  Is it true that only square factors of $d$ appear as denominators in the integral closure of $R'$?
+\item Is there a natural choice of Noether normalization of a Rees algebra?
+\end{enumerate}
+
+\bibliographystyle{plain}
+\bibliography{references}
+\begin{thebibliography}{2}
+
+\bibitem{AM}
+  Atiyah-Macdonald
+\bibitem{Na}
+  Nagata - Local Rings
+\bibitem{Tr}
+  Trager's Thesis
+\bibitem{Va}
+  Vasconcelos - Computations
+
+\end{thebibliography}
+\end{document}

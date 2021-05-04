@@ -16,6 +16,8 @@ newPackage(
         )
 
 -- TODO:
+--  Currently (Feb 2021) one test fails (#14 at the moment), as 
+--    noetherForm should give an error, but it doesn't. (this is (1), next line)
 --  1. bug: finiteness is still not checked?
 --  2. bug: if original ring has multigrading, then get an error.
 --  remove old bracketed code
@@ -29,8 +31,8 @@ newPackage(
 --    inNoetherForm -- change name?  MAYBE OK?
 --  test noetherForm for all kinds of rings/gradings.
 --
---    trace? of an element in B or L = frac B.
---    noetherBasis (getBasisMatrix) (of frac B, of B?)
+--    DONE trace? of an element in B or L = frac B.
+--    DONE noetherBasis (getBasisMatrix) (of frac B, of B?)
 --    discriminant?
 
 export {
@@ -64,7 +66,7 @@ inNoetherForm Ring := Boolean => (R) -> R.?NoetherInfo
 --   "field"
 --   "basis of ring" -- really, a generating set, over coefficient ring
 --   "basis of field" -- generating set, over coefficient field
---   "traces of generators" -- in field, or in the ring?
+--   "traces" -- of the basis of the field
 --   "field trace form"
 --   "ring trace form"
 --   "noether map" -- isomorphism back to the original ring.
@@ -146,105 +148,34 @@ multiplicationMap RingElement := (m) -> (
      lift(cf,coefficientRing R)
      )
 
--- R should be a noether ring, or the corresponding fraction field.
--- NEW TODO: this needs to be computed using a basis of the field...!  
-computeTraces = (R) -> (
-    B := noetherBasis R;
-    traces := for b in B list trace multiplicationMap b;
-    matrix{traces}
-    )
-
-tracesOfBasis = method()
-tracesOfBasis Ring := (R) -> (
-    NI := noetherInfo R;
-    if not NI#?"ring traces" then NI#"ring traces" = computeTraces NI#"ring";
-    if not NI#?"field traces" then NI#"field traces" = computeTraces NI#"field";
-    if R === NI#"ring" then NI#"ring traces"
-    else if R === NI#"field" then NI#"field traces"
-    else error "internal error in basisOfRing"
-    )
-
--- REMOVE THIS ONE.
--- TODO: this needs to handle both R, RK (noether ring and fraction field of it
--- private function.
-
-setTraces = (NI) -> (
-    RK := NI#"field";
-    B := noetherBasis RK;
-    traces := for b in B list (
-        m := multiplicationMap b;
-        --numerator lift(trace m, coefficientRing RK)
-        t := lift(trace m, coefficientRing RK);
-        t
-        -- these two lines are not needed?
-        -- tdenom := lift(denominator t, coefficientRing ring t);
-        -- 1/tdenom * numerator t
+-- private function.  Sets the traces for the basis of the noether field.
+-- mostly for use in 'trace RingElement'.
+getTraces = (NI) -> (
+    if not NI#?"traces" then NI#"traces" = (
+        RK := NI#"field";
+        B := noetherBasis RK;
+        traces := for b in B list trace multiplicationMap b;
+        matrix{traces}
         );
-    NI#"traces" = matrix{traces};
+    NI#"traces"
     )
 
--- TODO: this needs to handle both R, RK (noether ring and fraction field of it
--- TODO: this should perhaps be placed as a method for R, RK.
--- trace: if f is in R, then trace(f) is in A? TODO: fix this info.
---        if f is in KR, then trace(f) is in KA.
-
--- TODO: remove this one.
-
+-- trace f
+-- Assumptions: f is in either a noether ring R or noether field RK = frac R.
+-- result is in the coefficient ring of the ring of f.
+-- Traces are computed as traces of the map over a field, and then, if the element is over the
+--  noether ring, the element is lifted to the coefficient ring.
 trace RingElement := (f) -> (
-    -- Currently, if f is in R, then result is in frac A.
-    --            if f is in frac R, then result is in frac A.
     R := ring f;
     NI := noetherInfo R;
     RK := NI#"field";
-    if not NI#?"traces" then setTraces NI;
-    traces := NI#"traces";
+    traces := getTraces NI;
     if R =!= RK then f = promote(f,RK);
-    M := last coefficients(f, Monomials => noetherBasisMatrix RK);
+    M := lift(last coefficients(f, Monomials => noetherBasisMatrix RK), coefficientRing RK);
     g := (traces * M)_(0,0);
-    g = lift(g, coefficientRing RK);
     if R =!= RK then g = lift(g, coefficientRing R);
     g
-    -- --stopgap for lifts from frac QQ[x] to QQ[x] not working 5-26-11
-    -- --when works, change below to return lift(g, coefficientRing R)
-    -- gdenom := denominator g;
-    -- if gdenom == 1 then numerator g else (
-    --     gdenom = lift(gdenom, coefficientRing ring gdenom);
-    --     1/gdenom * numerator g
-    --     )
     )
-
--- Do not keep this (new, but not as good) version.
--- trace RingElement := (f) -> (
---     -- Currently, if f is in R, then result is in frac A.
---     --            if f is in frac R, then result is in frac A.
---     R := ring f;
---     NI := noetherInfo R;
---     traces := tracesOfBasis R;
---     B := noetherBasisMatrix R;
---     M := lift(last coefficients(f, Monomials => B), coefficientRing R);
---     (traces * M)_(0,0)
---     )
-
--- TODO: this needs to handle both R, RK (noether ring and fraction field of it
--*
-traceForm = method()
-traceForm Ring := (R) -> (
-    NI := noetherInfo R; -- will error if not in the correct form.
-    RK := NI#"field"; -- same as frac R.
-    if not NI#?"trace form" then NI#"trace form" = (
-        S := noetherBasis RK;
-        K := coefficientRing RK;
-        M := mutableMatrix(K, #S, #S);
-        for i from 0 to #S-1 do
-        for j from i to #S-1 do (
-            f := trace(S#i * S#j);
-            M_(i,j) = M_(j,i) = f;
-            );
-        matrix M
-        );
-    NI#"trace form"
-    )
-*-
 
 computeTraceForm = method()
 computeTraceForm Ring := (R) -> (
@@ -262,10 +193,10 @@ computeTraceForm Ring := (R) -> (
 traceForm = method()
 traceForm Ring := (R) -> (
     NI := noetherInfo R;
-    if not NI#?"ring traceform" then NI#"ring traceform" = computeTraceForm NI#"ring";
-    if not NI#?"field traceform" then NI#"field traceform" = computeTraceForm NI#"field";
-    if R === NI#"ring" then NI#"ring traceform"
-    else if R === NI#"field" then NI#"field traceform"
+    if not NI#?"ring trace form" then NI#"ring trace form" = computeTraceForm NI#"ring";
+    if not NI#?"field trace form" then NI#"field trace form" = computeTraceForm NI#"field";
+    if R === NI#"ring" then NI#"ring trace form"
+    else if R === NI#"field" then NI#"field trace form"
     else error "internal error in traceForm"
     )
 
@@ -281,36 +212,105 @@ isComputablePolynomialRing Ring := Boolean => R ->(
     not instance(k, FractionField)
     )
 
+-- TODO: this function is not general enough?
 isFiniteOverCoefficients1 = method()
-isFiniteOverCoefficients1 Ring := Boolean => R ->(
-   g := gens gb ideal R;
-   S := coefficientRing R;
-   lt := flatten entries (leadTerm g%promote(ideal vars S,ring g));
-   #select(lt/support , l->#l==1) == numgens R
-   )
+isFiniteOverCoefficients1 Ring := Boolean => R -> (
+    g := gens gb ideal R;
+    S := coefficientRing R;
+    lt := flatten entries (leadTerm g%promote(ideal vars S,ring g));
+    #select(lt/support , l->#l==1) == numgens R
+    )
     
 TEST/// -- of finiteOverCoefficients
+-*
+  restart
+*-
   debug needsPackage "NoetherNormalForm"
   R1 = ZZ/5[a,b][x,y]/intersect(ideal (a*(x-1),y), ideal(x^2,y^2))
   R2 = ZZ/5[a,b][x,y]/intersect(ideal (a*x-1,y), ideal(x^2,y^2))
   R3 = ZZ/5[a,b][x,y]/intersect(ideal ((a-1)*x-1,y), ideal(x^2,y^2))
   R4 = QQ[a,b][x,y]
-  R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
 
-  assert(
-    isFiniteOverCoefficients1 R1 == false and
-    isFiniteOverCoefficients1 R2 == false and
-    isFiniteOverCoefficients1 R3== false and
-    isFiniteOverCoefficients1 R4== false and
-    isFiniteOverCoefficients1 R5== true)
+  R5 = QQ[a,b][x,y]/ideal(x^2-a,y^2-b)
+  R6 = QQ[x,y]/(x^2-1, x*y^3-3)
+  R7 = GF(27)[x,y]/(x^2-1, y^3-a)
+  R8 = GF(27)[x,y]/(x^2-1, x*y^3-a)
+
+  R9 = QQ[x,y]/(x^2, x*y^3-3) -- is trivial.
+  x = symbol x; y = symbol y
+  R10 = QQ[a..d]/(b^2-a, b*c-d)
+
+  assert not isFiniteOverCoefficients1 R1
+  assert not isFiniteOverCoefficients1 R2
+  assert not isFiniteOverCoefficients1 R3
+  assert not isFiniteOverCoefficients1 R4
+  
+  assert isFiniteOverCoefficients1 R5
+  assert isFiniteOverCoefficients1 R6
+  assert isFiniteOverCoefficients1 R7 -- WRONG
+  assert not isFiniteOverCoefficients1 R8 
+
+  assert not isFiniteOverCoefficientRing R1
+  assert not isFiniteOverCoefficientRing R2
+  assert not isFiniteOverCoefficientRing R3
+  assert not isFiniteOverCoefficientRing R4
+  
+  assert isFiniteOverCoefficientRing R5
+  assert isFiniteOverCoefficientRing R6
+  assert isFiniteOverCoefficientRing R7 -- WRONG
+  assert not isFiniteOverCoefficientRing R8
+
+  assert not isFiniteOverCoefficients1 R9
+  assert not isFiniteOverCoefficients1 R10
+
+  assert not isFiniteOverCoefficientRing R9
+  assert not isFiniteOverCoefficientRing R10
+
+  assert not isFiniteOverCoefficientRing ZZ
+  assert isFiniteOverCoefficientRing (ZZ/32003)
+  assert isFiniteOverCoefficientRing QQ
+  assert isFiniteOverCoefficientRing (frac (QQ[a,b]))
+
+  assert isFiniteOverCoefficientRing ( (frac (QQ[a,b]))[x]/(a*x^2-1))
+  
+  A = (frac (QQ[a,b]));
+  R11 = A[x]/(a*x^2-1)
+  coefficientRing R11 === A
+  assert isFiniteOverCoefficientRing R11 -- WRONG...
+  assert not isFiniteOverCoefficientRing A -- WRONG...
+
+  A = (frac (ZZ[a,b]));
+  R12 = A[x]/(a*x^2-1)
+  assert isFiniteOverCoefficientRing R12 -- WRONG...
+
+  A = toField(QQ[a]/(a^2-a-1))
+  R13 = A[x,y]/(x^2-a, a*y^3-x)
+  assert isFiniteOverCoefficientRing R13
+
+  kk = toField(QQ[a]/(a^2-a-1))
+  A = kk[t]
+  R14 = A[x,y]/(x^2-a*t, a*y^3-x-t)
+  assert isFiniteOverCoefficientRing R14
+  
+  assert not isFiniteOverCoefficientRing(ZZ[]/32743287482974) -- ??
+  
+  A = ZZ/101[a,b]
+  B = A[x,y]/(x^2+y^2)
+  R15 = B[z]/(z^3-1)
+  assert not isFiniteOverCoefficientRing R15 -- over B or over A?  Do we need to be more specific?
 ///
 
 isFiniteOverCoefficientRing = method()
 isFiniteOverCoefficientRing Ring := Boolean => (R) -> (
     if R.?NoetherInfo then return true;
-    if not (try (coefficientRing R; true) else false) then return false;
+    if isField R then return true;
     if not isAffineRing R then return false; 
     A := coefficientRing R;
+    --if not (try (coefficientRing R; true) else false) then return false;
+    --if there is a coefficientRing R then does nothing; if not then the whole funct returns false.
+
+    --    if isField A then return(dim R ===0);
+
     if not isField A and not isComputablePolynomialRing A then (
 	    if debugLevel > 0 then << "expected a quotient of a polynomial ring over a field" << endl;
 	    return false);
@@ -347,7 +347,7 @@ checkNoetherNormalization Ring := Boolean => (B) -> (
 
 makeFrac = method()
 makeFrac Ring := Ring => (B) -> (
--- TODO: put this back in once it is working...
+-- TODO: put this check back in once it is working:
 --    if not isFiniteOverCoefficientRing B
 --    then error "expected the ring to be finite over the chosen polynomial ring";
     A := coefficientRing B; -- ASSUME: a polynomial ring over a field.
@@ -705,12 +705,13 @@ noetherForm List := Ring => opts -> (xv) -> (
     )
 
 -- Input: a ring map F : A --> R such that:
---   (a) A is a polynomial ring over a field
+--   (a) A is a polynomial ring over a field, TODO: should allow a field too!
 --   (b) R is a quotient of a polynomial ring over the same field
 --   (c) R is a finite A-module
 -- Output:
 --   A ring B = A[vars]/I
 --     which is isomorphic to R (the isomorphism is available as `noetherMap B`)
+--     if A is the base field of R, then B should be the same as A.
 -- Notes
 --   (a) the `noetherMap B` is stored in B, not the original R.
 --   (b) if the image of a variable is a variable, that variable is not in `vars`
@@ -722,17 +723,25 @@ noetherForm RingMap := Ring => opts -> (f) -> (
     kk := coefficientRing R;
     if not isCommutative A then 
         error "expected source of ring map to be a commutative ring";
-    if A === kk then return R;
     if not isAffineRing R then 
         error "expected an affine ring";
     if not isAffineRing A then 
         error "expected an affine ring";
-    if not ( kk === coefficientRing A) then 
+    if not (kk === A or kk === coefficientRing A) then 
         error "expected polynomial rings over the same ring";
     gensk := generators(kk, CoefficientRing => ZZ);
     if not all(gensk, x -> promote(x,R) == f promote(x,A)) then 
         error "expected ring map to be identity on coefficient ring";
- -- AAA    
+    --check finiteness
+    -- if not isFiniteOverCoefficientRing(A, R) then 
+    --     error "expected ring to be finite over coefficients";
+
+    if A === kk then (
+        setNoetherInfo(R, R);
+	    return R
+        );
+    
+     -- AAA    
 
     ambientB := A[gens R, MonomialOrder => (monoid R).Options.MonomialOrder,
         Degrees => apply(degrees R, f.cache.DegreeMap)
@@ -756,10 +765,59 @@ noetherForm Ring := Ring => opts -> R -> (
     (F, J, xv) := noetherNormalization R;
     kk := coefficientRing R;
     t := opts.Variable;
-    A := kk[t_0..t_(#xv-1)];
+    A := if #xv == 0 then kk else kk[t_0..t_(#xv-1)];
     phi := map(R,A,for x in xv list F^-1 x);
     noetherForm (phi, Remove => opts.Remove)
     )
+
+TEST ///
+-*
+restart
+debug needsPackage "NoetherNormalForm"
+*-
+  -- Zero dimensional noetherForm...
+
+  R = QQ[x,y]/(x^4-3, y^3-2);
+  phi = map(R, QQ, {})
+  noetherForm phi
+  assert inNoetherForm R
+  
+  kk = ZZ/32003
+  R = kk[x,y]/(x^4-3, y^3-2);
+  phi = map(R, kk, {})
+  isWellDefined phi  -- ok
+  B = noetherForm R
+  assert inNoetherForm R
+
+  kk = QQ
+  R = kk[x,y]/(x^4-3, y^3-2);
+  phi = map(R, kk, {})
+  -- TODO: isWellDefined phi -- fails... BUG in Core... git issue #1998
+  assert inNoetherForm B
+
+  kk = GF(27)
+  R = kk[x,y]/(x^4-2, y^5-2);
+  phi = map(R, kk, {})
+  isWellDefined phi  -- ok
+  B = noetherForm R
+  noetherBasis B
+  traceForm B -- (now works). (used to fail! due to the bug below, which is now git issue #1999)
+
+  kk = QQ
+  R = kk[x,y]/(x^4-2, y^5-2);
+  phi = map(R, kk, {})
+  B = noetherForm R
+  noetherBasis B
+  traceForm B
+  det oo
+
+  -- bug in M2 #1999  
+  -- kk = ZZ/101
+  -- R = kk[x]
+  -- f = matrix(kk, {{1,1}})  
+  -- g = map(R^{0,1},, {{1,1},{1,1}})
+  -- f*g
+///
 
 beginDocumentation()
 
@@ -1601,6 +1659,8 @@ TEST ///
   traceForm L
 
   R = QQ[a..d]/(b^2-a, b*c-d)
+  B = noetherForm{a,d};
+  presentation B
   assert try (B = noetherForm{a,d}; false) else true  -- should give an error message
 ///
 

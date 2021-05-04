@@ -1,28 +1,27 @@
 newPackage(
-        "FractionalIdeals",
-        Version => "0.1", 
-        Date => "6 June 2009",
-        Authors => {
-	     {Name => "Charley Crissman", 
-		  Email => "", 
-		  HomePage => ""
-          },
-         {Name => "David Eisenbud", 
-             Email => "de@msri.org", 
-             HomePage => "http://www.msri.org/~de/"
-             },
-	     {Name => "Mike Stillman", 
-              	  Email => "mike@math.cornell.edu", 
-                  HomePage => "http://www.math.cornell.edu/~mike"}},
-        Headline => "fractional ideals given a domain, possibly in Noether normal position",
-        PackageExports => {
-            "NoetherNormalForm",
---            "TraceForm", 
-            "Elimination", -- for discriminant.
-            "IntegralClosure" -- for Index, Verbosity
+    "FractionalIdeals",
+    Version => "0.1", 
+    Date => "6 June 2009",
+    Authors => {
+        {Name => "Charley Crissman", 
+            Email => "", 
+            HomePage => ""
             },
-        DebuggingMode => true
-        )
+        {Name => "David Eisenbud", 
+            Email => "de@msri.org", 
+            HomePage => "http://www.msri.org/~de/"
+            },
+        {Name => "Mike Stillman", 
+            Email => "mike@math.cornell.edu", 
+            HomePage => "http://www.math.cornell.edu/~mike"}},
+    Headline => "fractional ideals given a domain, possibly in Noether normal position",
+    PackageExports => {
+        "NoetherNormalForm",
+        "Elimination", -- for discriminant.
+        "IntegralClosure" -- for Index, Verbosity
+        },
+    DebuggingMode => true
+    )
 
 export {
     "factorize",
@@ -44,8 +43,14 @@ export {
     "Denominator"
     }
 
+exportMutable {
+    "traveLevel"
+    }
+
 -- The following is currently needed in fractionalRingPresentation
-generatorSymbols = value Core#"private dictionary"#"generatorSymbols"
+-- generatorSymbols = value Core#"private dictionary"#"generatorSymbols"
+importFrom_Core { "generatorSymbols" }
+traceLevel = 0
 
 -- FractionalIdeals:
 --   given a ring R, satisfying:
@@ -56,7 +61,8 @@ generatorSymbols = value Core#"private dictionary"#"generatorSymbols"
 --       g/f, g in J.  So 1/f J \subset K(R).
 -- FractionalRing:
 --   a fractional ideal is a fractional ring, if in addition, the R-submodule 1/f J
---     of K(R) is a ring.  Note: this means that we must have all R-generators of this ring.
+--     of K(R) is a ring.  An assumption is that a fractional ring has all R-generators
+--     for this ring, not just ring generators.
 --     Also note: this implies, since J is f.g., that this ring is a subring of the integral
 --     closure of R in K(R).
 -- 
@@ -76,8 +82,6 @@ factorize RingElement := (F) -> (
      facs := factor F;
      facs//toList/toList/reverse
      )
-
-traceLevel = 2
 
 FractionalIdeal = new Type of HashTable
 FractionalRing = new Type of FractionalIdeal
@@ -157,6 +161,18 @@ noetherize FractionalIdeal := F -> (
      fractionalIdeal(denom, ideal numers)
      )
 
+
+simplifyNonNoether = method()
+simplifyNonNoether FractionalIdeal := (F) -> (
+     S := ambient ring F; -- should be a polynomial ring.
+     f1 := lift(generators numerator F, S);
+     f0 := lift(denominator F, S);
+     g := gcd prepend(f0, first entries f1);
+     if g == 1 
+     then F 
+     else makeFractionalIdeal(promote(f0 // g, ring F), trim promote(ideal (f1 // g), ring F))
+     )
+
 simplify = method()
 simplify FractionalIdeal := (F) -> (
      if not inNoetherForm ring F 
@@ -184,17 +200,6 @@ simplify FractionalIdeal := (F) -> (
     
 simplify FractionalRing := (F) -> new FractionalRing from F
 
-simplifyNonNoether = method()
-simplifyNonNoether FractionalIdeal := (F) -> (
-     S := ambient ring F; -- should be a polynomial ring.
-     f1 := lift(generators numerator F, S);
-     f0 := lift(denominator F, S);
-     g := gcd prepend(f0, first entries f1);
-     if g == 1 
-     then F 
-     else makeFractionalIdeal(promote(f0 // g, ring F), trim promote(ideal (f1 // g), ring F))
-     )
-
 ----------------------------------------------------------
 -- Display of fractional ideals --------------------------
 ----------------------------------------------------------
@@ -204,22 +209,24 @@ simplifyNonNoether FractionalIdeal := (F) -> (
 fractions = method()
 fractions FractionalIdeal := I -> (
     R := ring I;
+    denom := denominator I;
     if inNoetherForm R 
     then (
-        L := frac R;
-        nums := apply(flatten entries gens numerator I, i-> sub(i,L));
-        denom := sub(denominator I, coefficientRing L);
-        --apply(nums, p -> 1/denom * p)
-        for p in nums list (
-	        g := 1/denom * p; -- an element in L.
-	        gdenom := (terms g)/leadCoefficient/denominator//lcm;
-	        resultDenom := if gdenom == 1 then 1_R else factor gdenom;
-	        (hold sub(gdenom * g, R)) / resultDenom
-	        )
+        (1/denom * (numerator I)_*)/factor
+        -- nums := apply((numerator I)_*, i-> 1/(denominator I) promote(i,L));
+        -- L := frac R;
+        -- nums := apply((numerator I)_*, i-> promote(i,L));
+        -- denom := promote(denominator I, coefficientRing L);
+        -- --apply(nums, p -> 1/denom * p)
+        -- for p in nums list (
+	    --     g := 1/denom * p; -- an element in L.
+	    --     gdenom := (terms g)/leadCoefficient/denominator//lcm;
+	    --     resultDenom := if gdenom == 1 then 1_R else factor gdenom;
+	    --     (hold sub(gdenom * g, R)) / resultDenom
+	    --     )
         )
     else (
 	    S := ambient ring I;
-	    denom = denominator I;
         denomS := lift(denom, S);
         for f in flatten entries gens numerator I list (
 	        fS := lift(f,S);
@@ -238,6 +245,7 @@ fractions FractionalIdeal := I -> (
 
 ----------------------------------------------------------
 
+-- TODO: remove this comment.  Hopefully this is no longer a restriction...!
 -- major assumption/restriction: the ring of a FractionalIdeal F
 -- should be of the form R = S/I, where S is a polynomial ring with a product order
 -- and such that if A is the polynomial ring generated by the variables not occuring in
@@ -311,7 +319,8 @@ Ends FractionalIdeal := opts -> (J) -> (
               );
           h
           );
-    timing(H1 := (f*I):I);
+--    timing(H1 := (f*I):I);
+    H1 := (f*I):I;
     H := compress ((gens H1) % f);
     fractionalRing(f,ideal(matrix{{f}} | H))
     )
@@ -397,7 +406,7 @@ fractionalRingPresentation FractionalIdeal := o ->  (F) -> (
      -- Create a polynomial ring which is isomorphic to F
      -- Choices:
      --   1. is it over R, or over kk, or over a Noether normalization?
-     --   2. do we remove variables taht are not necessary?
+     --   2. do we remove variables that are not necessary?
      -- ASSUMPTIONS:
      --   F = 1/f J, and J_0 == f.
      R := ring F;
@@ -667,64 +676,65 @@ integralClosureHypersurface Ring := (R) -> (
 
 integralClosureDenominator = method()
 
-trager = method()
-trager(FractionalRing, RingElement) := (F, Q) -> (
-     --R: ring generated via noetherForm in TraceForm.m2
-     --Q: element of the coefficient field of R in the conductor of R
-     R := ring F;
-     K := coefficientRing R;
-     if not ring Q === K then error "expected first argument to be an element of the coefficientRing of the second.";
-     if traceLevel > 1 then print "--  trace form   --";
-     time traceR := traceForm R;
-     oldRing := F;
-     radQ := traceRadical(Q, oldRing);
-     if traceLevel > 1 then print "-- endomorphisms --";
-     time currentRing := Hom(radQ, radQ);
-     while oldRing != currentRing do (
-	  oldRing = currentRing;	  
-	  --radQOld = traceRadicalOld(Q, currentRing);
-	  radQ = traceRadical(Q, currentRing);
-	  --if not radQOld == radQ then error "outputs do not agree for old and new";
-          if traceLevel > 1 then print "-- endomorphisms --";	  
-	  time currentRing = Hom(radQ, radQ);
-	  );
-     oldRing
-     )
+tragerAlgorithm = method()
+tragerAlgorithm(FractionalRing, RingElement) := (F, Q) -> (
+    --R: ring generated via noetherForm in TraceForm.m2
+    --Q: element of the coefficient field of R in the conductor of R
+    R := ring F;
+    K := coefficientRing R;
+    if not ring Q === K then error "expected first argument to be an element of the coefficientRing of the second.";
+    if traceLevel > 1 then print "--  trace form   --";
+    time traceR := traceForm R;
+    oldRing := F;
+    radQ := traceRadical(Q, oldRing);
+    if traceLevel > 1 then print "-- endomorphisms --";
+    time currentRing := Hom(radQ, radQ);
+    while oldRing != currentRing do (
+        oldRing = currentRing;	  
+        --radQOld = traceRadicalOld(Q, currentRing);
+        radQ = traceRadical(Q, currentRing);
+        --if not radQOld == radQ then error "outputs do not agree for old and new";
+        if traceLevel > 1 then print "-- endomorphisms --";	  
+        time currentRing = Hom(radQ, radQ);
+        );
+    oldRing
+    )
 
 integralClosureNonNoether = method()
 integralClosureNonNoether(FractionalRing,RingElement) := (R,Q) -> (
-     -- assumption: R is in Noether normal position
-     -- Q is an element of the conductor (in the coefficient ring of R or the ring of R
-     -- MES: above comment is wrong? Q should be an element whose power is in the conductor?
-     --  or maybe even an irreducible factor of a polynomial whose power is in the conductor?
-     local k;
-     e := R;
-     j := fractionalIdeal ideal Q;
-     while (
-	  e1 := e;
-     	  if traceLevel > 1 then << "radical:" << endl;
-	  elapsedTime (k,j) = radical(j,e1,null);
-          if traceLevel >= 3 then << "fractions of j" << fractions j << endl;
-     	  if traceLevel >= 2 then << "end:" << endl;
-	  elapsedTime e = Ends(j, Denominator => Q);
-          if traceLevel >= 3 then << "end(j)" << fractions e << endl;
-	  e1 != e) do (
-	  );
-     simplify e)
+    -- assumption: R is in Noether normal position  TODO?? This isn't correct??
+    -- Q is an element of the conductor (in the coefficient ring of R or the ring of R
+    -- MES: above comment is wrong? Q should be an element whose power is in the conductor?
+    --  or maybe even an irreducible factor of a polynomial whose power is in the conductor?
+    local k;
+    e := R;
+    j := fractionalIdeal ideal Q;
+    while (
+        e1 := e;
+        if traceLevel > 1 then << "radical:" << endl;
+        elapsedTime (k,j) = radical(j,e1,null);
+        if traceLevel >= 3 then << "fractions of j" << fractions j << endl;
+        if traceLevel >= 2 then << "end:" << endl;
+        elapsedTime e = Ends(j, Denominator => Q);
+        if traceLevel >= 3 then << "end(j)" << fractions e << endl;
+        e1 != e) do (
+        );
+    simplify e
+    )
 
 integralClosureDenominator(Ring,RingElement) := (R,Q) -> (
-     if inNoetherForm R 
-     then trager(fractionalRing R,Q) 
-     else integralClosureNonNoether(fractionalRing R, Q)
-     )
+    if inNoetherForm R 
+    then tragerAlgorithm(fractionalRing R,Q) 
+    else integralClosureNonNoether(fractionalRing R, Q)
+    )
 
 integralClosureDenominator(Ring,List) := (R,Qs) -> (
-     F := fractionalRing R;
-     if inNoetherForm R 
-     then for Q in Qs do F = trager(F,Q)
-     else for Q in Qs do F = integralClosureNonNoether(F,Q);
-     F
-     )
+    F := fractionalRing R;
+    if inNoetherForm R 
+    then for Q in Qs do F = tragerAlgorithm(F,Q)
+    else for Q in Qs do F = integralClosureNonNoether(F,Q);
+    F
+    )
 
 -----------------------------------------------------
 -- monic minimal polynomials for integral elements --
@@ -744,18 +754,30 @@ getIntegralEquationNoether(RingElement, RingElement, Ring) := (num, denom, Kt) -
      M := matrix ({{1_K}}|toList (n-1:{0}));
      i := 1;
      while ker M == 0 do (
-	  nextPower := num^i;
-	  newCol := lift(last coefficients(nextPower, Monomials => B), K);
-	  M = newCol | M;
-	  i = i + 1;
-	  );
-     intEqn := flatten entries gens ker M;
+         nextPower := num^i;
+         newCol := lift(last coefficients(nextPower, Monomials => B), K);
+         M = newCol | M;
+         i = i + 1;
+         );
+     intEqn := flatten entries gens gb ker M; -- TODO: could this have more than one element?
      if not all(#intEqn, (i -> (intEqn#i) % (denom^i) == 0)) then return null;
+     -- This next set of lines is supposed to make the equation monic...  
+     -- TODO: make sure this happens
+     -- e.g.: c might be in a ring without a coefficient ring.
+     leadcoeff := first intEqn;
+     if leadcoeff != 1 then (
+         if -leadcoeff == 1 then 
+             intEqn = - intEqn
+         else (
+             c := lift(1/leadcoeff, coefficientRing Kt);
+             intEqn = c * intEqn
+             )
+         );
      t := Kt_0;
      m := #intEqn - 1;
      result := sum for i from 0 to m list (
-	  ((intEqn#i) // (denom^i)) * t^(m-i)
-	  );
+         ((intEqn#i) // (denom^i)) * t^(m-i)
+         );
      result
      )
 
@@ -790,90 +812,95 @@ getIntegralEquationNonNoether(RingElement,RingElement,Ring) := (num, denom, Rt) 
      --  If R is a poly ring over kk, then 
      R := ring num;
      if ring denom =!= R then
-       try promote(denom, R) else error "different rings";
+         try promote(denom, R) else error "different rings";
      if coefficientRing Rt === coefficientRing R and inNoetherForm R
-       then getIntegralEquation(num,denom,Rt)
-       else (
-	    -- 2 options for the ring Rt: it should be R[T], or K[T], where
-	    -- K consists of some of the variables of R
-	    -- case 1: coefficientRing Rt === R
-	    if coefficientRing Rt === R then (
-		 -- steps:
-		 --  1. lift ideal of R to a ring with generators = gens of R and T.
-		 --  2. compute the saturation
-		 --  3. find the element, if any.
-		 --  4. move it to Rt
-		 J := ideal R;
-		 kk := coefficientRing R;
-		 S := ring J;
-		 S1 := kk (monoid [gens Rt, gens S]);
-		 StoS1 := map(S1,S,drop(gens S1, 1));
-		 S1toRt := map(Rt,S1,generators(Rt, CoefficientRing => kk));
-		 denomS1 := StoS1 lift(denom,S);
-		 numS1 := StoS1 lift(num,S);
-		 J = (StoS1 J) + ideal(S1_0 * denomS1 - numS1);
-		 time Jsat := ideal gens gb saturate(J, denomS1);
-		 findMinimalEquation := (Jsat, x) -> (
-		      L := Jsat_*;
-		      P := for i from 0 to #L-1 list (
-		      	   d := isMonic(L#i,S1_0);
-			   if d === null then continue else {d,i});
-		      result := if P === {} 
-		      then null 
-		      else L#((min P)#1);
-		      result
-		      );
-		 time F := findMinimalEquation(Jsat, S1_0);
-		 if F === null then null else (
-		      G := S1toRt F;
-		      c := lift(leadCoefficient G, kk);
-		      if c != 1 then G = 1/c * G;
-		      G)
-     	    )
-       ))
+         then getIntegralEquation(num,denom,Rt)
+         else (
+             -- 2 options for the ring Rt: it should be R[T], or K[T], where
+             -- K consists of some of the variables of R
+             -- case 1: coefficientRing Rt === R
+             if coefficientRing Rt === R then (
+                 -- steps:
+                 --  1. lift ideal of R to a ring with generators = gens of R and T.
+                 --  2. compute the saturation
+                 --  3. find the element, if any.
+                 --  4. move it to Rt
+                 J := ideal R;
+                 kk := coefficientRing R;
+                 S := ring J;
+                 S1 := kk (monoid [gens Rt, gens S]);
+                 StoS1 := map(S1,S,drop(gens S1, 1));
+                 S1toRt := map(Rt,S1,generators(Rt, CoefficientRing => kk));
+                 denomS1 := StoS1 lift(denom,S);
+                 numS1 := StoS1 lift(num,S);
+                 J = (StoS1 J) + ideal(S1_0 * denomS1 - numS1);
+                 time Jsat := ideal gens gb saturate(J, denomS1);
+                 findMinimalEquation := (Jsat, x) -> (
+                     L := Jsat_*;
+                     P := for i from 0 to #L-1 list (
+                         d := isMonic(L#i,S1_0);
+                         if d === null then continue else {d,i});
+                     result := if P === {} 
+                     then null 
+                     else L#((min P)#1);
+                     result
+                     );
+                 time F := findMinimalEquation(Jsat, S1_0);
+                 if F === null then null else (
+                     G := S1toRt F;
+                     c := lift(leadCoefficient G, kk);
+                     if c != 1 then G = 1/c * G;
+                     G)
+                 )
+             )
+    )
 
 integralEqnNonNoether = (num, denom, Rt, maxN) -> (
-     -- Find a smallest degree monic equation for num/denom over R
-     -- assumption: num/denom IS integral!
-     -- num, denom in a domain R
-     -- Rt = R[T], (name T is not relevant)
-     -- maxN is the largest degree to consider (infinity allowed)
-     -- return: null, if no equation found within the given bound, or
-     --  an element of Rt, if one is found.
-     M := ideal(denom);
-     numI := num;
-     i := 1;
-     while i <= maxN do (
-	  if numI % M == 0 then (
-	       cfs := flatten entries(numI // gens M);
-	       T := Rt_0;
-	       F := T^i - sum(i, j -> cfs#j * T^(i-j-1));
-	       return F;
-	       );
-	  M = denom * ((ideal numI) + M);
-	  numI = num * numI;
-	  i = i+1;
-	  );
-     null)
+    -- Find a smallest degree monic equation for num/denom over R
+    -- assumption: num/denom IS integral!
+    -- num, denom in a domain R
+    -- Rt = R[T], (name T is not relevant)
+    -- maxN is the largest degree to consider (infinity allowed)
+    -- return: null, if no equation found within the given bound, or
+    --  an element of Rt, if one is found.
+    M := ideal(denom);
+    numI := num;
+    i := 1;
+    while i <= maxN do (
+        if numI % M == 0 then (
+            cfs := flatten entries(numI // gens M);
+            T := Rt_0;
+            F := T^i - sum(i, j -> cfs#j * T^(i-j-1));
+            return F;
+            );
+        M = denom * ((ideal numI) + M);
+        numI = num * numI;
+        i = i+1;
+        );
+    null
+    )
 
 getIntegralEquation = method(Options => {DegreeLimit => infinity})
 getIntegralEquation(RingElement,RingElement,Ring) := opts -> (num, denom, Rt) -> (
-     R := ring num;
-     denomR := denom;
-     if ring denomR =!= R then
-       try denomR = promote(denom, R) else error "different rings";
-     if coefficientRing Rt === coefficientRing R and inNoetherForm R
-       then getIntegralEquationNoether(num,denomR,Rt)
-       else if coefficientRing Rt === R
-         then 
-	   integralEqnNonNoether(num,denomR,Rt,opts.DegreeLimit)
-	   --getIntegralEquationNonNoether(num,denomR,Rt)  -- this one is usually too slow
-	 else error "cannot understand what ring the monic equation should be over"
-     )
+    R := ring num;
+    denomR := denom;
+    if ring denomR =!= R then
+        try denomR = promote(denom, R) else error "different rings";
+    if coefficientRing Rt === coefficientRing R and inNoetherForm R then
+        getIntegralEquationNoether(num,denomR,Rt)
+    else if coefficientRing Rt === R then
+        integralEqnNonNoether(num,denomR,Rt,opts.DegreeLimit)
+        --getIntegralEquationNonNoether(num,denomR,Rt)  -- this one is usually too slow
+    else error "cannot understand what ring the monic equation should be over"
+    )
 
 getIntegralEquation(RingElement,Ring) :=
-getIntegralEquation(Divide,Ring) := opts -> (fr, Rt) -> 
-     getIntegralEquation(numerator fr, value denominator fr, Rt, opts)
+getIntegralEquation(Divide,Ring) := opts -> (fr, Rt) -> (
+    f := numerator fr;
+    v := value denominator fr;
+    if instance(v, ZZ) then v = 1_(ring f);
+    getIntegralEquation(f, v, Rt, opts)
+    )
 getIntegralEquation(Holder,Ring) := opts -> (fr,Rt) -> (
      -- this should only get here if the denominator was 1.
      v := value fr;
@@ -890,28 +917,51 @@ getIntegralEquation FractionalIdeal := opts -> I -> (
      apply(flatten entries gens numerator I, num -> getIntegralEquation(num,denom,Kt,opts))
      )
 
+-- This is meant for debugging only?
 checkMonicEquation = (num, denom, F) -> (
-     -- num and denom should be elements in a domain R
-     -- F should be a polynomial in R[T] (variable name is not relevant)
-     sub(F, {(ring F)_0 => num/denom})
-     )
+    -- num and denom should be elements in a domain R
+    -- F should be a polynomial in R[T] (variable name is not relevant)
+    sub(F, {(ring F)_0 => num/denom})
+    )
 
 possibleDenominators = method()
 possibleDenominators(RingElement, RingElement) := (num,denom) -> trim((ideal denom) : num)
-possibleDenominators(RingElement) := (f) -> possibleDenominators(numerator f, value denominator f)
+possibleDenominators RingElement := (f) -> possibleDenominators(numerator f, value denominator f)
 possibleDenominators(List) := (L) -> (
-     L1 := for f in L list possibleDenominators f;
-     trim intersect L1
-     )
+    L1 := for f in L list possibleDenominators f;
+    trim intersect L1
+    )
 
 newDenominator = method()
 newDenominator(FractionalIdeal, RingElement) := (F,g) -> (
-     if ring g =!= ring F then try g = promote(g,ring F) else error "denominator cannot be promoted to ring of ideal";
-     J := g * gens numerator F;
-     if J % denominator F != 0 then error "denominator cannot be used";
-     fractionalIdeal(g, ideal(J // denominator F))
-     )
+    if ring g =!= ring F then try g = promote(g,ring F) else error "denominator cannot be promoted to ring of ideal";
+    J := g * gens numerator F;
+    if J % denominator F != 0 then error "denominator cannot be used";
+    fractionalIdeal(g, ideal(J // denominator F))
+    )
 ------------------------------------------------------
+TEST ///
+-*
+  restart
+  needsPackage "FractionalIdeals"
+*-
+  -- of getIntegralEquation, checkMonicEquation, possibleDenominators, newDenominator
+  -- of elements in rings in Noether position.
+  -- TODO: which of these do we wish to keep?
+
+  -- test 1: just find monic equations for elements in a Noether ring
+  R = QQ[x,y]/(x^4-3, y^3-2)
+  B = noetherForm R
+  getIntegralEquation(x+y, QQ[t]) -- fails
+  getIntegralEquation(x+y, 1_R, QQ[t]) -- fails
+
+  R = QQ[x,y,z]/(x^4-3, y^3-2)
+  noetherForm R
+  getIntegralEquation(x+y, B[t]) -- gives trivial equation
+  F = getIntegralEquation(x+y, (coefficientRing B)[t])
+  assert(leadCoefficient F == 1)
+  assert(sub(F, {t => x+y}) == 0)
+///
 
 beginDocumentation()
 
@@ -926,6 +976,15 @@ doc ///
   Caveat
     Not ready for use
 ///
+
+-- TODO:
+-- 1. FractionalRings and Ideals:
+--   ideal membership
+--   for Noether: does the ring generate over A or B? (A = k[indep vars], B = A[vars]/I)
+--        (or over frac A or frac B?)
+--   basis (or generating set) over A, vs over B, vs ring generating set.
+--   Hom not working yet for these.
+--   way to go back and forth from Noether form?
 
 TEST ///
 -- of simplification of fractional ideals, in Noether position
@@ -945,14 +1004,17 @@ TEST ///
   assert(ring c === R)
   F = fractionalIdeal(a^3, ideal(a^2*c, a*(a+1)^4*b))
   fractions F -- these fractions are "held" expressions
-
   G = fractionalIdeal(b^4, ideal(a^2*c, a*(a+1)^4*b))
   fractions G
-  -- oo/value -- TODO: gives error while doing display
-  
-  integralClosureDenominator(R, a) -- not valid
+  oo/value
+
+  describe frac R
+    
+  integralClosureDenominator(R, a) -- not valid (? why not??)
   fractions oo -- hmmm, d is a denominator, not a...
-///
+  det traceForm frac R
+  noetherBasis frac R
+ ///
 
 TEST ///
 -- of simplification of fractional ideals, NOT in Noether position
@@ -968,6 +1030,43 @@ TEST ///
   fractions F
   fractions G
   oo/value -- works in this case.
+///
+
+TEST ///  -- test of basics of fractional ideals for Noether position
+-*
+  restart
+  needsPackage "FractionalIdeals"
+*-
+  --taken from: singular-vasconcelos
+  kk = ZZ/32003
+  S = kk[x,y,z,w,t]
+  I = ideal"
+    x2+zw,
+    y3+xwt,
+    xw3+z3t+ywt2,
+    y2w4-xy2z2t-w3t3"
+  I = sub(I, {t => t+z})
+  R = S/I
+  
+  B = noetherForm{w,t}
+  L = frac B
+  A = coefficientRing B
+  KA = frac A
+  assert(KA === coefficientRing L)
+  
+  J = fractionalIdeal(w, ideal(x^3, y^3))
+  (fractions J)/value
+
+  use B
+  J = fractionalIdeal(z^4, ideal(x^3, y^3)) -- ouch.
+  fractions J -- very high denominators (t^19*w, t^25*w^2), but at least understandable...
+    -- these come out in factored form.
+
+  elems = (numerator J)_*/(f -> 1/(denominator J) * f)
+  assert all(elems, f -> ring f === L)
+
+  elems/factor
+  -- XXX
 ///
 
 TEST ///  -- test of getIntegralEquation
@@ -987,15 +1086,26 @@ TEST ///  -- test of getIntegralEquation
     y2w4-xy2z2t-w3t3"
   I = sub(I, {t => t+z})
   A = S/I
-  
+codim I == length res I -- perfect ideal
   elapsedTime integralClosure A
-
+  see ideal oo
   use A
+  icFractions A
 --  elapsedTime integralClosureDenominator(A, y) -- currently: really bad.
 --  elapsedTime integralClosureDenominator(A, z*t)
 --  elapsedTime integralClosureDenominator(A, {t,z}) -- FAILS right now.
     
   R = noetherForm{w,t}
+  traceForm R
+  factor det traceForm R
+  elapsedTime J1 = integralClosureDenominator(A, w)
+fractions J1
+  elapsedTime J2 = integralClosureDenominator(A, t)
+fractions J2
+  elapsedTime J3 = integralClosureDenominator(A, t*w)
+fractions J3
+dim I
+fractions J1
   kx = coefficientRing R
   time F = getIntegralEquation(x, 1_kx, kx[T]) -- should return MONIC polynomial!
   assert(degree(T,F) == 23)
@@ -1028,9 +1138,9 @@ TEST ///  -- test of getIntegralEquation
   possibleDenominators FR
   F = fractionalIdeal FR
   newDenominator(F, y*w^2)
-  -- BUG: fractions calls possibleDenominators, which fails as the first fraction is noot in a fraction field (it is 1...)
-  --FR1 = fractions oo
-  --fractionalIdeal FR1
+  FR1 = fractions oo
+  -- fractionalIdeal (FR1/value) -- BUG: fractions calls possibleDenominators, 
+  --  which fails as the first fraction is not in a fraction field (it is 1...)
 
   use R; use coefficientRing R
   time integralClosureDenominator(R, t)
@@ -1064,7 +1174,7 @@ TEST ///
   FR = FR/value
   time U = fractionalRingPresentation IR
   minimalPresentation U
-  -- non Noether position variant
+  -- non Noether position variant (? comment means what??)
 ///
 
 ///
@@ -1078,7 +1188,8 @@ TEST ///
   R = S/I
   elapsedTime integralClosure R -- 1.96 sec
   B = noetherForm {y}
-
+  disc B
+  elapsedTime integralClosureDenominator(R, y) -- SLOW...
 ///
 
 ///
@@ -1097,15 +1208,26 @@ TEST ///
 end--
 
 restart
-needsPackage "FractionalIdeals" -- OK
+uninstallAllPackages()
+
+uninstallPackage "NoetherNormalForm" 
+uninstallPackage "FractionalIdeals" -- no doc yet, but loads.
+
+restart
+installPackage "NoetherNormalForm" 
+installPackage "FractionalIdeals" -- no doc yet, but loads.
+
+restart
+check "FractionalIdeals" -- all passing.
+
+restart
+needsPackage "FractionalIdeals" 
+
 restart
 uninstallPackage "FractionalIdeals" 
 restart
 installPackage "FractionalIdeals" -- no doc yet, but loads.
 viewHelp
-restart
-check "FractionalIdeals" -- one test (at least) takes too long, also fails...
-                          -- tests don't have assertions!
 viewHelp FractionalIdeals
 ///
 -*
@@ -1119,16 +1241,18 @@ viewHelp FractionalIdeals
 
   B = noetherForm({v})
   -- Basically, 4 rings get created:
-  noetherField B
-  noetherRing B -- do we need this?
-  kkx = coefficientRing noetherField B -- this is the fraction field of B.
-  kx = coefficientRing noetherRing B
+  L = frac B
+  B === ring numerator 1_L
+describe L
+  kkx = coefficientRing L -- this is the fraction field of B.
+  kx = coefficientRing B
   assert(kkx === frac kx)
   -- frac B -- perhaps this should be set to noetherField B?
   assert(noetherBasis B == {1, u, u^2})
   assert(multiplicationMap u * multiplicationMap u == multiplicationMap u^2)
   assert(multiplicationMap (u^2+u) == (multiplicationMap u)^2 + multiplicationMap u)
   traceForm B
+  traceForm L
 ///
 
 ---- examples from IntegralClosure/examples.m2
