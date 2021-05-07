@@ -1,7 +1,7 @@
 newPackage(
     "MonomialOrbits",
-    Version => "0.9", 
-    Date => "18 December 2020",
+    Version => "1.0", 
+    Date => "18 December 2020, rev 7 May 2021",
     Authors => {{Name => "David Eisenbud", 
             Email => "de@msri.org", 
             HomePage => "http://www.msri.org/~de"},
@@ -9,8 +9,9 @@ newPackage(
             Email => "mike@math.cornell.edu", 
             HomePage => "http://pi.math.cornell.edu/~mike"}},
     Headline => "Orbit representatives of monomial ideals",
-    PackageExports =>{"Truncations"}, -- for 'truncate'
-    DebuggingMode => true
+    Keywords => {"Combinatorial Commutative Algebra"},
+    PackageImports =>{"Truncations"}, -- for 'truncate'
+    DebuggingMode => false
     )
 
 export {
