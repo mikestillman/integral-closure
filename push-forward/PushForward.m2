@@ -301,7 +301,7 @@ doc ///
 doc ///
     Key
         (pushFwd, RingMap, Module)
-	(pushFwd, Module)
+        (pushFwd, Module)
     Headline
         push forward of a module via a finite ring map
     Usage
@@ -330,6 +330,7 @@ doc ///
             f = map(B,A,{x})
             pushFwd(f,module i)
     SeeAlso
+        (pushFwd, ModuleMap)
 ///
 
 doc ///
@@ -344,7 +345,7 @@ doc ///
     Inputs
         f:RingMap
             from a ring $A$ to a ring $B$
-    	 	 or the natural map from A = coefficientRing ring g if f is not specified
+    	 	 or (if not specified) the natural map from A = coefficientRing ring g
         g:ModuleMap
             (a matrix), $g : M_1 \to M_2$ of modules over $B$
     Outputs
@@ -366,6 +367,7 @@ doc ///
             kerg = pushFwd(f,ker g)
             kerp = prune ker p
     SeeAlso
+        (pushFwd, Module)
 ///
 
 document{
