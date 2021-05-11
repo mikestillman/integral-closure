@@ -366,7 +366,32 @@ doc ///
             target p == pushFwd(f, target g)
             kerg = pushFwd(f,ker g)
             kerp = prune ker p
-    SeeAlso
+	    
+	    k = ZZ/32003
+	    A = k[x,y]/(y^4-2*x^3*y^2-4*x^5*y+x^6-y^7)
+	    A = k[x,y]/(y^3-x^7)	    
+	    B = integralClosure(A, Keep =>{})
+    	    describe B
+	    f = map(B^1, B^1, matrix{{w_(3,0)}})
+	    g = pushFwd(icMap A, f)
+	    pushFwd(icMap A, f^2) == g*g
+	    
+	    A = kk[x]
+	    B = A[y, Join => false]/(y^3-x^7)	    
+	    pushFwd B^1
+	    pushFwd matrix{{y}}
+        Text
+	    Pushforward is linear and respects composition:
+    	Example
+	    B = A[y,z,Join => false]/(y^3 - x*z, z^3-y^7);
+            pushFwd B^1
+	    fy = pushFwd matrix{{y}}
+	    fz = pushFwd matrix{{z}};	    
+	    fx = pushFwd matrix{{x_B}};
+    	    g =  pushFwd matrix{{y*z -x_B*z^2}}
+	    g == fy*fz-fx*fz^2
+	    fz^3-fy^7 == 0
+    SeeAlso   
         (pushFwd, Module)
 ///
 
@@ -817,7 +842,7 @@ TEST ///
   (LA, bas, pf) = pushFwd inc -- this works
   pf(b^2+c^2) -- maybe a better way?
 
---non-finite example
+
   restart
   debug needsPackage "PushForward"
   s = symbol s; t = symbol t  
