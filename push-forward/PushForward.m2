@@ -53,7 +53,7 @@ pushFwd(RingMap):=o->(f)->
 
 pushFwd(Ring):= Sequence => o-> B -> pushFwd(map(B, coefficientRing B), o)
 pushFwd(Module):= Module => o-> M -> pushFwd(map(ring M, coefficientRing ring M), M, o)
-pushFwd(ModuleMap):= ModuleMap => o-> d  ->pushFwd(map(ring d, coefficientRing ring d), d, o)
+pushFwd(Matrix):= Matrix => o-> d  ->pushFwd(map(ring d, coefficientRing ring d), d, o)
 
 
 pushFwd(RingMap,Module):=o->(f,N)->
@@ -68,7 +68,7 @@ pushFwd(RingMap,Module):=o->(f,N)->
      if (o.NoPrune == false) then prune makeModule(N**C,g,matB) else makeModule(N**C,g,matB)
      )
 
-pushFwd(RingMap,ModuleMap):=o->(f,d)->
+pushFwd(RingMap,Matrix):=o->(f,d)->
 (
      A:=source f;
      B:=target f;
@@ -242,7 +242,7 @@ doc ///
             finitely generated over $A$, the routine @TO pushFwd@ in this package
             will compute such an $A$-module.  This is also functorial, in that if a 
             map of $B$-modules (both of which are finitely generated over $A$), then
-            @TO (pushFwd, RingMap, ModuleMap)@ will return the induced map
+            @TO (pushFwd, RingMap, Matrix)@ will return the induced map
             on $A$-modules.
             
             In an algebraic sense, this is really a pull back, but thinking geometrically,
@@ -253,7 +253,7 @@ doc ///
     Subnodes
         (pushFwd, RingMap)
         (pushFwd, RingMap, Module)
-        (pushFwd, RingMap, ModuleMap)
+        (pushFwd, RingMap, Matrix)
 ///
 
 doc ///
@@ -330,13 +330,13 @@ doc ///
             f = map(B,A,{x})
             pushFwd(f,module i)
     SeeAlso
-        (pushFwd, ModuleMap)
+        (pushFwd, Matrix)
 ///
 
 doc ///
     Key
-        (pushFwd, RingMap, ModuleMap)
-        (pushFwd, ModuleMap)	
+        (pushFwd, RingMap, Matrix)
+        (pushFwd, Matrix)	
     Headline
         push forward of a module map via a finite ring map
     Usage
@@ -346,10 +346,10 @@ doc ///
         f:RingMap
             from a ring $A$ to a ring $B$
     	 	 or (if not specified) the natural map from A = coefficientRing ring g
-        g:ModuleMap
+        g:Matrix
             (a matrix), $g : M_1 \to M_2$ of modules over $B$
     Outputs
-        gA:ModuleMap
+        gA:Matrix
     Description
         Text
             If $M_1$ and $M_2$ are both finite generated as $A$-modules, via $f$, this returns the induced map
@@ -377,7 +377,7 @@ document{
   UL {
        {TO (pushFwd,RingMap)," - for a finite ring map"},
        {TO (pushFwd,RingMap,Module), " - for a module"},
-       {TO (pushFwd,RingMap,ModuleMap), " - for a map of modules"}
+       {TO (pushFwd,RingMap,Matrix), " - for a map of modules"}
      }
   }   
 
@@ -424,7 +424,7 @@ document{
 --   }
 
 -- document{
---   Key => (pushFwd,RingMap,ModuleMap),
+--   Key => (pushFwd,RingMap,Matrix),
 --   Headline => "push forward of a map of modules",
 --   Usage => "pushFwd(f,d)",
 --   Inputs => { "f", "d" },
@@ -800,8 +800,8 @@ TEST ///
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
   assert isFiniteOverCoefficientRing L
-  pushFwd inc -- fails
-  --  ML = pushFwd(map(L,frac A), L^1) -- dim 4, free -- FAILS
+  pushFwd inc
+  ML = pushFwd(map(L,frac A), L^1)
 
   -- FIX THIS: should not create a graph ring.
   -- FIX ME?
@@ -824,11 +824,11 @@ TEST ///
   kk = ZZ/101
   A = frac(kk[s,t])
   L = A[symbol b, symbol c]/(b^2-(s/t)*c^2 - c, c^3)
-basis L
+  basis L
   describe L
   inc = map(L, A)
-pushForward(inc, A^1)
-  pushFwd inc -- fails
+  pushForward(inc, A^1) -- now fails...
+  pushFwd inc
 ///
 
 ///
