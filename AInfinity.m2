@@ -17,11 +17,9 @@ export {
     "aInfinity",
     "burke",
     "golodBetti",
-    "labeledTensorComplex",
-    "labeledDirectSum",
+    --facilities for exhibiting the answers
     "mapComponents",
     "componentsAndIndices",
-    "label",
     "picture",
     "displayBlocks",
     "extractBlocks"
@@ -203,9 +201,11 @@ labeler(Thing,Module) := (L,F) -> directSum(1:(L=>F));
 --note that in labeling a direct sum, the labels must be applied to the modules
 --And when the direct sum is formed.
 
+-*
 label = method()
 label(Module) := Thing => M-> (indices M)_0
 label(List) := List => L-> apply(L, M ->(indices M)_0)
+*-
 
 labeledDirectSum = method()
 labeledDirectSum List := Module => L ->(
@@ -220,20 +220,6 @@ restart
 debug loadPackage"AInfinity"
 check AInfinity
 ///
-
-TEST///
-S = ZZ/101[a,b]
-C = labeledDirectSum({A,B},{S^1,S^2})
-D = labeledDirectSum({X},{S^0})
---D = labeledDirectSum(S, {},{})
---D^[{}]
-assert (componentsAndIndices C  == ({S^1, S^2}, {A,B}))
-assert(componentsAndIndices C == ({S^1 , S^2 }, {A, B}))
-assert(C^[A] == map(S^1,S^3,{{1,0,0}}))
-assert(label components C == {A,B})
-assert(indices C == {A,B})
-///
-
 ///
 --necessity of double labeling:
 S = ZZ/101[a,b,c]
@@ -333,31 +319,6 @@ labeledTensorComplex(Ring, Complex) := Complex => (R,C)->(
 	
 
 
-///
-restart
-loadPackage("AInfinity", Reload => true)
-check AInfinity
-///
-
-TEST///
-S = ZZ/101[a,b,c]
-K' = complex koszul vars S
-
-K = labeledTensorComplex K'
-assert(label K_2 == {2})
-assert(K_0_[{0}] == map(S^1,S^1,1))
-
-K2 = labeledTensorComplex{K',K'}
-picture K2
-componentsAndIndices(K2_1)
-assert(K2_1_[{1,0}] == map(S^{6:-1},S^{3:-1},id_(S^{3:-1})||0*id_(S^{3:-1})))
-
-R = S/ideal a
-RK = labeledTensorComplex(R,K)
-picture RK
-assert(label RK_2 == {2})
-assert(RK_0_[{0}] == map(R^1,R^1,1))
-///
 
 ///
 restart
@@ -835,6 +796,7 @@ labels Module := List => M -> (
 	  apply(M.cache.components, N ->  N.cache#"label"))
     )
 
+--extension of the built-in method function compositions(ZZ,ZZ)
 compositions(ZZ,ZZ,ZZ) := (nparts, k, maxelem) -> (
     -- nparts is the number of terms
     -- k is the sum of the elements
@@ -954,14 +916,32 @@ Description
 SeeAlso
 ///
 
-
-TEST ///
--- test code and assertions here
--- may have as many TEST sections as needed
+///
+restart
+loadPackage("AInfinity", Reload => true)
+check AInfinity
 ///
 
+TEST///
+debug AInfinity
+S = ZZ/101[a,b,c]
+K' = complex koszul vars S
 
+K = labeledTensorComplex K'
+--assert(label K_2 == {2})
+assert(K_0_[{0}] == map(S^1,S^1,1))
 
+K2 = labeledTensorComplex{K',K'}
+picture K2
+componentsAndIndices(K2_1)
+assert(K2_1_[{1,0}] == map(S^{6:-1},S^{3:-1},id_(S^{3:-1})||0*id_(S^{3:-1})))
+
+R = S/ideal a
+RK = labeledTensorComplex(R,K)
+picture RK
+--assert(label RK_2 == {2})
+assert(RK_0_[{0}] == map(R^1,R^1,1))
+///
 end--
 
 
