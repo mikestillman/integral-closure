@@ -1,3 +1,11 @@
+-- TODO:
+--  finish doc
+--  isFinite RingMap
+--  isFiniteOverCoefficientRing Ring
+--  how to interact with pushForward?
+--   issues: pushForward seems somewhat faster, in the homogeneous case...
+--           also, are these stashed in that case?  (They are not here, yet).
+
 newPackage(
         "PushForward",
         Version => "0.5",
@@ -14,13 +22,15 @@ newPackage(
                 HomePage => "http://pi.math.cornell.edu/~mike"}
             },
         Headline => "push forwards of finite ring maps",
-	Keywords => {"Commutative Algebra"},
+        Keywords => {"Commutative Algebra"},
         DebuggingMode => true
         )
         
---note, this version has a slight change added by Karl Schwede.  It has an option to turn off the prune calls.
+-- note, this version has a slight change added by Karl Schwede.  It has an option to turn off the prune calls.
+-- Recently, David Eisenbud and Mike Stillman have extended it, fixing some bugs too.
 
 export {
+    "isFiniteOverCoefficientRing",
     "pushFwd", 
     "NoPrune"
     }
@@ -30,7 +40,7 @@ isFinite RingMap := Boolean => f -> (
     )
 
 pushFwd=method(Options => {NoPrune => false})
-pushFwd(RingMap):=o->(f)->
+pushFwd RingMap := Sequence => o -> (f) ->
 --pfB is B^1 as an A-module
 --matB is the set of monomials in B that form a set of generators as an A-module
 --mapf takes as arg an element of B, and returns ??
@@ -39,24 +49,19 @@ pushFwd(RingMap):=o->(f)->
      B:=target f;
      deglenA:=degreeLength A;
      deglenB:=degreeLength B;
-     psh:= pushAuxHgs f;
-     matB:=psh_0;
-     mapfaux:=psh_1;     
-     local ke;
-     local freeA;
+     (matB, mapfaux) := pushAuxHgs f;
 
      pfB := makeModule(B^1,f,matB);
-     g := map(pfB,freeA,gens pfB);
+     g := map(pfB,,gens pfB);
      mapf := (b) -> g*(mapfaux b); 
-     pfB,matB,mapf
+     (pfB,matB,mapf)
      )
 
-pushFwd(Ring):= Sequence => o-> B -> pushFwd(map(B, coefficientRing B), o)
-pushFwd(Module):= Module => o-> M -> pushFwd(map(ring M, coefficientRing ring M), M, o)
-pushFwd(Matrix):= Matrix => o-> d  ->pushFwd(map(ring d, coefficientRing ring d), d, o)
+pushFwd Ring := Sequence => o -> B -> pushFwd(map(B, coefficientRing B), o)
+pushFwd Module := Module => o -> M -> pushFwd(map(ring M, coefficientRing ring M), M, o)
+pushFwd Matrix := Matrix => o -> d -> pushFwd(map(ring d, coefficientRing ring d), d, o)
 
-
-pushFwd(RingMap,Module):=o->(f,N)->
+pushFwd(RingMap,Module):=Module=>o->(f,N)->
 (
      B:=target f;
      aN:=ann N;
@@ -68,7 +73,7 @@ pushFwd(RingMap,Module):=o->(f,N)->
      if (o.NoPrune == false) then prune makeModule(N**C,g,matB) else makeModule(N**C,g,matB)
      )
 
-pushFwd(RingMap,Matrix):=o->(f,d)->
+pushFwd(RingMap,Matrix):=Matrix=>o->(f,d)->
 (
      A:=source f;
      B:=target f;
@@ -158,10 +163,18 @@ pushAuxHgs(RingMap):=(f)-> (
     
      if isInclusionOfCoefficientRing f then (
      --case when the source of f is the coefficient ring of the target:
-	 if not isFiniteOverCoefficientRing target f then error"expected a finite map";
+	 if not isFiniteOverCoefficientRing target f then error "expected a finite map";
 	 matB = basis B;
-         mapf = (b)->(
+         mapf = if isHomogeneous f 
+           then (b) -> (
              (mons,cfs) := coefficients(b,Monomials=>matB);
+             lift(cfs, A)
+	     )
+           else (b) -> (
+             (mons,cfs) := coefficients(b,Monomials=>matB);
+             -- strip degrees on the target, as otherwise, with differing degrees in A and B,
+             -- the degree cannot always be lifted:
+             cfs = map(B^(numrows cfs),B^(numcols cfs),cfs); 
 	     lift(cfs, A)
 	     );
          return(matB,mapf)
@@ -208,9 +221,6 @@ pushAuxHgs(RingMap):=(f)-> (
 	  (mons,cfs):=coefficients((phi b)%I,Monomials=>mat,Variables=>yvars);
 	  toA cfs	  
 	  );
-
---error "debug me";     
---     matB,k,R,I,mat,n,varsA,mapf
      matB,mapf     
      )
 
@@ -273,15 +283,12 @@ doc ///
     Description
         Text
             If $f: A \to B$ is a ring map, and $B$ is finitely generated as an $A$-module,
-            then the function returns
+            then the function returns a sequence $(M, g, pf)$ containing
             (1) $M \cong B^1$ as $A$-modules,
-            (2) a 1-row matrix of elements of B whose entries generate B as A-module,
-            (3) a function that
+            (2) a 1-row matrix $g$ of elements of B whose entries generate B as A-module,
+            (3) a function $pf$ that
             assigns to each element $b \in B$, a matrix $A^1 \to M$,
             where the image of 1 is the element $b \in M$.
-        Text
-            Given a ring map $f : A \to B$, $B$ can be considered as a module over $A$.
-            If this module is finite, this method returns this module.  And some other stuff...  Write this!
         Example
             kk = QQ;
             S = kk[a..d];
@@ -295,7 +302,10 @@ doc ///
             use B
 	    pf(a*b - c^2)
     Caveat
+        This function is meant to be internally used.
     SeeAlso
+        (pushFwd, RingMap, Module)
+        (pushFwd, RingMap, Matrix)
 ///
 
 doc ///
@@ -746,6 +756,75 @@ TEST///
   use R
   assert(M == cokernel(map(R^{{0}, {-3}},R^{{-6}, {-4}},{{-x^2-x,y^4}, {y^3,-x}})))
   assert(pf w_(2,0) - matrix {{0}, {1}} == 0)
+///
+
+TEST ///
+-- XXX
+-*
+  restart
+  needsPackage "PushForward"
+*-
+  kk = QQ
+  A = kk[x, DegreeRank => 0]
+  R = A[y,z, Join => false]
+  I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
+  B = R/I
+  (M,g,pf) = pushFwd B
+  pushFwd B^1
+  pushFwd B^{1}
+  fy = pushFwd matrix{{y}}
+  fz = pushFwd matrix{{z}}
+  assert(fy*fz == pushFwd matrix{{y*z}})
+  inc = map(B,A)
+  pushFwd(inc, B^1)
+  pushFwd(inc, B^{1})
+  fy = pushFwd(inc, matrix{{y}})
+  fz = pushFwd(inc, matrix{{z}})
+  assert(fy*fz == pushFwd(inc, matrix{{y*z}}))
+
+  kk = QQ
+  A = kk[x]
+  R = A[y,z, Join => false]
+  I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
+  B = R/I
+  (M,g,pf) = pushFwd B
+  pushFwd B^1
+  pushFwd B^{1}
+  fy = pushFwd matrix{{y}} 
+  fz = pushFwd matrix{{z}}
+  assert(fy*fz == pushFwd matrix{{y*z}}) -- false
+  assert(fy*fz - pushFwd matrix{{y*z}} == 0)
+  inc = map(B,A)
+  pushFwd(inc, B^1)
+  pushFwd(inc, B^{1})
+  fy = pushFwd(inc, matrix{{y}})
+  fz = pushFwd(inc, matrix{{z}})
+  assert(fy*fz == pushFwd(inc, matrix{{y*z}}))
+
+  kk = QQ
+  A = kk[x, DegreeRank => 0]
+  R = A[y,z]
+  I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
+  B = R/I
+  (M,g,pf) = pushFwd B
+  pushFwd B^1
+  pushFwd B^{1}
+  fy = pushFwd matrix{{y}}
+  fz = pushFwd matrix{{z}}
+  fy*fz == pushFwd matrix{{y*z}}
+
+  kk = QQ
+  A = kk[x]
+  R = A[y,z]
+  I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
+  B = R/I
+  (M,g,pf) = pushFwd B
+  pushFwd B^1
+  pushFwd B^{{0,1}}
+  fy = pushFwd matrix{{y}} -- good
+  fz = pushFwd matrix{{z}}
+  assert(fy*fz == pushFwd matrix{{y*z}}) -- good
+  assert(fy*fz - pushFwd matrix{{y*z}} == 0)
 ///
 
 end--
