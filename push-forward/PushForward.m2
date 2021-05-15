@@ -8,8 +8,8 @@
 
 newPackage(
         "PushForward",
-        Version => "0.5",
-        Date => "April 30, 2021",
+        Version => "0.6",
+        Date => "May 14, 2021",
         Authors => {
             {Name => "Claudiu Raicu", 
                 Email => "craicu@nd.edu", 
@@ -31,12 +31,50 @@ newPackage(
 
 export {
     "isFiniteOverCoefficientRing",
+    "isFiniteRingMap",
     "pushFwd", 
     "NoPrune"
     }
 
-isFinite RingMap := Boolean => f -> (
-    -- TODO.  Also, should the name change?
+isFinite1 = (f) -> (
+    A := source f;
+    B := target f;
+    matB := null;
+    mapf := null;
+    pols := f.matrix;
+    (FA, phiA) := flattenRing A;
+    iFA := ideal FA;
+    varsA := flatten entries phiA^-1 vars FA;
+    RA := try(ring source presentation FA) else FA;
+    (FB, phiB) := flattenRing B;
+    iFB := ideal FB;
+    varsB := flatten entries phiB^-1 vars FB;
+    RB := try(ring source presentation FB) else FB;
+    m := numgens FA;
+    n := numgens FB;
+    pols = pols_{0..(m-1)};
+    R := try(tensor(RB, RA, Join => false)) else tensor(RB, RA, Join => true);
+    xvars := (gens R)_{n..n+m-1};
+    yvars := (gens R)_{0..n-1};
+    iA := sub(ideal FA,matrix{xvars});
+    iB := sub(ideal FB,matrix{yvars});
+    iGraph := ideal(matrix{xvars}-sub(pols,matrix{yvars}));
+    I := iA+iB+iGraph;
+    inI := leadTerm I;
+    r := ideal(sub(inI,matrix{yvars | splice{m:0}}));     
+    for i from 1 to n do
+        if ideal(sub(gens r,matrix{{(i-1):0,1_R,(m+n-i):0}}))!=ideal(1_R) then
+            return false;
+    true
+    )
+
+
+isFiniteRingMap = method()
+isFiniteRingMap RingMap := Boolean => f -> (
+    if isInclusionOfCoefficientRing f then
+        isFiniteOverCoefficientRing target f
+    else
+        isFinite1 f
     )
 
 pushFwd=method(Options => {NoPrune => false})
@@ -136,10 +174,15 @@ pushFwd(RingMap,Matrix):=Matrix=>o->(f,d)->
 makeModule=method()
 makeModule(Module,RingMap,Matrix):=(N,f,matB)->
 (
+     N = trim N;
      auxN:=ambient N/image relations N;
      A:=source f;
      k:=(numgens ambient N) * (numgens source matB);
-     mp:=try(map(auxN,,f,matB**gens N)) else map(auxN,A^k,f,matB**gens N);
+     --mp:=try(map(auxN,,f,matB**gens N)) else map(auxN,A^k,f,matB**gens N);
+     mp := if isHomogeneous f then 
+               try(map(auxN,,f,matB**gens N)) else map(auxN,A^k,f,matB**gens N)
+           else
+               map(auxN,A^k,f,matB**gens N);
      ke:=kernel mp;
      (super ke)/ke
      )
@@ -478,6 +521,38 @@ document{
 --   }
 
 doc ///
+    Key
+        (isFiniteRingMap, RingMap)
+        isFiniteRingMap
+    Headline
+        whether the target of a ring map is finitely generated over source
+    Usage
+        isFiniteRingMap f
+    Inputs
+        f:RingMap
+    Outputs
+        :Boolean
+    Description
+        Text
+            A ring map $f \colon A \to B$ makes $B$ into a module over $A$.
+            This method returns true if and only if this module is a finitely generated
+            $A$-module.
+        Example
+            kk = QQ;
+            A = kk[t];
+            C = kk[x,y];
+            B = C/(y^2-x^3);
+            f = map(A, B, {t^2, t^3})
+            isWellDefined f
+            isFiniteRingMap f
+        Example
+            f = map(kk[x,y], A, {x+y})
+            assert not isFiniteRingMap f
+    SeeAlso
+        pushFwd
+///
+
+doc ///
 Key
   NoPrune
   [pushFwd,NoPrune]
@@ -538,6 +613,7 @@ pr = pushFwd map(R',R)
 q = pr_0 / (pr_0)_0
 use R
 assert(ann q==ideal(x,y))
+assert isFiniteRingMap map(R', R)
 ///
 
 -- test 3
@@ -553,7 +629,8 @@ S=PS/kernel map(T,PS,{t^3-1,t^4-t,t^5-t^2})
 
 rs=map(S,R,{x_0,x_1})
 st=map(T,S,{t^3-1,t^4-t,t^5-t^2})
-
+assert isFiniteRingMap rs
+assert isFiniteRingMap st
 pst=pushFwd st
 
 MT=pst_0
@@ -582,12 +659,14 @@ A=T[x,y]/(x^2-t*y)
 R=A[p]/(p^3-t^2*x^2)
 S=A[q]/(t^3*(q-1)^6-t^2*x^2)
 f=map(S,R,{t*(q-1)^2})
+assert isFiniteRingMap f
 pushFwd f
 
 p=symbol p
 R=A[p_1,p_2]/(p_1^3-t*p_2^2)
 S=A[q]
 f=map(S,R,{t*q^2,t*q^3})
+assert isFiniteRingMap f
 pushFwd f
 
 i=ideal(q^2-t*x,q*x*y-t)
@@ -601,6 +680,7 @@ kk=QQ
 A=kk[x]
 B=kk[y]/(y^2)
 f=map(B,A,{y})
+assert isFiniteRingMap f
 pushFwd f
 use B
 d=map(B^1,B^1,matrix{{y^2}})
@@ -615,6 +695,7 @@ B=kk[x,y]/(x*y)
 use B
 i=ideal(x)
 f=map(B,A,{x})
+assert not isFiniteRingMap f
 assert(isFreeModule pushFwd(f,module i))
 ///
 
@@ -634,7 +715,8 @@ time iB=kernel g;
 B=PB/iB
 
 f=map(A,B,l)
-
+assert isFiniteRingMap f
+assert isFiniteRingMap g
 time h1=pushFwd g;
 ph1=cokernel promote(relations h1_0,B);
 time h2=pushFwd f;
@@ -648,6 +730,7 @@ A = QQ
 B = QQ[x]/(x^2)
 N = B^1 ++ (B^1/(x))
 f = map(B,A)
+assert isFiniteRingMap f
 pN = pushFwd(f,N)
 assert(isFreeModule pN)
 assert(numgens pN == 3) 
@@ -693,7 +776,8 @@ TEST///
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
   assert isFiniteOverCoefficientRing L
-  (M,B,pf) = pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
+  assert isFiniteRingMap inc
+  (M,B,pf) = pushFwd inc
   assert( B*presentation M  == 0)
   assert(numcols B == 5)
 ///
@@ -713,6 +797,7 @@ TEST///
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
   assert isFiniteOverCoefficientRing L
+  assert isFiniteRingMap inc
   (M,B,pf) = pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
   assert( B*presentation M  == 0)
   assert(numcols B == 5)
@@ -754,12 +839,11 @@ TEST///
   R' = integralClosure R
   (M,B,pf) = pushFwd map(R',R)
   use R
-  assert(M == cokernel(map(R^{{0}, {-3}},R^{{-6}, {-4}},{{-x^2-x,y^4}, {y^3,-x}})))
+  assert(M == cokernel(map(R^2,R^{{-6}, {-4}},{{-x^2-x,y^4}, {y^3,-x}})))
   assert(pf w_(2,0) - matrix {{0}, {1}} == 0)
 ///
 
 TEST ///
--- XXX
 -*
   restart
   needsPackage "PushForward"
@@ -769,6 +853,7 @@ TEST ///
   R = A[y,z, Join => false]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
+  assert isFiniteRingMap map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{1}
@@ -787,6 +872,7 @@ TEST ///
   R = A[y,z, Join => false]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
+  assert isFiniteRingMap map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{1}
@@ -806,6 +892,7 @@ TEST ///
   R = A[y,z]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
+  assert isFiniteRingMap map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{1}
@@ -818,6 +905,7 @@ TEST ///
   R = A[y,z]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
+  assert isFiniteRingMap map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{{0,1}}
