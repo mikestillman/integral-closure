@@ -37,14 +37,6 @@ export {
     "MonomialType"
     }
 
-toLis = method()
-toLis MonomialIdeal := List => I -> reverse sort( I_*/(m-> (exponents m)_0))
-
-fromLis = method()
-fromLis (Ring, List) := MonomialIdeal => (S,L) -> monomialIdeal apply(L,
-                                                        e -> product(#e, i -> S_i^(e_i)))
-
-toList MonomialIdeal := List => I -> sort( I_*/(m-> (exponents m)_0)) -- for some reason this doesn't work.
 
 squareFree = method()
 squareFree(List, Ring) := Matrix => (d,R) -> (
@@ -131,24 +123,6 @@ orbitRepresentatives(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
     result
     )
 
-orbitRepresentativesLis = method(Options=>{MonomialType => "All"})
-orbitRepresentativesLis(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
-
-    if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
-    result := toLis monomialIdeal I;
-    n := numgens R;
-    G := permutations n;
-    rawMonsLis := {};
-    mons := {};
-    for d in degs do (
-        rawMonsMat := monomialsInDegreeLis(d, R, o.MonomialType);
---        mons = flatten entries sort(rawMonsMat, 
---                     DegreeOrder => Ascending, MonomialOrder => Descending);
-        mons = rawMonsMat; -- should we be sorting this?? TODO
-        result = normalFormsLis(sumMonomialsLis(result, mons), G)
-        );
-    result/(L -> toLis(R,L))
-    )
 
 --TODO
 orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, numelts) -> (
@@ -233,14 +207,6 @@ permutations Ring := R -> (
     H#"GroupElements"
     )
 
-notIn = method()
-notIn(List, List) := Boolean => (L1, L2) -> (
-    --L1 a list of n elements corresponding to a monomial m in S
-    --L2 a list of lists of such, corresponding to a monomial ideal I
-    --returns true if m is not in I.
-    diffs := apply(L2, L -> L-L1);
-    all(diffs, L -> min L < 0)
-    )
 
 sumMonomials = method()
 sumMonomials(List, List) := List => (L1, L2) -> (
@@ -260,25 +226,6 @@ sumMonomials(List, List) := List => (L1, L2) -> (
     )
 sumMonomials(Ideal, List) := List => (I, L2) -> sumMonomials({I}, L2)
 
-sumMonomialsLis = method()
-sumMonomialsLis(List, List) := List => (L1, L2) -> (
-    
-    --L1 list of lists of lists, representing a list of monomial ideals, or a list representing a single
-    --monomial ideal.
-    --L2 list of lists, representing monomials
-    --return list of lists L of lists; where 
-    --L representa a monomial ideal L' in L1 with a "monomial" from L2 adjoined 
-    --that is not divisible by any monomial in L',
-    --
-    --sorted.
-    if class L1_0 === ZZ then sumMonomialsLis({L1}, L2) else(
-    unique flatten for I in L1 list (
-        for m in L2 list (
-            if m notIn  I then reverse sort (I | { m })
-            else continue
-            )
-        ))
-    )
 
 normalForms = method()
 normalForms(List, List) := (Fs, G) -> (
@@ -296,7 +243,7 @@ normalForms(List, List) := (Fs, G) -> (
     elapsedTime for i from 0 to #L-1 list (
         if L#i === null then continue;
         F := L#i;
-        for f in G1 do elapsedTime (
+        for f in G1 do (
             H := monomialIdeal(f F);
             if LH#?H then (
                 j := LH#H;
@@ -312,6 +259,63 @@ normalForms(List, List) := (Fs, G) -> (
         )
     )
 
+--The Lis versions:
+-*
+toList MonomialIdeal := List => I -> sort( I_*/(m-> (exponents m)_0)) -- for some reason this doesn't work.
+*-
+
+toLis = method()
+--should always be a list of lists. The zero monomial ideal is () and this has to be handled separately.
+toLis MonomialIdeal := List => I -> if I == 0 then {{}} else 
+                                    reverse sort( I_*/(m-> (exponents m)_0))
+
+fromLis = method()
+fromLis (Ring, List) := MonomialIdeal => (S,L) -> monomialIdeal apply(L,e-> product(#e, i-> S_i^(e_i)))
+
+notIn = method()
+notIn(List, List) := Boolean => (L1, L2) -> (
+    --L1 a list of n elements corresponding to a monomial m in S
+    --L2 a list of lists of such, corresponding to a monomial ideal I
+    --returns true if m is not in I.
+    if L2 == {{}} then return true;
+--    if class L2_0 === ZZ then L2 = {L2};
+    diffs := apply(L2, L -> L-L1);
+    all(diffs, L -> min L < 0)
+    )
+
+orbitRepresentativesLis = method(Options=>{MonomialType => "All"})
+orbitRepresentativesLis(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
+
+    if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
+    result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
+    n := numgens R;
+    G := permutations n;
+    rawMonsLis := {};
+    mons := {};
+    for d in degs do (
+        rawMonsMat := monomialsInDegreeLis(d, R, o.MonomialType);
+--        mons = flatten entries sort(rawMonsMat, 
+--                     DegreeOrder => Ascending, MonomialOrder => Descending);
+        mons = rawMonsMat; -- should we be sorting this?? TODO
+        result = normalFormsLis(sumMonomialsLis(result, mons), G)
+        );
+    result/(L -> fromLis(R,L))
+    )
+
+sumMonomialsLis = method()
+sumMonomialsLis(List, List) := List => (L1, L2) -> (
+    --L1 list of lists of lists, representing a list of monomial ideals, or a list representing a single
+    --monomial ideal.
+    --L2 list of lists, representing monomials
+    --return list of lists L of lists; where 
+    --L representa a monomial ideal L' in L1 with a "monomial" from L2 adjoined 
+    --that is not divisible by any monomial in L',
+    --sorted.
+    unique flatten for I in L1 list (
+        for m in L2 list if I == {{}} then {m} else
+            if notIn(m, I) then reverse sort (I | { m })
+            else continue
+            ))
     
 normalFormsLis = method()
 normalFormsLis(List, List) := (Fs, G) -> (
@@ -330,7 +334,7 @@ normalFormsLis(List, List) := (Fs, G) -> (
     elapsedTime for i from 0 to #L-1 list (
         if L#i === null then continue;
         F := L#i;
-        for f in G1 do elapsedTime (
+        for f in G1 do (
             H := apply(F, L -> L_f);
             if LH#?H then (
                 j := LH#H;
@@ -621,6 +625,7 @@ assert(orbitRepresentatives(S, monomialIdeal S_0, mm^2, 2) ==
 restart
 loadPackage "NewMonomialOrbits"
 ///
+
 TEST///
 debug NewMonomialOrbits
 S = ZZ/101[x,y,z]
@@ -628,6 +633,10 @@ I = monomialIdeal monomialsInDegree(3,S,"All")
 L = toLis I
 assert(I_* == (fromLis(S, toLis I))_*)
 --toList I -- gives error
+orbitRepresentativesLis(S,monomialIdeal(x^3), {3,3}) 
+orbitRepresentatives(S,monomialIdeal(x^3), {3,3})
+orbitRepresentativesLis(S,monomialIdeal(0_S), {3,3})
+
 ///
 
 
@@ -654,6 +663,10 @@ d = 5;s = 2 --1.1 sec, (56, 1540),  90 examples
 d = 5;s = 3 --17 sec, (56, 27720), 1282 exmamples
 d= 4;s=4 -- 41.5 sec, (35, 52360), 2380 examples
 binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
+#elapsedTime orbitRepresentatives (S, z, mm^d, s)
+
+--the Lis versions
+#elapsedTime orbitRepresentativesLis (S, z, s:d)
 #elapsedTime orbitRepresentatives (S, z, mm^d, s)
 
 --the subtractive version:
