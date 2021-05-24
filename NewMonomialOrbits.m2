@@ -306,80 +306,36 @@ assert(all(#L, i->toMonLis(S,L_i) === (flatten entries M')_i))
 
 
 descSort = L -> (
---sort of list of lists that corresponds to descending monomial order on the entries of a matrix of monomials
+    --sort a list of lists corresponding to a monomial ideal, to put the gens in a unique order.
+    --in this case the order corresponds to descending monomial order on the entries of a matrix of monomials
     --first treat the case of a single ideal:
-    if class L_0_0 === ZZ then(
-    d := sum L_0;    
+--    d := max(L/sum);
+    d := sum last L; -- the last generator has the largest degree.
     L1 := sort apply(L, e -> {sum(#e, i-> (d+1)^i*e_i)}|e);
-    apply(L1, e -> drop(e,1)))  else (
-    --now the case of a list of ideals
-    d = sum L_0_0;
-    L1 = apply(L, I -> (
-	        J := flatten I;
-		{sum(#J, p -> J_p*(d+1)^p)}|I)
-	    );
-    L2 := sort L1;
-    apply(L2, I -> drop(I,1))
-    )
-)
-    
-    
-    orbitRepresentatives(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
-
-    if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
-    result := {monomialIdeal I};
-
-    G := permutations R;
-    rawMonsMat := matrix{{}};
-    mons := {};
-    for d in degs do (
-        rawMonsMat = monomialsInDegree(d, R, o.MonomialType);
-        mons = flatten entries sort(rawMonsMat, 
-                     DegreeOrder => Ascending, MonomialOrder => Descending);
-        result = normalForms(sumMonomials(result, mons), G)
-        );
-    result
+    apply(L1, e -> drop(e,1))
     )
 
 
 orbitRepresentativesLis = method(Options=>{MonomialType => "All"})
 orbitRepresentativesLis(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
-
     if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
     result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
+    if #degs >1 then  degs = sort toList(degs); -- more efficient to add the small degree gens first.
     n := numgens R;
     G := permutations n;
---    rawMonsLis := {};
---    mons := {};
+
     for d in degs do( 
         mons := monomialsInDegreeLis(d, R, o.MonomialType);
---        rawMonsMat := monomialsInDegreeLis(d, R, o.MonomialType);
---        rawMonsMat := monomialsInDegreeLis(d, R, o.MonomialType);	
---        mons = flatten entries sort(rawMonsMat, 
---                     DegreeOrder => Ascending, MonomialOrder => Descending);
-
---        mons = descSort rawMonsMat; -- should we be sorting this?? TODO
-
-	
-
---	if debugLevel >0 then assert(
---	    mons == (flatten entries sort(monomialsInDegree(d, R, o.MonomialType), 
---		                         DegreeOrder => Ascending, MonomialOrder => Descending))/toLis
---				 );
-    	
---	if debugLevel>0 then(		     
---        <<"---"<<endl;	    
---	<<sumMonomialsLis(result, mons)<<endl;
---	<<normalFormsLis(sumMonomialsLis(result, mons), G)<< endl;
---	);
     
         result = normalFormsLis(sumMonomialsLis(result, mons), G); -- was reverse sort
     	);
---	if debugLevel>0 then <<result<<endl<<endl;
-
      result/(L -> fromLis(R,L))
     )
 
+orbitRepresentativesLis(Ring, VisibleList) := List => o -> (R, degs) -> (
+    ze := monomialIdeal 0_R;
+    orbitRepresentativesLis(R, ze, degs, o)
+    )
 
 sumMonomialsLis = method()
 sumMonomialsLis(List, List) := List => (L1, L2) -> (
@@ -392,7 +348,7 @@ sumMonomialsLis(List, List) := List => (L1, L2) -> (
     --sorted.
     unique flatten for I in L1 list (
         for m in L2 list if I == {{}} then {m} else
-            if notIn(m, I) then descSort (I | { m }) -- was reverse sort
+            if notIn(m, I) then descSort (I | { m }) --do we need to sort here too?
             else continue
             ))
     
@@ -739,7 +695,7 @@ assert(I_* == (fromLis(S, toLis I))_*)
 ze = monomialIdeal 0_S
 
 ans1 = orbitRepresentativesLis(S,ze, {2,2}) -- both of these pairs should be singletons:
-ans2 = orbitRepresentatives(S,ze, {2,2})
+ans2 = orbitRepresentatives(S,ze, {2,2}) -- both of these pairs should be singletons:
 assert(ans1==ans2)
 
 ans1 = orbitRepresentativesLis(S,ze, {3}) 
@@ -759,6 +715,12 @@ ans2 = orbitRepresentatives(S,monomialIdeal(0_S), {3,3})
 assert(ans1 == ans2)
 
 assert(#orbitRepresentativesLis (S, ze, 3:5) == 238)
+
+ans1 = orbitRepresentativesLis (S, ze, {2,3,4})
+ans2 = orbitRepresentatives (S, ze, (2,3,4))
+assert(ans1 == ans2)
+ans3 = orbitRepresentativesLis (S, {2,3,4})
+assert(ans1 == ans3)
 ///
 
 end---------------------------------------------------------------------
@@ -770,12 +732,14 @@ end---------------------------------------------------------------------
   restart
   installPackage "NewMonomialOrbits"
   check "NewMonomialOrbits"
+
   viewHelp NewMonomialOrbits
 ///
 
 
 
 n = 4
+x = symbol x
 S = ZZ/101[x_1..x_n]
 z = monomialIdeal  0_S
 mm = monomialIdeal gens S
@@ -784,7 +748,10 @@ d = 5;s = 2 --1.1 sec, (56, 1540),  90 examples Lis version .1 sec
 d = 5;s = 3 --17 sec, (56, 27720), 1282 exmamples Lis version 1.7 sec
 d= 4;s=4 -- 41.5 sec, (35, 52360), 2380 examples Lis version 4.44 sec
 binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
-assert #elapsedTime orbitRepresentatives (S, z, mm^d, s) 
+
+#elapsedTime orbitRepresentativesLis (S, ze, 3:5)
+
+#elapsedTime orbitRepresentatives (S, z, mm^d, s) 
 
 --the Lis versions
 
