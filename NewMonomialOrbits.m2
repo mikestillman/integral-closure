@@ -246,7 +246,7 @@ toLis = method()
 toLis RingElement := List => m -> (exponents m)_0
 toLis MonomialIdeal := List => I -> if I == 0 then {{}} else 
                                     --reverse sort( I_*/(m-> toLis m))
-				    descSort( I_*/(m-> toLis m))
+				    sort( I_*/(m-> toLis m))
 
 
 
@@ -305,7 +305,7 @@ assert(all(#L, i->toMonLis(S,L_i) === (flatten entries M')_i))
 ///
 
 
-
+-*
 descSort = L -> (
     --sort a list of lists corresponding to a monomial ideal, to put the gens in a unique order.
     --in this case the order corresponds to descending monomial order on the entries of a matrix of monomials
@@ -315,7 +315,7 @@ descSort = L -> (
     L1 := sort apply(L, e -> {sum(#e, i-> (d+1)^i*e_i)}|e);
     apply(L1, e -> drop(e,1))
     )
-
+*-
 
 orbitRepresentativesLis = method(Options=>{MonomialType => "All"})
 orbitRepresentativesLis(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
@@ -326,9 +326,12 @@ orbitRepresentativesLis(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -
     G := permutations n;
 
     for d in degs do( 
+	<<"------"<<endl;
         mons := monomialsInDegreeLis(d, R, o.MonomialType);
-    
-        result = normalFormsLis(sumMonomialsLis(result, mons), G); -- was reverse sort
+    	elapsedTime sumList := sumMonomialsLis(result, mons);
+	<<#result<<" "<<#sumList<<endl;
+	elapsedTime result = normalFormsLis(sumList, G);
+--        result = normalFormsLis(sumMonomialsLis(result, mons), G); -- was reverse sort
     	);
      result/(L -> fromLis(R,L))
     )
@@ -349,20 +352,18 @@ sumMonomialsLis(List, List) := List => (L1, L2) -> (
     --sorted.
     unique flatten for I in L1 list (
         for m in L2 list if I == {{}} then {m} else
---            if notIn(m, I) then descSort (I | { m }) --do we need to sort here too?
             if notIn(m, I) then sort (I | { m }) --do we need to sort here too?	    
             else continue
             ))
     
 normalFormsLis = method()
 normalFormsLis(List, List) := List => (Fs, G) -> (
-    -- Fs is a sorted list of lists representing MonomialIdeals, G a list of permutations
+    -- Fs is a list of lists representing MonomialIdeals, G a list of permutations
     -- returns a minimal subset F of Fs such that G F = Fs.
 
 --    <<"---"<< #Fs<<endl;
         	                    
     --check that each monomial ideal in Fs is in MonomialOrder=>Descending form: WE TOOK THAT OUT
---    if debugLevel > 0 then assert all(#Fs, i-> Fs_i == descSort Fs_i);
     if debugLevel > 0 then assert all(#Fs, i-> Fs_i == sort Fs_i);    
 
     if #Fs == 0 then return {{}};
@@ -381,7 +382,6 @@ normalFormsLis(List, List) := List => (Fs, G) -> (
         if L#i === null then continue;
         F := L#i;
         for f in G1 do (
---            H := descSort apply(F, FF -> FF_f);
             H := sort apply(F, FF -> FF_f);
             if LH#?H then (
                 j := LH#H;
@@ -675,14 +675,6 @@ assert(orbitRepresentatives(S, monomialIdeal S_0, mm^2, 2) ==
        {monomialIdeal(a,b^2,b*c), monomialIdeal(a,b^2,c^2), monomialIdeal(a,b^2,c*d), monomialIdeal(a,b*c,b*d)})
 ///
 
-TEST///
-x = symbol x;
-S = ZZ/101[x_1..x_4];
-d = 4
-L1 = flatten entries basis(d,S)/toLis
-L2 = flatten entries sort(basis(d,S), MonomialOrder => Descending)/toLis
-assert(L2 == descSort L1)
-///
 
 ///--new TEST
 restart
@@ -745,7 +737,7 @@ end---------------------------------------------------------------------
 n = 4
 x = symbol x
 S = ZZ/101[x_1..x_n]
-z = monomialIdeal  0_S
+ze = monomialIdeal  0_S
 mm = monomialIdeal gens S
 debug NewMonomialOrbits
 d = 5;s = 2 --1.1 sec, (56, 1540),  90 examples Lis version .1 sec
