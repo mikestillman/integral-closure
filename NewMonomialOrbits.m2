@@ -248,6 +248,8 @@ toLis MonomialIdeal := List => I -> if I == 0 then {{}} else
                                     --reverse sort( I_*/(m-> toLis m))
 				    descSort( I_*/(m-> toLis m))
 
+
+
 toMonLis = (S,e) -> product(#e, i-> S_i^(e_i))
 fromLis = method()
 fromLis (Ring, List) := MonomialIdeal => (S,L) -> monomialIdeal apply(L,e-> toMonLis (S,e))
@@ -267,7 +269,6 @@ notIn(List, List) := Boolean => (m, L2) -> (
     --L2 a list of lists of such, corresponding to a monomial ideal I
     --returns true if m is not in I.
     if L2 == {{}} then return true;
---    if class L2_0 === ZZ then L2 = {L2};
     diffs := apply(L2, n -> m-n);
     all(diffs, L -> min L < 0)
     )
@@ -348,7 +349,8 @@ sumMonomialsLis(List, List) := List => (L1, L2) -> (
     --sorted.
     unique flatten for I in L1 list (
         for m in L2 list if I == {{}} then {m} else
-            if notIn(m, I) then descSort (I | { m }) --do we need to sort here too?
+--            if notIn(m, I) then descSort (I | { m }) --do we need to sort here too?
+            if notIn(m, I) then sort (I | { m }) --do we need to sort here too?	    
             else continue
             ))
     
@@ -360,7 +362,8 @@ normalFormsLis(List, List) := List => (Fs, G) -> (
 --    <<"---"<< #Fs<<endl;
         	                    
     --check that each monomial ideal in Fs is in MonomialOrder=>Descending form: WE TOOK THAT OUT
-    if debugLevel > 0 then assert all(#Fs, i-> Fs_i == descSort Fs_i);
+--    if debugLevel > 0 then assert all(#Fs, i-> Fs_i == descSort Fs_i);
+    if debugLevel > 0 then assert all(#Fs, i-> Fs_i == sort Fs_i);    
 
     if #Fs == 0 then return {{}};
 
@@ -378,7 +381,8 @@ normalFormsLis(List, List) := List => (Fs, G) -> (
         if L#i === null then continue;
         F := L#i;
         for f in G1 do (
-            H := descSort apply(F, FF -> FF_f);
+--            H := descSort apply(F, FF -> FF_f);
+            H := sort apply(F, FF -> FF_f);
             if LH#?H then (
                 j := LH#H;
                 if j > i and L#j =!= null then (
@@ -749,7 +753,7 @@ d = 5;s = 3 --17 sec, (56, 27720), 1282 exmamples Lis version 1.7 sec
 d= 4;s=4 -- 41.5 sec, (35, 52360), 2380 examples Lis version 4.44 sec
 binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
 
-#elapsedTime orbitRepresentativesLis (S, ze, 3:5)
+#elapsedTime orbitRepresentativesLis (S, ze, 5:4)
 
 #elapsedTime orbitRepresentatives (S, z, mm^d, s) 
 
