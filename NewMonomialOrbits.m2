@@ -32,6 +32,7 @@ newPackage(
 *-
 export {
     "orbitRepresentatives",
+    "orbitRepresentativesLis",    
     "hilbertRepresentatives",
     --options
     "MonomialType"
@@ -51,24 +52,13 @@ squareFree(ZZ, Ring) := Matrix => (d,R) -> squareFree({d}, R)
 
 
 monomialsInDegree = method()
-monomialsInDegree(ZZ, Ring, String) := Matrix => (d, R, type) -> (
-    -- d: integer, or list (multidegree).
-    -- R: polynomial ring
-    -- type is either "All", "SquareFree" (anything else is an error)
-    -- return: is a matrix of monomials of the given type and degree
-    if type === "SquareFree" then 
-        squareFree(d, R)
-    else if type === "All" then 
-        basis(d, R)
-    else 
-        error "expected MonomialType to be either \"All\" or \"SquareFree\""
-    )
-
+monomialsInDegree(ZZ, Ring, String) := Matrix => (d, R, type) -> monomialsInDegree({d}, R, type)
 monomialsInDegree(List, Ring, String) := Matrix => (d, R, type) -> (
     -- d: integer, or list (multidegree).
     -- R: polynomial ring
     -- type is either "All", "SquareFree" (anything else is an error)
     -- return: is a matrix of monomials of the given type and degree
+    if #d != degreeLength R then error"expected valid (multi)degree";
     if type === "SquareFree" then 
         squareFree(d, R)
     else if type === "All" then 
@@ -76,7 +66,6 @@ monomialsInDegree(List, Ring, String) := Matrix => (d, R, type) -> (
     else 
         error "expected MonomialType to be either \"All\" or \"SquareFree\""
     )
-
 
 orbitRepresentatives = method(Options=>{MonomialType => "All"})
 
@@ -285,6 +274,7 @@ squareFreeLis(List, Ring) := List => (d,R) -> (
 squareFreeLis(ZZ, Ring) := Matrix => (d,R) -> squareFreeLis({d}, R)
 
 monomialsInDegreeLis = method()
+monomialsInDegreeLis (List,Ring,String) := 
 monomialsInDegreeLis(ZZ, Ring, String) := List => (d, R, type) -> (
     -- d: integer, or list (multidegree).
     -- R: polynomial ring
@@ -355,6 +345,33 @@ sumMonomialsLis(List, List) := List => (L1, L2) -> (
             if notIn(m, I) then sort (I | { m }) --do we need to sort here too?	    
             else continue
             ))
+    
+normalFormLis = method()
+normalFormLis (List, List) := List => (F,G) -> (
+    --F a list of lists representing a single ideal
+    --G a list of lists representing permutations
+    first sort for g in G list sort apply(F, FF->FF_g))
+orbitRepresentativesLis1 = method(Options=>{MonomialType => "All"})
+orbitRepresentativesLis1(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
+    if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
+    result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
+    if #degs >1 then  degs = sort toList(degs); -- more efficient to add the small degree gens first.
+    n := numgens R;
+    G := permutations n;
+
+    for d in degs do( 
+	<<"------"<<endl;
+        mons := monomialsInDegreeLis(d, R, o.MonomialType);
+    	elapsedTime sumList := sumMonomialsLis(result, mons);
+	<<#result<<" "<<#sumList<<endl;
+	result = unique apply(sumList, F -> normalFormLis(F,G));
+	--elapsedTime result = normalFormsLis(sumList, G);
+--        result = normalFormsLis(sumMonomialsLis(result, mons), G); -- was reverse sort
+    	);
+     result/(L -> fromLis(R,L))
+    )
+
+
     
 normalFormsLis = method()
 normalFormsLis(List, List) := List => (Fs, G) -> (
@@ -746,7 +763,7 @@ d= 4;s=4 -- 41.5 sec, (35, 52360), 2380 examples Lis version 4.44 sec
 binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
 
 #elapsedTime orbitRepresentativesLis (S, ze, 5:4)
-
+#elapsedTime orbitRepresentativesLis1(S,ze,5:4)
 #elapsedTime orbitRepresentatives (S, z, mm^d, s) 
 
 --the Lis versions
@@ -762,4 +779,15 @@ binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
 debugLevel = 1
 #elapsedTime orbitRepresentatives (S, z, mm^d, -s)
 
+restart
+loadPackage"NewMonomialOrbits"
+debug NewMonomialOrbits
+S = ZZ/101[x,y,z, Degrees =>{{1,0,0},{0,1,0},{0,0,1}}]
+ze = monomialIdeal(0_S)
+orbitRepresentativesLis(S,ze,{3,3,3})
+orbitRepresentativesLis(S,ze,{{3,3,3}})
+orbitRepresentativesLis(S,ze,{3})
+monomialsInDegree(3,S,"All")
+monomialsInDegreeLis({3,0,0},S,"All")
+basis(3,S)
 
