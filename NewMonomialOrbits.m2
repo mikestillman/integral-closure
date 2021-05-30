@@ -358,20 +358,27 @@ orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, n
     
     if not isMonomialIdeal I then error"oldOrbitRepresentatives:arg 1 is not a monomial ideal";
     Ilis := toLis monomialIdeal I;
-
+    startLis := toLis monomialIdeal startmons;
     if not isMonomialIdeal startmons then error"oldOrbitRepresentatives:arg 2 is not a monomial ideal";
-    startmons0 := toLis monomialIdeal startmons;
-    start := for m in startmons0 list if notIn(m,Ilis) then m else continue;
-    
+
+print Ilis;
+print startLis;
+    start := if Ilis ==={{}} then startLis else
+             for m in startLis list if notIn(m,Ilis) then m else continue;
+
+print start;    
     n := numgens R;
     G := permutations n;
 --    start := toMonLis monomialIdeal compress ((gens startmons) % I);
 
 
    if numelts < 0 then(
-    	    sL := subsets(start, #start+numelts)/sort;
-    	    result := normalFormsLis(apply(sL, ell -> Ilis|ell), G);
-    ) else
+    	    sL := subsets(start, #start+numelts);
+	    if Ilis === {{}} then Ilis = {};
+print sL;	    
+    	    result := normalFormsLis(apply(sL, ell -> sort(Ilis|ell)), G);
+print result;	    
+    ) else (
 
 --   result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
    result = {Ilis}; --if I = 0, this gives {{}} ; has to be treated specially   
@@ -384,6 +391,7 @@ orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, n
 	elapsedTime sums := sumMonomialsLis(result, mons);
         elapsedTime result = normalFormsLis(sums, G)
         ));
+    );
     apply(result, J -> fromLis(R,J))
     )
 
@@ -391,6 +399,12 @@ orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, n
 restart
 loadPackage"NewMonomialOrbits"
 debug NewMonomialOrbits
+R = ZZ/101[x,y,z]
+mm = ideal vars R
+startmons = mm
+I = monomialIdeal 0_R
+
+orbitRepresentatives(R,I,startmons, -1)
 
 R = ZZ/101[a..d]
 I = monomialIdeal R_0
@@ -440,15 +454,6 @@ orbitRepresentatives1(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> 
      result/(L -> fromLis(R,L))
     )
 
-///
-restart
-loadPackage "NewMonomialOrbits"
-debug NewMonomialOrbits
-G = permutations 4
-Fs = {{{1, 0, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 0}}, {{1, 0, 0, 0}, {0, 0, 0, 1}, {0, 1, 0, 0}}, {{1, 0, 0, 0}, {0, 0, 1, 0}, {0, 1, 0, 0}}}
-assert(#normalFormsLis(Fs,G) == 1) -- error!
-
-///    
 normalFormsLis = method()
 normalFormsLis(List, List) := List => (Fs, G) -> (
     -- Fs is a list of lists representing MonomialIdeals, G a list of permutations
@@ -701,6 +706,14 @@ doc ///
         Text
             The default is "All".
 ///
+TEST///
+debug NewMonomialOrbits
+#(G = permutations 4)
+#(G1 = drop(G,1))
+Fs = {{{1, 0, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 0}}, {{1, 0, 0, 0}, {0, 0, 0, 1}, {0, 1, 0, 0}}, {{1, 0, 0, 0}, {0, 0, 1, 0}, {0, 1, 0, 0}}}
+Fs = Fs/sort
+assert(#normalFormsLis(Fs,G) == 1) 
+///    
 
 TEST///
 debug NewMonomialOrbits
@@ -780,8 +793,8 @@ mm = monomialIdeal gens S
 assert ({monomialIdeal (a, b, c)} ==
      oldOrbitRepresentatives(S, monomialIdeal S_0, mm, -1)
      )
-assert ({monomialIdeal (a, b, c)} == 
-     orbitRepresentatives(S, monomialIdeal S_0, mm, -1)
+assert (
+     #orbitRepresentatives(S, monomialIdeal S_0, mm, -1) == 1
      )
  
 --elapsedTime #oldOrbitRepresentatives1(S, monomialIdeal S_0, mm^4, -5)
@@ -805,6 +818,7 @@ debugLevel = 1
 TEST///
 debug NewMonomialOrbits;
 S = ZZ/101[x,y,z]
+mm = ideal vars S
 I = monomialIdeal monomialsInDegree(3,S,"All")
 L = toLis I
 assert(I_* == (fromLis(S, toLis I))_*)
@@ -837,6 +851,9 @@ ans2 = oldOrbitRepresentatives (S, ze, (2,3,4))
 assert(ans1 == ans2)
 ans3 = orbitRepresentatives (S, {2,3,4})
 assert(ans1 == ans3)
+
+assert(#orbitRepresentatives (S, monomialIdeal x, mm, -1) == 1)
+assert(#orbitRepresentatives (S, ze, mm, -1) == 1)
 ///
 
 end---------------------------------------------------------------------
@@ -868,6 +885,18 @@ binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
 #elapsedTime orbitRepresentatives (S, ze, 5:4)
 #elapsedTime orbitRepresentatives1(S,ze,5:4)
 #elapsedTime oldOrbitRepresentatives (S, z, mm^d, s) 
+
+#elapsedTime orbitRepresentatives (S, ze, 4:4) -- 2.25 sec, 2380 examples
+#elapsedTime orbitRepresentatives (S, ze, mm^4, 4)
+#elapsedTime orbitRepresentatives (S, ze, mm^4, -4)
+#elapsedTime orbitRepresentatives (S, ze, mm, -1)
+#elapsedTime orbitRepresentatives (S, ze, mm, -1)
+
+
+G = permutations n
+elapsedTime su = subsets(mm^4_*, 5); --.7 sec
+elapsedTime su1 = apply(su, L-> apply(L, m->flatten exponents m)); -- 33 sec
+elapsedTime #normalFormsLis(su1, G) -- slos.
 
 --the Lis versions
 
