@@ -1,7 +1,7 @@
 newPackage(
-    "NewMonomialOrbits",
+    "MonomialOrbits",
     Version => "1.0", 
-    Date => "18 December 2020, rev 10 May 2021",
+    Date => "18 December 2020, rev 30 May 2021",
     Authors => {{Name => "David Eisenbud", 
             Email => "de@msri.org", 
             HomePage => "http://www.msri.org/~de"},
@@ -11,11 +11,11 @@ newPackage(
     Headline => "Orbit representatives of monomial ideals",
     Keywords => {"Combinatorial Commutative Algebra"},
     PackageExports =>{"Truncations"}, -- for 'truncate'
-    DebuggingMode => true
+    DebuggingMode => false
     )
 -*
 newPackage(
-    "NewMonomialOrbits",
+    "MonomialOrbits",
     Version => "1.0", 
     Date => "18 December 2020, rev 7 May 2021",
     Authors => {{Name => "David Eisenbud", 
@@ -199,8 +199,8 @@ hilbertRepresentatives(Ring, VisibleList) := List => o -> (R, h) -> (
 
 permutations Ring := R -> (
     if not R.?cache then R.cache = new CacheTable;
-    if not R.cache.?NewMonomialOrbits then R.cache.NewMonomialOrbits = new MutableHashTable;
-    H := R.cache.NewMonomialOrbits;
+    if not R.cache.?MonomialOrbits then R.cache.MonomialOrbits = new MutableHashTable;
+    H := R.cache.MonomialOrbits;
     if not H#?"GroupElements" then
         H#"GroupElements" = for p in permutations numgens R list
             map(R, R, (vars R)_p);
@@ -335,8 +335,8 @@ orbitRepresentatives(Ring, VisibleList) := List => o -> (R, degs) -> (
     )
 ///
 restart
-loadPackage "NewMonomialOrbits"
-debug NewMonomialOrbits
+loadPackage "MonomialOrbits"
+debug MonomialOrbits
 S = ZZ/101[a..d];
 L = orbitRepresentatives(S,(2,2,2))
 L = orbitRepresentatives(S,{2,2,2}, MonomialType => "SquareFree")
@@ -506,7 +506,7 @@ beginDocumentation()
 
 doc ///
     Key
-        NewMonomialOrbits
+        MonomialOrbits
     Headline
         find orbit representatives of monomial ideals, under permutations of the variables
     Description
@@ -705,7 +705,7 @@ doc ///
             The default is "All".
 ///
 TEST///
-debug NewMonomialOrbits
+debug MonomialOrbits
 #(G = permutations 4)
 #(G1 = drop(G,1))
 Fs = {{{1, 0, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 0}}, {{1, 0, 0, 0}, {0, 0, 0, 1}, {0, 1, 0, 0}}, {{1, 0, 0, 0}, {0, 0, 1, 0}, {0, 1, 0, 0}}}
@@ -714,7 +714,7 @@ assert(#normalFormsLis(Fs,G) == 1)
 ///    
 
 TEST///
-debug NewMonomialOrbits
+debug MonomialOrbits
 S = ZZ/101[x,y,z]
 L = monomialsInDegreeLis(4,S,"All")
 M = monomialsInDegree(4,S,"All")
@@ -724,8 +724,8 @@ assert(all(#L, i->toMonLis(S, L_i) === (flatten entries M')_i))
 
 TEST///
 restart
-loadPackage"NewMonomialOrbits"
-debug NewMonomialOrbits
+loadPackage"MonomialOrbits"
+debug MonomialOrbits
 S = ZZ/101[x,y,z]
 L = monomialsInDegreeLis(4,S,"All")
 M = monomialsInDegree(4,S,"All")
@@ -776,13 +776,13 @@ TEST///
 ///
 
 TEST///
-  debug needsPackage "NewMonomialOrbits"
+  debug needsPackage "MonomialOrbits"
   S = ZZ/101[a,b,c,d]
   assert(# permutations S == 24)
 ///
 ///
 restart
-debug loadPackage("NewMonomialOrbits", Reload=>true)
+debug loadPackage("MonomialOrbits", Reload=>true)
 ///
 
 TEST///   
@@ -810,12 +810,12 @@ assert(
 
 ///--new TEST
 restart
-loadPackage "NewMonomialOrbits"
+loadPackage "MonomialOrbits"
 debugLevel = 1
 ///
 
 TEST///
-debug NewMonomialOrbits;
+debug MonomialOrbits;
 S = ZZ/101[x,y,z]
 mm = ideal vars S
 I = monomialIdeal monomialsInDegree(3,S,"All")
@@ -859,13 +859,13 @@ end---------------------------------------------------------------------
 
 ///
   restart
-  loadPackage("NewMonomialOrbits", Reload => true)
-  uninstallPackage "NewMonomialOrbits"
+  loadPackage("MonomialOrbits", Reload => true)
+  uninstallPackage "MonomialOrbits"
   restart
-  installPackage "NewMonomialOrbits"
-  check "NewMonomialOrbits"
+  installPackage "MonomialOrbits"
+  check "MonomialOrbits"
 
-  viewHelp NewMonomialOrbits
+  viewHelp MonomialOrbits
 ///
 
 
@@ -875,10 +875,10 @@ x = symbol x
 S = ZZ/101[x_1..x_n]
 ze = monomialIdeal  0_S
 mm = monomialIdeal gens S
-debug NewMonomialOrbits
+debug MonomialOrbits
 d = 5;s = 2 --old timing 1.1 sec, (56, 1540),  90 examples Lis version .1 sec
 d = 5;s = 3 --old timing 17 sec, (56, 27720), 1282 exmamples Lis version 1.7 sec
-d= 4;s=4 
+d= 4;s=8
 
 #elapsedTime orbitRepresentatives (S, ze, s:d) --s=d=4 in 1.67 sec, 2380 examples.
 --old timing 41.5 sec, (35, 52360), 2380 examples Lis version 4.44 sec
@@ -886,5 +886,9 @@ d= 4;s=4
 
 #elapsedTime orbitRepresentatives (S, ze, mm^d, -s) --4.5 sec
 
-binomial(n+d-1, n-1), binomial (binomial(n+d-1, n-1), s)
+--How many of these ideals are there?
+there are about 20 million examples with n=d=4, s = 13
+
+binomial(n+d-1, n-1), inter = binomial(n+d-1, n-1)-n*(d+1)+n*(n-1) 
+binomial (inter,  s)
 
