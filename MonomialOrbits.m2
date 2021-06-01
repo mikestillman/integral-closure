@@ -11,7 +11,7 @@ newPackage(
     Headline => "Orbit representatives of monomial ideals",
     Keywords => {"Combinatorial Commutative Algebra"},
     PackageExports =>{"Truncations"}, -- for 'truncate'
-    DebuggingMode => false
+    DebuggingMode => true
     )
 -*
 newPackage(
@@ -358,27 +358,42 @@ orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, n
 
     num := abs(numelts);
     
-    Ilis := toLis monomialIdeal I;
+    Ilis := if I == 0 then {} else toLis monomialIdeal I;
     startLis := toLis monomialIdeal startmons;
-    start := if Ilis ==={{}} then startLis else
+    start := if Ilis ==={} then startLis else
              for m in startLis list if notIn(m,Ilis) then m else continue;
 
    result := {Ilis}; --if I = 0, this gives {{}} ; has to be treated specially   
    mons := start;
 
-    apply(num, i-> (
+   apply(num, i-> (
 	sums := sumMonomialsLis(result, mons);
 	result = normalFormsLis(sums, G)
         ));
-
+-*
 if numelts < 0 then (
 -- use the previously computed "result" to subtract.
 -- basically: subtract Ilis from result to get result0, then subtract result0 from start to get result.
 	result0 := for J in result list subtract(J, Ilis);
 	result = for K in result0 list subtract(start,K);
     );
-    apply(result, L -> fromLis(R,L))
-    )
+*-
+
+result = apply(result, L -> fromLis(R,L));
+
+elapsedTime if numelts<0 then (
+    print "about to subtract";
+    bigideal := fromLis(R, Ilis|start);
+    
+    result = for K in result list(I + (bigideal - K))
+    );
+result)
+
+--FIX ME: the following takes significant time; is there a faster way?
+subtract = method()
+subtract (Set, List) := List => (L,M) -> sort toList(L - set M)
+    --L and M are monomial ideals with generators of the same degree, represented as lists of lists 
+    --we return sort toList(set L sett M) , the equivalent of monomialIdeal (gens L % M).
 
 
 orbitRepresentatives1 = method(Options => {MonomialType => "All"})
@@ -401,31 +416,33 @@ orbitRepresentatives1(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, 
     start := if Ilis ==={{}} then startLis else
              for m in startLis list if notIn(m,Ilis) then m else continue;
 
----if I is large it *might* make sense to add ILis at the end, instead of here
    result := {Ilis}; --if I = 0, this gives {{}} ; has to be treated specially   
    mons := start;
 
-    apply(num, i-> (
+   apply(num, i-> (
 	sums := sumMonomialsLis(result, mons);
 	result = normalFormsLis(sums, G)
         ));
-
+-*
 if numelts < 0 then (
 -- use the previously computed "result" to subtract.
 -- basically: subtract Ilis from result to get result0, then subtract result0 from start to get result.
 	result0 := for J in result list subtract(J, Ilis);
 	result = for K in result0 list subtract(start,K);
     );
+*-
+print "about to subtract";
 
-    apply(result, L -> fromLis(R,L))
-    
+elapsedTime if numelts < 0 then (
+-- use the previously computed "result" to subtract.
+-- basically: subtract Ilis from result to get result0, then subtract result0 from start to get result.
+	--result0 := for J in result list subtract(J, Ilis);
+	--result = for K in result0 list subtract(start,K);
+	bigset := set(Ilis|start);
+	result = for K in result list toList(bigset-set K);
+    );
+elapsedTime  apply(result, L -> fromLis(R,L))
     )
-
---FIX ME: the following takes significant time; is there a faster way?
-subtract = method()
-subtract (List, List) := List => (L,M) -> sort toList(set L - set M)
-    --L and M are monomial ideals with generators of the same degree, represented as lists of lists 
-    --we return sort toList(set L sett M) , the equivalent of monomialIdeal (gens L % M).
 
 sumMonomialsLis = method()
 sumMonomialsLis(List, List) := List => (L1, L2) -> (
@@ -788,14 +805,14 @@ debug loadPackage("MonomialOrbits", Reload=>true)
 TEST///   
 S = ZZ/101[a..d]
 mm = monomialIdeal gens S
-assert ({monomialIdeal (b, c)} ==
+assert ({monomialIdeal (a, b, c)} ==
      orbitRepresentatives(S, monomialIdeal S_0, mm, -1)
      )
 assert (
      #orbitRepresentatives(S, monomialIdeal S_0, mm, -1) == 1
      )
  assert(
-    {monomialIdeal(b^2,b*c,c^2,b*d,c*d), monomialIdeal(b^2,b*c,c^2,b*d,d^2)} ==
+    {monomialIdeal(a, b^2,b*c,c^2,b*d,c*d), monomialIdeal(a,b^2,b*c,c^2,b*d,d^2)} ==
     orbitRepresentatives(S, monomialIdeal S_0, mm^2, -1)
     )
 assert({monomialIdeal (a, d)} == 
@@ -875,17 +892,21 @@ x = symbol x
 S = ZZ/101[x_1..x_n]
 ze = monomialIdeal  0_S
 mm = monomialIdeal gens S
+
 debug MonomialOrbits
 d = 5;s = 2 --old timing 1.1 sec, (56, 1540),  90 examples Lis version .1 sec
 d = 5;s = 3 --old timing 17 sec, (56, 27720), 1282 exmamples Lis version 1.7 sec
-d= 4;s=8
 
 #elapsedTime orbitRepresentatives (S, ze, s:d) --s=d=4 in 1.67 sec, 2380 examples.
 --old timing 41.5 sec, (35, 52360), 2380 examples Lis version 4.44 sec
+
+(d,s) = (4,4)
 #elapsedTime orbitRepresentatives (S, ze, mm^d, s) 
+#elapsedTime orbitRepresentatives1 (S, ze, mm^d, s) 
+#elapsedTime orbitRepresentatives (S, ze, mm^d, -s) 
+#elapsedTime orbitRepresentatives1 (S, ze, mm^d, -s)
 
-#elapsedTime orbitRepresentatives (S, ze, mm^d, -s) --4.5 sec
-
+ 
 --How many of these ideals are there?
 there are about 20 million examples with n=d=4, s = 13
 
