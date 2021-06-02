@@ -1,7 +1,7 @@
 newPackage(
     "MonomialOrbits",
-    Version => "1.0", 
-    Date => "18 December 2020, rev 30 May 2021",
+    Version => "1.5", 
+    Date => "18 December 2020, last rev 1 June 2021",
     Authors => {{Name => "David Eisenbud", 
             Email => "de@msri.org", 
             HomePage => "http://www.msri.org/~de"},
@@ -11,33 +11,16 @@ newPackage(
     Headline => "Orbit representatives of monomial ideals",
     Keywords => {"Combinatorial Commutative Algebra"},
     PackageExports =>{"Truncations"}, -- for 'truncate'
-    DebuggingMode => true
+    DebuggingMode => false
     )
--*
-newPackage(
-    "MonomialOrbits",
-    Version => "1.0", 
-    Date => "18 December 2020, rev 7 May 2021",
-    Authors => {{Name => "David Eisenbud", 
-            Email => "de@msri.org", 
-            HomePage => "http://www.msri.org/~de"},
-        {Name => "Mike Stillman", 
-            Email => "mike@math.cornell.edu", 
-            HomePage => "http://pi.math.cornell.edu/~mike"}},
-
-    Keywords => {"Combinatorial Commutative Algebra"},
-    PackageImports =>{"Truncations"}, -- for 'truncate'
-    DebuggingMode => true
-    )
-*-
 
 export {
     "orbitRepresentatives",    
     "hilbertRepresentatives",
+    "normalForms",
     --options
     "MonomialType"
     }
-
 
 squareFree = method()
 squareFree(List, Ring) := Matrix => (d,R) -> (
@@ -49,7 +32,6 @@ squareFree(List, Ring) := Matrix => (d,R) -> (
     phi basis(d,R')
     )
 squareFree(ZZ, Ring) := Matrix => (d,R) -> squareFree({d}, R)
-
 
 monomialsInDegree = method()
 monomialsInDegree(ZZ, Ring, String) := Matrix => (d, R, type) -> monomialsInDegree({d}, R, type)
@@ -66,97 +48,6 @@ monomialsInDegree(List, Ring, String) := Matrix => (d, R, type) -> (
     else 
         error "expected MonomialType to be either \"All\" or \"SquareFree\""
     )
-
--*
-oldOrbitRepresentatives = method(Options=>{MonomialType => "All"})
-
-oldOrbitRepresentatives(Ring, VisibleList) := List => o -> (R, degs) -> (
-    oldOrbitRepresentatives(R, monomialIdeal 0_R, degs, o))
-
-oldOrbitRepresentatives(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
-
-    if not isMonomialIdeal I then error"oldOrbitRepresentatives:arg 1 is not a monomial ideal";
-    result := {monomialIdeal I};
-
-    G := permutations R;
-    rawMonsMat := matrix{{}};
-    mons := {};
-    for d in degs do (
-        rawMonsMat = monomialsInDegree(d, R, o.MonomialType);
-        mons = flatten entries sort(rawMonsMat, 
-                     DegreeOrder => Ascending, MonomialOrder => Descending);
-        result = normalForms(sumMonomials(result, mons), G)
-        );
-    result
-    )
-
-
---TODO
-oldOrbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, numelts) -> (
-         
-    --take or subtract numelts elements from startmons mod I, plus I.
-
-    if not isMonomialIdeal I then error"oldOrbitRepresentatives:arg 1 is not a monomial ideal";
-    I = monomialIdeal I;
-
-    if not isMonomialIdeal startmons then error"oldOrbitRepresentatives:arg 2 is not a monomial ideal";
-    startmons = monomialIdeal startmons;
-
-    G := permutations R;
-    start := compress ((gens startmons) % I);
-
-    if numelts < 0 then(
-	    L := flatten entries start;
-    	    sL := subsets(L, #L+numelts)/monomialIdeal;
-    	    return normalForms(apply(sL, ell -> ell + I), G)
-    ) else
-
-    result := {I};
-    mons := flatten entries sort(start,
-                    DegreeOrder => Ascending, MonomialOrder => Descending);
-
-    apply(numelts, i-> (
-	<<"----"<<endl;	    
-	elapsedTime sums := sumMonomials(result, mons);
-        elapsedTime result = normalForms(sums, G)
-        ));
-    result
-    )
-
---this version is slightly SLOWER.
-oldOrbitRepresentatives1 = method(Options => {MonomialType => "All"})
-oldOrbitRepresentatives1(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, numelts) -> (
-         
-    --take or subtract numelts elements from startmons mod I, plus I.
-
-    if not isMonomialIdeal I then error"oldOrbitRepresentatives:arg 1 is not a monomial ideal";
-    I = monomialIdeal I;
-
-    if not isMonomialIdeal startmons then error"oldOrbitRepresentatives:arg 2 is not a monomial ideal";
-    startmons = monomialIdeal startmons;
-
-    G := permutations R;
-    start := compress ((gens startmons) % I);
-
-    if numelts < 0 then (
-<<"subtracting"<<endl;
-	result0 :=oldOrbitRepresentatives1(R, I, startmons, -numelts);
-	result1 := apply(result0, J -> monomialIdeal(gens J % I));
-	result := apply(result0, K -> I+ monomialIdeal(gens startmons %K));
-	) else
-    	
-    result = {I};
-    mons := flatten entries sort(start,
-                    DegreeOrder => Ascending, MonomialOrder => Descending);
-
-    apply(numelts, i-> (
-	<<"----"<<endl;	    
-	elapsedTime sums := sumMonomials(result, mons);
-        elapsedTime result = normalForms(sums, G)
-        ));
-    result
-    )
-*-
 
 hilbertRepresentatives = method(Options=>{MonomialType => "All"})
 hilbertRepresentatives(Ring, VisibleList) := List => o -> (R, h) -> (
@@ -223,6 +114,7 @@ sumMonomials(List, List) := List => (L1, L2) -> (
             )
         )
     )
+
 sumMonomials(Ideal, List) := List => (I, L2) -> sumMonomials({I}, L2)
 
 normalForms = method()
@@ -234,12 +126,10 @@ normalForms(List, List) := (Fs, G) -> (
     S := ring Fs_0;
     G1 := select(G, s -> s vars S != vars S); -- remove the identity element if present.
     L := new MutableList from Fs;
- --elapsedTime 
     LH := hashTable for i from 0 to #Fs-1 list Fs#i => i;
     count := #L;
     if debugLevel > 0 then << "-- " << #L << " ideals" << endl;
 
- --elapsedTime 
     ans := for i from 0 to #L-1 list (
         if L#i === null then continue;
         F := L#i;
@@ -259,40 +149,31 @@ normalForms(List, List) := (Fs, G) -> (
         )
     )
 
---The Lis versions:
+--The Lis versions: Here a monomial is an exponent vector, which is a list of integers, and
+--a monomial ideal is a sorted list of exponent vectors.
+--Note that the zero monomial ideal is (), represented by {{}}, and this often has to be handled separately.
 
+--first methods for converting between monomial ideals and lists of lists
 toLis = method()
---should always be a list of lists. The zero monomial ideal is () and this has to be handled separately.
+
 toLis RingElement := List => m -> (exponents m)_0
 toLis MonomialIdeal := List => I -> if I == 0 then {{}} else 
                                     --reverse sort( I_*/(m-> toLis m))
 				    sort( I_*/(m-> toLis m))
 
 toMonLis = (S,e) -> product(#e, i-> S_i^(e_i))
+
 fromLis = method()
 fromLis (Ring, List) := MonomialIdeal => (S,L) -> if L === {} then monomialIdeal 0_S else 
                                                               monomialIdeal apply(L,e-> toMonLis (S,e))
 
 notIn = method()
 notIn(List, List) := Boolean => (m, L2) -> (
-    --m a list of n elements corresponding to a monomial m in S
-    --L2 a list of lists of such, corresponding to a monomial ideal I
-    --returns true if m is not in I.
+    --returns true if m is not "divisible" by any element of L2.
     if L2 == {{}} then return true;
     diffs := apply(L2, n -> m-n);
     all(diffs, L -> min L < 0)
     )
-
-squareFreeLis = method()
-squareFreeLis(VisibleList, Ring) := List => (d,R) -> (
-    if degreeLength R != #d then 
-        error("expected degrees of length "|degreeLength R);
-    z := symbol z;
-    R' := coefficientRing R[z_1..z_(numgens R), SkewCommutative => true, Degrees => degrees R];
-    phi := map(R,R',vars R);
-    toLis monomialIdeal phi basis(d,R')
-    )
-squareFreeLis(ZZ, Ring) := Matrix => (d,R) -> squareFreeLis({d}, R)
 
 monomialsInDegreeLis = method()
 monomialsInDegreeLis (VisibleList,Ring,String) := 
@@ -306,50 +187,30 @@ monomialsInDegreeLis(ZZ, Ring, String) := List => (d, R, type) -> (
 
 orbitRepresentatives = method(Options=>{MonomialType => "All"})
 orbitRepresentatives(Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
-
     if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
-    result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
-
     if #degs >1 then  degs = sort toList(degs); -- more efficient to add the small degree gens first.
 
     n := numgens R;
     G := permutations n;
 
+    result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
     for d in degs do( 
---	<<"------"<<endl;
         mons := monomialsInDegreeLis(d, R, o.MonomialType);
---     elapsedTime 
 	sumList := sumMonomialsLis(result, mons);
---	<<#result<<" "<<#sumList<<endl;
---     elapsedTime 
 	result = normalFormsLis(sumList, G);
---        result = normalFormsLis(sumMonomialsLis(result, mons), G); -- was reverse sort
     	);
      result/(L -> fromLis(R,L))
     )
-
 
 orbitRepresentatives(Ring, VisibleList) := List => o -> (R, degs) -> (
     ze := monomialIdeal 0_R;
     orbitRepresentatives(R, ze, degs, o)
     )
-///
-restart
-loadPackage "MonomialOrbits"
-debug MonomialOrbits
-S = ZZ/101[a..d];
-L = orbitRepresentatives(S,(2,2,2))
-L = orbitRepresentatives(S,{2,2,2}, MonomialType => "SquareFree")
-monomialsInDegreeLis(2,S,"SquareFree")
-tally apply(L, m->betti res m)
-///
 
 orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, numelts) -> (
      --take or subtract numelts elements from startmons mod I, plus I.
-
     if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
     I = monomialIdeal I;
-
     if not isMonomialIdeal startmons then error"orbitRepresentatives:arg 2 is not a monomial ideal";
     startmons = monomialIdeal startmons;
 
@@ -370,116 +231,28 @@ orbitRepresentatives(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, n
 	sums := sumMonomialsLis(result, mons);
 	result = normalFormsLis(sums, G)
         ));
--*
-if numelts < 0 then (
--- use the previously computed "result" to subtract.
--- basically: subtract Ilis from result to get result0, then subtract result0 from start to get result.
-	result0 := for J in result list subtract(J, Ilis);
-	result = for K in result0 list subtract(start,K);
-    );
-*-
-
-result = apply(result, L -> fromLis(R,L));
-
-elapsedTime if numelts<0 then (
-    print "about to subtract";
-    bigideal := fromLis(R, Ilis|start);
-    
-    result = for K in result list(I + (bigideal - K))
+   result = apply(result, L -> fromLis(R,L));
+   
+   --case of subtraction:
+   if numelts < 0 then(
+       bigideal := fromLis(R, Ilis|start);
+       result = for K in result list(I + (bigideal - K))
     );
 result)
 
---FIX ME: the following takes significant time; is there a faster way?
-subtract = method()
-subtract (Set, List) := List => (L,M) -> sort toList(L - set M)
-    --L and M are monomial ideals with generators of the same degree, represented as lists of lists 
-    --we return sort toList(set L sett M) , the equivalent of monomialIdeal (gens L % M).
-
-
-orbitRepresentatives1 = method(Options => {MonomialType => "All"})
-orbitRepresentatives1(Ring, Ideal, Ideal, ZZ) := List => o -> (R, I, startmons, numelts) -> (
-     --take or subtract numelts elements from startmons mod I, plus I.
-
-    if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
-    I = monomialIdeal I;
-
-    if not isMonomialIdeal startmons then error"orbitRepresentatives:arg 2 is not a monomial ideal";
-    startmons = monomialIdeal startmons;
-
-    n := numgens R;
-    G := permutations n;
-
-    num := abs(numelts);
-    
-    Ilis := toLis monomialIdeal I;
-    startLis := toLis monomialIdeal startmons;
-    start := if Ilis ==={{}} then startLis else
-             for m in startLis list if notIn(m,Ilis) then m else continue;
-
-   result := {Ilis}; --if I = 0, this gives {{}} ; has to be treated specially   
-   mons := start;
-
-   apply(num, i-> (
-	sums := sumMonomialsLis(result, mons);
-	result = normalFormsLis(sums, G)
-        ));
--*
-if numelts < 0 then (
--- use the previously computed "result" to subtract.
--- basically: subtract Ilis from result to get result0, then subtract result0 from start to get result.
-	result0 := for J in result list subtract(J, Ilis);
-	result = for K in result0 list subtract(start,K);
-    );
-*-
-print "about to subtract";
-
-elapsedTime if numelts < 0 then (
--- use the previously computed "result" to subtract.
--- basically: subtract Ilis from result to get result0, then subtract result0 from start to get result.
-	--result0 := for J in result list subtract(J, Ilis);
-	--result = for K in result0 list subtract(start,K);
-	bigset := set(Ilis|start);
-	result = for K in result list toList(bigset-set K);
-    );
-elapsedTime  apply(result, L -> fromLis(R,L))
-    )
-
 sumMonomialsLis = method()
 sumMonomialsLis(List, List) := List => (L1, L2) -> (
-    --L1 list of lists of lists, representing a list of monomial ideals, or a list representing a single
+    --L1: list of lists of lists, representing a list of monomial ideals, or a list representing a single
     --monomial ideal.
-    --L2 list of lists, representing monomials
+    --L2: list of lists, representing monomials
     --return list of lists L of lists; where 
-    --L representa a monomial ideal L' in L1 with a "monomial" from L2 adjoined 
-    --that is not divisible by any monomial in L',
-    --sorted.
-    unique flatten for I in L1 list (
+    --returns the list of monomial ideals I, each an ideal I' from L1 with a "monomial" from L2 adjoined 
+    --that is not divisible by any monomial in I',
+     unique flatten for I in L1 list (
         for m in L2 list if I == {{}} then {m} else
-            if notIn(m, I) then sort (I | { m }) --do we need to sort here too?	    
+            if notIn(m, I) then sort (I | { m })
             else continue
             ))
-    
-normalFormLis = method()
-normalFormLis (List, List) := List => (F,G) -> (
-    --F a list of lists representing a single ideal
-    --G a list of lists representing permutations
-    first sort for g in G list sort apply(F, FF->FF_g))
-
-orbitRepresentativesExperiment = method(Options=>{MonomialType => "All"})
-orbitRepresentativesExperiment (Ring, Ideal, VisibleList) := List => o -> (R, I, degs) -> (
-    if not isMonomialIdeal I then error"orbitRepresentatives:arg 1 is not a monomial ideal";
-    result := {toLis monomialIdeal I}; --if I = 0, this gives {{}} ; has to be treated specially
-    if #degs >1 then  degs = sort toList(degs); -- more efficient to add the small degree gens first.
-    n := numgens R;
-    G := permutations n;
-
-    for d in degs do( 
-        mons := monomialsInDegreeLis(d, R, o.MonomialType);
-	sumList := sumMonomialsLis(result, mons);
-	result = unique apply(sumList, F -> normalFormLis(F,G));
-    	);
-     result/(L -> fromLis(R,L))
-    )
 
 normalFormsLis = method()
 normalFormsLis(List, List) := List => (Fs, G) -> (
@@ -517,8 +290,6 @@ normalFormsLis(List, List) := List => (Fs, G) -> (
     ans
     )
 
-    
-
 beginDocumentation()
 
 doc ///
@@ -547,7 +318,7 @@ doc ///
             @TO orbitRepresentatives@
         :Enumerating monomial ideals with given Hilbert function
             @TO hilbertRepresentatives@
-        :Options limiting the type of ideals generated and whether to add or subtract monomials
+        :Options limiting the type of ideals generated
             @TO MonomialType@ 
 ///
 
@@ -711,6 +482,54 @@ doc ///
 ///
 
 doc ///
+Key
+ normalForms
+ (normalForms, List, List)
+Headline
+ chooses orbit representatives from a list of monomial ideals, under a group of permutations
+Usage
+ L' = normalForms(L,G)
+Inputs
+ L:List
+  list of monomial ideals in a ring R
+ G:List
+  list of permutations, written as automorphisms of R
+Outputs
+ L':List
+  list of representatives of  the G-orbits in L
+Description
+  Text
+   To test a conjecture on monomial ideals of a certain type, one typically makes a 
+   computation on each one. If the computation is costly, and the result is invariant
+   under a group G of permutations of the variables, it may be more efficient to
+   choose orbit representatives first.
+
+   Applying the ring automorphisms and then comparing the ideals can be slow. 
+   In the routine orbitRepresentatives, the monomial ideals are first
+   turned into lists of exponent vector, and the normalForms operations are done on these
+   using "normalFormsLis" instead of on the original ideals. The conversions to and from
+   monomialIdeals and lists of lists are done with toLis and fromLis.
+   
+  Example
+   R = ZZ/101[w,x,y,z]
+   monlist = flatten entries basis(4,R)
+   idlist = subsets(monlist, 3)/monomialIdeal; 
+   #oo
+  Text
+   There are 6545 ideals in 4 variables generated by 3 monomials of degree 4
+  Example
+   G0 = permutations numgens R
+   G = apply(G0, g -> map(R,R,(vars R)_g))
+   normalForms(idlist,G); --there are 244
+   #oo
+  Text
+   But only 333 orbits, a 19-fold reduction.
+SeeAlso
+ orbitRepresentatives
+ hilbertRepresentatives
+///
+
+doc ///
     Key
         MonomialType
     Headline
@@ -721,6 +540,22 @@ doc ///
         Text
             The default is "All".
 ///
+
+TEST///
+   R = ZZ/101[w,x,y,z]
+   monlist = flatten entries basis(4,R)
+   assert (#(idlist = subsets(monlist, 3)/monomialIdeal) == 6545)
+   G0 = permutations numgens R
+   G = apply(G0, g -> map(R,R,(vars R)_g))
+   assert(#normalForms(idlist,G) == 333)
+///
+
+TEST///
+S = ZZ/101[a..d];
+assert(#orbitRepresentatives(S,(2,2,2)) == 11)
+assert(#orbitRepresentatives(S,{2,2,2}, MonomialType => "SquareFree") == 3)
+///
+
 TEST///
 debug MonomialOrbits
 #(G = permutations 4)
@@ -872,7 +707,7 @@ assert(#orbitRepresentatives (S, monomialIdeal x, mm, -1) == 1)
 assert(#orbitRepresentatives (S, ze, mm, -1) == 1)
 ///
 
-end---------------------------------------------------------------------
+end-----------------------------------
 
 ///
   restart
@@ -885,31 +720,17 @@ end---------------------------------------------------------------------
   viewHelp MonomialOrbits
 ///
 
-
-
 n = 4
 x = symbol x
 S = ZZ/101[x_1..x_n]
 ze = monomialIdeal  0_S
 mm = monomialIdeal gens S
 
-debug MonomialOrbits
-d = 5;s = 2 --old timing 1.1 sec, (56, 1540),  90 examples Lis version .1 sec
-d = 5;s = 3 --old timing 17 sec, (56, 27720), 1282 exmamples Lis version 1.7 sec
-
-#elapsedTime orbitRepresentatives (S, ze, s:d) --s=d=4 in 1.67 sec, 2380 examples.
---old timing 41.5 sec, (35, 52360), 2380 examples Lis version 4.44 sec
-
+--timing for version of June 1, 2021 on DE's IMac Pro:
 (d,s) = (4,4)
-#elapsedTime orbitRepresentatives (S, ze, mm^d, s) 
-#elapsedTime orbitRepresentatives1 (S, ze, mm^d, s) 
-#elapsedTime orbitRepresentatives (S, ze, mm^d, -s) 
-#elapsedTime orbitRepresentatives1 (S, ze, mm^d, -s)
+#elapsedTime orbitRepresentatives (S, ze, mm^d, s) --.958 sec
+#elapsedTime orbitRepresentatives (S, ze, mm^d, -s) --1.021 sec
+#elapsedTime orbitRepresentatives (S, ze, s:d) --.980 sec
+--for an earlier version, the timing was 41.5 sec.
 
- 
---How many of these ideals are there?
-there are about 20 million examples with n=d=4, s = 13
-
-binomial(n+d-1, n-1), inter = binomial(n+d-1, n-1)-n*(d+1)+n*(n-1) 
-binomial (inter,  s)
 
