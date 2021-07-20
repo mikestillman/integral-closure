@@ -1,4 +1,4 @@
-newPackage(
+ newPackage(
     "MonomialOrbits",
     Version => "1.5", 
     Date => "18 December 2020, last rev 1 June 2021",
