@@ -1,7 +1,5 @@
 -- TODO:
 --  finish doc
---  isFinite RingMap
---  isFiniteOverCoefficientRing Ring
 --  how to interact with pushForward?
 --   issues: pushForward seems somewhat faster, in the homogeneous case...
 --           also, are these stashed in that case?  (They are not here, yet).
@@ -22,19 +20,24 @@ newPackage(
                 HomePage => "http://pi.math.cornell.edu/~mike"}
             },
         Headline => "push forwards of finite ring maps",
-        Keywords => {"Commutative Algebra"},
-        DebuggingMode => true
+        Keywords => {"Commutative Algebra"}
         )
         
 -- note, this version has a slight change added by Karl Schwede.  It has an option to turn off the prune calls.
 -- Recently, David Eisenbud and Mike Stillman have extended it, fixing some bugs too.
 
 export {
-    "isFiniteOverCoefficientRing",
-    "isFiniteRingMap",
+    "isModuleFinite",
     "pushFwd", 
     "NoPrune"
     }
+
+isInclusionOfCoefficientRing = method()
+isInclusionOfCoefficientRing RingMap := Boolean => inc -> (
+    --checks whether the map is the inclusion of the coefficientRing
+    if source inc =!= coefficientRing target inc then return false;
+    inc vars source inc == promote (vars source inc, target inc)
+    )
 
 isFinite1 = (f) -> (
     A := source f;
@@ -68,11 +71,15 @@ isFinite1 = (f) -> (
     true
     )
 
-
-isFiniteRingMap = method()
-isFiniteRingMap RingMap := Boolean => f -> (
+isModuleFinite = method()
+isModuleFinite Ring := Boolean => R -> (
+    I := ideal leadTerm ideal R;
+    ge := flatten select(I_*/support, ell -> #ell == 1);
+    set ge === set gens ring I
+    )
+isModuleFinite RingMap := Boolean => f -> (
     if isInclusionOfCoefficientRing f then
-        isFiniteOverCoefficientRing target f
+        isModuleFinite target f
     else
         isFinite1 f
     )
@@ -206,7 +213,7 @@ pushAuxHgs(RingMap):=(f)-> (
     
      if isInclusionOfCoefficientRing f then (
      --case when the source of f is the coefficient ring of the target:
-	 if not isFiniteOverCoefficientRing target f then error "expected a finite map";
+	 if not isModuleFinite target f then error "expected a finite map";
 	 matB = basis B;
          mapf = if isHomogeneous f 
            then (b) -> (
@@ -267,20 +274,6 @@ pushAuxHgs(RingMap):=(f)-> (
      matB,mapf     
      )
 
-isInclusionOfCoefficientRing = method()
-isInclusionOfCoefficientRing RingMap := Boolean => inc -> (
-    --checks whether the map is the inclusion of the coefficientRing
-    if source inc =!= coefficientRing target inc then return false;
-    inc vars source inc == promote (vars source inc, target inc)
-    )
-
-isFiniteOverCoefficientRing = method()
-isFiniteOverCoefficientRing Ring := Boolean => R -> (
-    I := ideal leadTerm ideal R;
-    ge := flatten select(I_*/support, ell -> #ell == 1);
-    set ge === set gens ring I
-    )
-    
 beginDocumentation()
 
 doc ///
@@ -522,14 +515,17 @@ document{
 
 doc ///
     Key
-        (isFiniteRingMap, RingMap)
-        isFiniteRingMap
+        (isModuleFinite, RingMap)
+        (isModuleFinite, Ring)
+        isModuleFinite
     Headline
         whether the target of a ring map is finitely generated over source
     Usage
-        isFiniteRingMap f
+        isModuleFinite f
+        isModuleFinite R
     Inputs
         f:RingMap
+            or $R$ @ofClass Ring@
     Outputs
         :Boolean
     Description
@@ -544,10 +540,17 @@ doc ///
             B = C/(y^2-x^3);
             f = map(A, B, {t^2, t^3})
             isWellDefined f
-            isFiniteRingMap f
+            isModuleFinite f
         Example
             f = map(kk[x,y], A, {x+y})
-            assert not isFiniteRingMap f
+            assert not isModuleFinite f
+        Text
+            If a ring $R$ is given, this method returns true if and only if $R$
+            is a finitely generated module over its coefficient ring.
+        Example
+            A = kk[x]
+            B = A[y]/(y^3+x*y+3)
+            isModuleFinite B
     SeeAlso
         pushFwd
 ///
@@ -613,7 +616,7 @@ pr = pushFwd map(R',R)
 q = pr_0 / (pr_0)_0
 use R
 assert(ann q==ideal(x,y))
-assert isFiniteRingMap map(R', R)
+assert isModuleFinite map(R', R)
 ///
 
 -- test 3
@@ -629,8 +632,8 @@ S=PS/kernel map(T,PS,{t^3-1,t^4-t,t^5-t^2})
 
 rs=map(S,R,{x_0,x_1})
 st=map(T,S,{t^3-1,t^4-t,t^5-t^2})
-assert isFiniteRingMap rs
-assert isFiniteRingMap st
+assert isModuleFinite rs
+assert isModuleFinite st
 pst=pushFwd st
 
 MT=pst_0
@@ -659,14 +662,14 @@ A=T[x,y]/(x^2-t*y)
 R=A[p]/(p^3-t^2*x^2)
 S=A[q]/(t^3*(q-1)^6-t^2*x^2)
 f=map(S,R,{t*(q-1)^2})
-assert isFiniteRingMap f
+assert isModuleFinite f
 pushFwd f
 
 p=symbol p
 R=A[p_1,p_2]/(p_1^3-t*p_2^2)
 S=A[q]
 f=map(S,R,{t*q^2,t*q^3})
-assert isFiniteRingMap f
+assert isModuleFinite f
 pushFwd f
 
 i=ideal(q^2-t*x,q*x*y-t)
@@ -680,7 +683,7 @@ kk=QQ
 A=kk[x]
 B=kk[y]/(y^2)
 f=map(B,A,{y})
-assert isFiniteRingMap f
+assert isModuleFinite f
 pushFwd f
 use B
 d=map(B^1,B^1,matrix{{y^2}})
@@ -695,14 +698,14 @@ B=kk[x,y]/(x*y)
 use B
 i=ideal(x)
 f=map(B,A,{x})
-assert not isFiniteRingMap f
+assert not isModuleFinite f
 assert(isFreeModule pushFwd(f,module i))
 ///
 
 -- test 7
 TEST ///
 kk=ZZ/101
-n=3
+n=2
 
 PA=kk[x_1..x_(2*n)]
 iA=ideal apply(toList(1..n),i->(x_(2*i-1)^i-x_(2*i)^(i+1)))
@@ -715,8 +718,8 @@ time iB=kernel g;
 B=PB/iB
 
 f=map(A,B,l)
-assert isFiniteRingMap f
-assert isFiniteRingMap g
+assert isModuleFinite f
+assert isModuleFinite g
 time h1=pushFwd g;
 ph1=cokernel promote(relations h1_0,B);
 time h2=pushFwd f;
@@ -730,7 +733,7 @@ A = QQ
 B = QQ[x]/(x^2)
 N = B^1 ++ (B^1/(x))
 f = map(B,A)
-assert isFiniteRingMap f
+assert isModuleFinite f
 pN = pushFwd(f,N)
 assert(isFreeModule pN)
 assert(numgens pN == 3) 
@@ -775,8 +778,8 @@ TEST///
   basis L
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
-  assert isFiniteOverCoefficientRing L
-  assert isFiniteRingMap inc
+  assert isModuleFinite L
+  assert isModuleFinite inc
   (M,B,pf) = pushFwd inc
   assert( B*presentation M  == 0)
   assert(numcols B == 5)
@@ -796,8 +799,8 @@ TEST///
   basis L
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
-  assert isFiniteOverCoefficientRing L
-  assert isFiniteRingMap inc
+  assert isModuleFinite L
+  assert isModuleFinite inc
   (M,B,pf) = pushFwd inc -- ok.  this works, but isn't awesome, as it uses a graph ideal.
   assert( B*presentation M  == 0)
   assert(numcols B == 5)
@@ -853,7 +856,7 @@ TEST ///
   R = A[y,z, Join => false]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
-  assert isFiniteRingMap map(B,A)
+  assert isModuleFinite map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{1}
@@ -872,7 +875,7 @@ TEST ///
   R = A[y,z, Join => false]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
-  assert isFiniteRingMap map(B,A)
+  assert isModuleFinite map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{1}
@@ -892,7 +895,7 @@ TEST ///
   R = A[y,z]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
-  assert isFiniteRingMap map(B,A)
+  assert isModuleFinite map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{1}
@@ -905,7 +908,7 @@ TEST ///
   R = A[y,z]
   I = ideal(y^4-x*y-(x^2+1)*z^2, z^4 - (x-1)*y-z^2 - z - y^3)
   B = R/I
-  assert isFiniteRingMap map(B,A)
+  assert isModuleFinite map(B,A)
   (M,g,pf) = pushFwd B
   pushFwd B^1
   pushFwd B^{{0,1}}
@@ -913,6 +916,26 @@ TEST ///
   fz = pushFwd matrix{{z}}
   assert(fy*fz == pushFwd matrix{{y*z}}) -- good
   assert(fy*fz - pushFwd matrix{{y*z}} == 0)
+///
+
+TEST ///
+-*
+restart
+needsPackage "PushForward"
+*-
+  n = 4
+  d = 4
+  c = 2
+  kk = ZZ/32003;
+  S = kk[x_1..x_n];
+  I = ideal random(S^1, S^{c:-d});
+  R = S/I;
+  A = kk[t_1..t_(n-c)];
+  phi = map(R, A, random(R^1, R^{n-c:-1}));
+  elapsedTime assert isModuleFinite phi
+  elapsedTime M1 = pushFwd(phi, R^1)
+  elapsedTime M2 = pushForward(phi, R^1);
+  assert(M1 == M2)
 ///
 
 end--
@@ -961,8 +984,6 @@ pushFwd f
   phi = map(C,B)
   f = map(C^1, B^3, phi, {{x,s*y,z}})
   ker f
-  
-
 ///
 
 TEST ///      
@@ -991,7 +1012,7 @@ TEST ///
   describe L
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
-  assert isFiniteOverCoefficientRing L
+  assert isModuleFinite L
   pushFwd inc
   ML = pushFwd(map(L,frac A), L^1)
 
@@ -1005,7 +1026,7 @@ TEST ///
   describe L
   inc = map(L, A)
   assert isInclusionOfCoefficientRing inc
-  assert isFiniteOverCoefficientRing L
+  assert isModuleFinite L
   (LA, bas, pf) = pushFwd inc -- this works
   pf(b^2+c^2) -- maybe a better way?
 
@@ -1022,6 +1043,7 @@ TEST ///
   pushForward(inc, A^1) -- now fails...
   pushFwd inc
 ///
+
 
 ///
 -- Case 1. 
