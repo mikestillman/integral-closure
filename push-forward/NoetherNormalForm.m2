@@ -757,6 +757,14 @@ noetherForm RingMap := Ring => opts -> (f) -> (
 
 noetherForm Ring := Ring => opts -> R -> (
     -- TODO: set the noether map.
+    S := coefficientRing R;
+    
+    if (isPolynomialRing S or isField S) and isModuleFinite R then (
+	KR := makeFrac R;
+	setNoetherInfo(R,KR);
+	R.NoetherInfo#"noether map" = map(R,R);
+	return R);
+    
     (F, J, xv) := noetherNormalization R;
     kk := coefficientRing R;
     t := opts.Variable;
@@ -1761,8 +1769,11 @@ TEST ///
 ///
 
 end----------------------------------------------------------
-
 restart
+uninstallPackage "PushForward"
+restart
+installPackage "PushForward"
+----
 uninstallPackage "NoetherNormalForm"
 restart
 installPackage "NoetherNormalForm"
