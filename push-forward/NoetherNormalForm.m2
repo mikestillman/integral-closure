@@ -340,12 +340,14 @@ makeFrac = method()
 makeFrac Ring := Ring => (B) -> (
     -- If the user has somehow already set the fraction field of B (generally as an engine ring)
     -- then should we silently change that, or give an error?  Right now, we give an error.
-    if B.?frac then 
-        error "cannot make a ring which already has a fraction field into a fraction field";
     if not isModuleFinite B then
         error "expected the ring to be finite over the chosen polynomial ring";
     A := coefficientRing B; -- ASSUME: a polynomial ring over a field.
     KA := frac A;
+    
+    if KA === A then return frac B;
+    
+    if B.?frac then <<"warning: ring had a fraction field; creating simpler fraction field"<<endl;
     kk := coefficientRing A; -- must be a field, but not a fraction field.
     I := ideal B;
     ambientB := ring I;
@@ -831,12 +833,28 @@ TEST ///
   restart
   needsPackage "NoetherNormalForm"
 *-
+  R = ZZ/101[x,y]/(x^2-y-1, y^3-x*y-3)
+
+  B = noetherForm R
+  noetherMap B -- FAILS: need to set this!
+  A = coefficientRing B
+  assert(coefficientRing frac B === frac A)
+///
+
+TEST ///
+  -- we test usage of noetherForm R, where R is a ring:
+  -- here: if R is finite over its base, (and R.?frac is not set).
+  --          in this case, we set the noether info, and set frac R too.
+  -- if R is not finite over its base, we call the noether normalization code.
+-*  
+  restart
+  needsPackage "NoetherNormalForm"
+*-
   R = ZZ/101[x,y]/(x*y^3-x^2-y*x)
   B = noetherForm R
   noetherMap B -- FAILS: need to set this!
   A = coefficientRing B
   assert(coefficientRing frac B === frac A)
-  see ideal gens gb ideal B
 ///
 
 TEST ///
