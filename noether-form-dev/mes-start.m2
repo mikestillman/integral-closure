@@ -1,3 +1,10 @@
+-- The following 3 lines have been placed (MES) into my init.m2 file
+-*
+prefix = "~/src/M2-eisenbud/M2/Macaulay2/packages/"
+needsNewPackage = (name) -> needsPackage (name, FileName => prefix | name | ".m2")
+installNewPackage = (name) -> installPackage (name, FileName => prefix | name | ".m2")
+*-
+
 ----------------------------------------------------------
 restart
 uninstallPackage "FractionalIdeals"
@@ -7,21 +14,14 @@ uninstallPackage "PushForward"
 
 ----------------------------------------------------------
 restart
-prefix = "~/src/M2-eisenbud/M2/Macaulay2/packages/"
-needsNewPackage = (name) -> needsPackage (name, FileName => prefix | name | ".m2")
-
 needsNewPackage "PushForward"
 needsNewPackage "NoetherNormalization"
 needsNewPackage "NoetherNormalForm"
 needsNewPackage "FractionalIdeals"
-
 peek loadedFiles
 
 ----------------------------------------------------------
 restart
-prefix = "~/src/M2-eisenbud/M2/Macaulay2/packages/"
-installNewPackage = (name) -> installPackage (name, FileName => prefix | name | ".m2")
-
 installNewPackage "PushForward"
 installNewPackage "NoetherNormalization"
 installNewPackage "NoetherNormalForm"
